@@ -52,6 +52,25 @@ Deploy `firebase.rules` so each signed-in user can only access their own path:
 firebase deploy --only firestore:rules
 ```
 
+## Hosting
+
+This app is intended to be hosted on **Firebase Hosting**. The repo already includes `firebase.json`, configured to serve the Vite production build from `dist/` and rewrite app routes to `index.html`.
+
+Build and deploy:
+
+```bash
+npm run build
+firebase deploy --only hosting
+```
+
+When deploying both hosting and Firestore rules:
+
+```bash
+firebase deploy --only hosting,firestore:rules
+```
+
+For Google sign-in, make sure the Firebase Hosting domain is allowed in **Authentication > Settings > Authorized domains**.
+
 ## Data model
 
 ```text

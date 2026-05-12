@@ -135,6 +135,7 @@ Firebase Authentication + Google Sign-In
 Firebase Firestore for cloud data
 Firestore offline persistence for offline reads/writes
 PWA service worker for offline app shell
+Firebase Hosting for the deployed static app
 ```
 
 Why this is recommended:
@@ -143,6 +144,7 @@ Why this is recommended:
 - Firestore can sync data across devices.
 - Firestore supports offline persistence on the web when enabled.
 - A service worker can cache the app shell so the app itself opens offline.
+- Firebase Hosting is the chosen hosting target because it fits the existing Firebase Auth and Firestore stack, provides HTTPS, and serves the Vite PWA build directly from `dist/`.
 
 Important note:
 
@@ -173,6 +175,33 @@ VITE_FIREBASE_APP_ID=
 ```
 
 The `.env` file should stay local and must not be committed.
+
+### 4.2 Hosting decision
+
+The Version 1 app should be deployed with **Firebase Hosting**.
+
+Current hosting configuration:
+
+- `firebase.json` serves the production build from `dist/`.
+- All routes rewrite to `/index.html` so the React app can handle navigation.
+- Firestore rules are deployed from `firebase.rules`.
+
+Primary deployment flow:
+
+```bash
+npm run build
+firebase deploy --only hosting
+```
+
+Deploy hosting and Firestore rules together when security rules changed:
+
+```bash
+firebase deploy --only hosting,firestore:rules
+```
+
+After deployment, confirm the Firebase Hosting domain is listed under **Firebase Authentication > Settings > Authorized domains** so Google sign-in works on the hosted app.
+
+Local hosting on an idle machine is not the primary Version 1 deployment target. It remains a possible later option for serving the static `dist/` files privately, but Firebase would still provide authentication, Firestore storage, and cross-device sync unless the backend architecture is changed.
 
 ---
 
@@ -790,7 +819,7 @@ Auth: Firebase Authentication with Google provider
 Database: Firestore
 Offline data: Firestore offline persistence
 PWA: Manifest + service worker
-Hosting: Firebase Hosting, Vercel, Netlify, or similar
+Hosting: Firebase Hosting
 ```
 
 ### Simplest AI-builder-friendly stack
