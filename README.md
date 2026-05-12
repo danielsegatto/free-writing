@@ -21,6 +21,19 @@ A private, Firebase-backed messaging-style PWA for saving and organizing your ow
 - Consider loading only the active conversation's messages if large conversation lists become slow.
 - Consider code-splitting Firebase-heavy client code if the production bundle warning becomes a deployment concern.
 
+## Code organization
+
+The React app is split by responsibility:
+
+- `src/App.tsx` coordinates app state, derived data, and user actions.
+- `src/components/SignInScreen.tsx` renders the logged-out Firebase sign-in flow.
+- `src/components/Sidebar.tsx` renders search and conversation navigation.
+- `src/components/ConversationPane.tsx` renders the active conversation, messages, reorder controls, and composer.
+- `src/components/ForwardModal.tsx` renders the forward target picker.
+- `src/hooks/useMessagingData.ts` owns auth, conversation, and message subscriptions.
+- `src/services/` contains Firebase auth, conversation, message, and search operations.
+- `src/utils/` contains small shared formatting and error helpers.
+
 ## Setup
 
 1. Create a Firebase project.

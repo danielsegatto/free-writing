@@ -90,6 +90,7 @@ The current app state is a working Firebase-backed React PWA named `My Messages`
 Implemented:
 
 - Vite + React frontend.
+- React code organized into small components, a subscription hook, Firebase services, and utility helpers.
 - Firebase Authentication with Google provider.
 - Firestore cloud storage under `users/{userId}/conversations/{conversationId}/messages/{messageId}`.
 - Firestore security rules scoped to the signed-in user's UID.
@@ -178,7 +179,47 @@ VITE_FIREBASE_APP_ID=
 
 The `.env` file should stay local and must not be committed.
 
-### 4.2 Hosting decision
+### 4.2 Current frontend code organization
+
+The current React implementation is organized by responsibility so future changes can be made in smaller, safer areas:
+
+```text
+src/App.tsx
+  Coordinates app state, derived data, and user action handlers.
+
+src/components/SignInScreen.tsx
+  Logged-out Firebase sign-in screen.
+
+src/components/Sidebar.tsx
+  Search, conversation list, create, rename, delete, and navigation UI.
+
+src/components/ConversationPane.tsx
+  Active conversation view, message list, reorder controls, edit state, and composer UI.
+
+src/components/ForwardModal.tsx
+  Conversation picker used when forwarding a message.
+
+src/hooks/useMessagingData.ts
+  Authentication, conversation, and message subscription lifecycle.
+
+src/services/
+  Firebase auth, conversation, message, and search operations.
+
+src/utils/
+  Shared formatting and error helpers.
+```
+
+Development impact:
+
+- `App.tsx` should stay focused on orchestration and cross-component workflows.
+- UI changes should usually start in `src/components/`.
+- Firebase read/write behavior should usually start in `src/services/`.
+- Subscription and data-loading behavior should usually start in `src/hooks/useMessagingData.ts`.
+- Small reusable helpers should live in `src/utils/`.
+
+This structure makes the app easier for an AI coding tool or human developer to modify because each file has a narrower purpose and fewer unrelated concerns.
+
+### 4.3 Hosting decision
 
 The Version 1 app should be deployed with **Firebase Hosting**.
 
