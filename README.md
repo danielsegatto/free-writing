@@ -8,17 +8,18 @@ A private, Firebase-backed messaging-style PWA for saving and organizing your ow
 - Firestore-backed conversations and messages.
 - Firestore rules scoped to the signed-in user's `uid`.
 - Conversation create, rename, open, and delete.
-- Message create, edit, delete, forward, and search.
+- Message create, edit, delete, forward, search, and manual reorder.
+- `Ctrl+Enter` / `Cmd+Enter` sends a new message or saves an edit; plain `Enter` inserts a newline.
 - PWA manifest and generated service worker.
-- Firestore offline persistence for cached data and queued offline writes.
+- Firestore persistent local cache for cached data and queued offline writes.
+- Message order is stored with `sortOrder` and syncs across devices.
 
 ## Development priorities
 
-- Send a message or save an edit with `Ctrl+Enter` / `Cmd+Enter`.
-- Keep `Enter` as newline insertion in the composer.
-- Replace deprecated Firestore persistence setup with the newer persistent local cache settings.
-- Add manual reordering for text blocks inside a conversation.
-- Persist message order with a `sortOrder` field and sync it across devices.
+- Add focused tests for Firestore rules and core message behavior.
+- Verify offline create, edit, delete, forward, and reorder behavior against Firebase/Firestore in a real browser.
+- Consider loading only the active conversation's messages if large conversation lists become slow.
+- Consider code-splitting Firebase-heavy client code if the production bundle warning becomes a deployment concern.
 
 ## Setup
 
@@ -89,6 +90,8 @@ Messages should include:
 - `isForwarded`
 - `forwardedFromConversationId`
 - `forwardedFromMessageId`
+
+Existing messages without `sortOrder` are displayed in chronological order until a reorder action persists explicit order values.
 
 ## Scripts
 

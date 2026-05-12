@@ -302,6 +302,18 @@ button {
 
 .message-actions {
   justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.message-actions .icon-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
+.reorder-actions {
+  display: flex;
+  margin-right: auto;
+  gap: 2px;
 }
 
 .composer {

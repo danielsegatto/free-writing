@@ -3,11 +3,13 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDocs,
   onSnapshot,
   orderBy,
   query,
   serverTimestamp,
-  updateDoc
+  updateDoc,
+  writeBatch
 } from 'firebase/firestore';
 import { requireDb } from '../firebase';
 import type { Message } from '../types';
@@ -19,6 +21,30 @@ const messagesPath = (userId: string, conversationId: string) =>
 const messagePath = (userId: string, conversationId: string, messageId: string) =>
   doc(requireDb(), 'users', userId, 'conversations', conversationId, 'messages', messageId);
 
+const sortStep = 1000;
+
+function getMessageTime(message: Message) {
+  return message.createdAt?.toMillis?.() ?? 0;
+}
+
+function normalizeMessages(messages: Message[]) {
+  return messages
+    .map((message, index) => ({
+      ...message,
+      sortOrder: typeof message.sortOrder === 'number' ? message.sortOrder : (index + 1) * sortStep
+    }))
+    .sort(
+      (first, second) =>
+        first.sortOrder - second.sortOrder || getMessageTime(first) - getMessageTime(second) || first.id.localeCompare(second.id)
+    );
+}
+
+async function getNextSortOrder(userId: string, conversationId: string) {
+  const snapshot = await getDocs(query(messagesPath(userId, conversationId), orderBy('createdAt', 'asc')));
+  const messages = normalizeMessages(snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }) as Message));
+  return (messages.at(-1)?.sortOrder ?? 0) + sortStep;
+}
+
 export function listenForMessages(
   userId: string,
   conversationId: string,
@@ -26,12 +52,13 @@ export function listenForMessages(
 ) {
   const q = query(messagesPath(userId, conversationId), orderBy('createdAt', 'asc'));
   return onSnapshot(q, (snapshot) => {
-    onChange(snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }) as Message));
+    onChange(normalizeMessages(snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }) as Message)));
   });
 }
 
 export async function createMessage(userId: string, conversationId: string, text: string) {
   const cleanText = text.trim();
+  const sortOrder = await getNextSortOrder(userId, conversationId);
   const message = await addDoc(messagesPath(userId, conversationId), {
     userId,
     conversationId,
@@ -39,6 +66,7 @@ export async function createMessage(userId: string, conversationId: string, text
     searchText: cleanText.toLowerCase(),
     createdAt: serverTimestamp(),
     updatedAt: null,
+    sortOrder,
     isForwarded: false,
     forwardedFromConversationId: null,
     forwardedFromMessageId: null
@@ -71,6 +99,7 @@ export async function forwardMessage(
   source: Message,
   targetConversationId: string
 ) {
+  const sortOrder = await getNextSortOrder(userId, targetConversationId);
   const forwarded = await addDoc(messagesPath(userId, targetConversationId), {
     userId,
     conversationId: targetConversationId,
@@ -78,10 +107,21 @@ export async function forwardMessage(
     searchText: source.searchText,
     createdAt: serverTimestamp(),
     updatedAt: null,
+    sortOrder,
     isForwarded: true,
     forwardedFromConversationId: source.conversationId,
     forwardedFromMessageId: source.id
   });
   await touchConversation(userId, targetConversationId, source.text);
   return forwarded;
+}
+
+export async function reorderMessages(userId: string, conversationId: string, messages: Message[]) {
+  const batch = writeBatch(requireDb());
+  messages.forEach((message, index) => {
+    batch.update(messagePath(userId, conversationId, message.id), {
+      sortOrder: (index + 1) * sortStep
+    });
+  });
+  await batch.commit();
 }

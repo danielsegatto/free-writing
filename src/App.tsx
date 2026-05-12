@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft,
+  ArrowDown,
+  ArrowUp,
   Edit3,
   Forward,
   LogOut,
@@ -24,7 +26,8 @@ import {
   deleteMessage,
   editMessage,
   forwardMessage,
-  listenForMessages
+  listenForMessages,
+  reorderMessages
 } from './services/messages';
 import { searchLoadedMessages } from './services/search';
 import type { AppUser, Conversation, Message } from './types';
@@ -173,6 +176,19 @@ export default function App() {
     setActiveConversationId(targetConversationId);
   }
 
+  async function handleMoveMessage(messageIndex: number, direction: -1 | 1) {
+    if (!user || !activeConversationId) return;
+    const targetIndex = messageIndex + direction;
+    if (targetIndex < 0 || targetIndex >= activeMessages.length) return;
+    const nextMessages = [...activeMessages];
+    [nextMessages[messageIndex], nextMessages[targetIndex]] = [nextMessages[targetIndex], nextMessages[messageIndex]];
+    setMessagesByConversation((current) => ({
+      ...current,
+      [activeConversationId]: nextMessages
+    }));
+    await reorderMessages(user.uid, activeConversationId, nextMessages);
+  }
+
   if (authLoading) {
     return <div className="loading">Loading My Messages...</div>;
   }
@@ -295,7 +311,7 @@ export default function App() {
             </header>
 
             <div className="messages">
-              {activeMessages.map((message) => (
+              {activeMessages.map((message, messageIndex) => (
                 <article className="message-bubble" key={message.id}>
                   <div className="message-meta">
                     {message.isForwarded && <span>Forwarded</span>}
@@ -304,6 +320,24 @@ export default function App() {
                   </div>
                   <p>{message.text}</p>
                   <div className="message-actions">
+                    <div className="reorder-actions" aria-label="Reorder message">
+                      <button
+                        className="icon-button bare"
+                        title="Move up"
+                        disabled={messageIndex === 0}
+                        onClick={() => void handleMoveMessage(messageIndex, -1)}
+                      >
+                        <ArrowUp size={16} />
+                      </button>
+                      <button
+                        className="icon-button bare"
+                        title="Move down"
+                        disabled={messageIndex === activeMessages.length - 1}
+                        onClick={() => void handleMoveMessage(messageIndex, 1)}
+                      >
+                        <ArrowDown size={16} />
+                      </button>
+                    </div>
                     <button
                       className="icon-button bare"
                       title="Edit"
@@ -356,6 +390,12 @@ export default function App() {
               <textarea
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+                    event.preventDefault();
+                    void handleSubmitMessage();
+                  }
+                }}
                 placeholder="Write a message"
                 rows={2}
               />

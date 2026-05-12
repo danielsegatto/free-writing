@@ -94,17 +94,19 @@ Implemented:
 - Firestore cloud storage under `users/{userId}/conversations/{conversationId}/messages/{messageId}`.
 - Firestore security rules scoped to the signed-in user's UID.
 - Conversation create, rename, open, and delete.
-- Message create, edit, delete, forward, and search.
+- Message create, edit, delete, forward, search, and manual reorder.
+- Composer keyboard send/save with `Ctrl+Enter` / `Cmd+Enter`, while plain `Enter` inserts a newline.
 - Responsive phone/desktop layout.
 - PWA manifest and generated service worker.
-- Firestore offline persistence is enabled for cached data and offline writes.
+- Firestore persistent local cache is enabled for cached data and offline writes.
+- Message order is persisted with numeric `sortOrder` values and syncs across devices.
 
 Known development follow-ups:
 
-- Replace deprecated `enableMultiTabIndexedDbPersistence()` usage with the newer Firestore cache settings API.
-- Add keyboard send support with `Ctrl+Enter` / `Cmd+Enter`.
-- Add manual reordering for text blocks.
 - Add focused tests for Firestore rules, offline behavior, keyboard sending, and reorder persistence.
+- Verify offline create, edit, delete, forward, and reorder behavior in a real browser against Firebase/Firestore.
+- Consider loading only the active conversation's messages if large conversation lists become slow.
+- Consider code-splitting Firebase-heavy client code if the production bundle warning becomes a deployment concern.
 
 ---
 
@@ -383,7 +385,7 @@ The user can manually reorder text blocks inside a conversation.
 
 Recommended Version 1 behavior:
 
-- Each message has simple reorder controls.
+- Each message has simple move up/down reorder controls.
 - On touch devices, use explicit move up/down controls rather than drag-only behavior.
 - On desktop, drag-and-drop can be added, but keyboard/touch controls should still exist.
 - Reordering changes the display order of messages in that conversation only.
@@ -394,10 +396,11 @@ Recommended Version 1 behavior:
 Recommended data approach:
 
 - Store a numeric `sortOrder` field on each message.
-- Query/display messages by `sortOrder` ascending, then `createdAt` ascending as a fallback.
+- Display messages by `sortOrder` ascending, then `createdAt` ascending as a fallback.
 - When creating a message, assign a `sortOrder` greater than the current last message.
 - When forwarding a message into a conversation, append it to the end with a new `sortOrder`.
-- For the first version, move up/down can swap the `sortOrder` values of two neighboring messages.
+- For existing messages without `sortOrder`, preserve chronological display order until a reorder action persists explicit values.
+- For the first version, move up/down updates the ordered message list with a Firestore batch.
 
 Future option:
 
@@ -661,8 +664,8 @@ The app should support offline use as much as possible.
 Current implementation:
 
 - Firestore offline persistence is enabled in `src/firebase.ts`.
-- The current code uses `enableMultiTabIndexedDbPersistence()`.
-- Firebase logs a deprecation warning for that API, so a future maintenance update should move to Firestore settings with persistent local cache.
+- The current code initializes Firestore with persistent local cache and a multiple-tab manager.
+- The installed Firebase SDK exposes this setting as `localCache`, using `persistentLocalCache({ tabManager: persistentMultipleTabManager() })`.
 
 ### 11.1 App shell offline
 

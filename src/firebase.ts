@@ -1,8 +1,9 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import {
-  enableMultiTabIndexedDbPersistence,
-  getFirestore
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager
 } from 'firebase/firestore';
 
 const firebaseConfig = {
@@ -27,7 +28,11 @@ export const hasFirebaseConfig = Object.values(firebaseConfig).every(isRealConfi
 export const app = hasFirebaseConfig ? initializeApp(firebaseConfig) : null;
 export const auth = app ? getAuth(app) : null;
 export const googleProvider = app ? new GoogleAuthProvider() : null;
-export const db = app ? getFirestore(app) : null;
+export const db = app
+  ? initializeFirestore(app, {
+      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+    })
+  : null;
 
 export function requireAuth() {
   if (!auth || !googleProvider) {
@@ -43,8 +48,4 @@ export function requireDb() {
   return db;
 }
 
-export const offlinePersistenceReady = db
-  ? enableMultiTabIndexedDbPersistence(db).catch((error) => {
-      console.warn('Firestore offline persistence was not enabled:', error);
-    })
-  : Promise.resolve();
+export const offlinePersistenceReady = Promise.resolve();

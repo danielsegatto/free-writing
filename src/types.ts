@@ -23,6 +23,7 @@ export type Message = {
   searchText: string;
   createdAt: Timestamp;
   updatedAt: Timestamp | null;
+  sortOrder: number;
   isForwarded: boolean;
   forwardedFromConversationId: string | null;
   forwardedFromMessageId: string | null;
