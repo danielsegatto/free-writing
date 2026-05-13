@@ -5,6 +5,7 @@ A private, Firebase-backed messaging-style PWA for saving and organizing your ow
 ## Current state
 
 - Google sign-in through Firebase Authentication.
+- Setup guard for missing or placeholder Firebase `.env` values.
 - Firestore-backed conversations and messages.
 - Firestore rules scoped to the signed-in user's `uid`.
 - Conversation create, rename, open, and delete.
@@ -13,13 +14,16 @@ A private, Firebase-backed messaging-style PWA for saving and organizing your ow
 - PWA manifest and generated service worker.
 - Firestore persistent local cache for cached data and queued offline writes.
 - Message order is stored with `sortOrder` and syncs across devices.
+- Search is client-side over messages loaded by current Firestore subscriptions.
 
 ## Development priorities
 
 - Keep the V1 verification checklist current as Firebase/offline behavior changes.
 - Verify offline create, edit, delete, forward, move, and reorder behavior against Firebase/Firestore in a real browser.
-- Consider loading only the active conversation's messages if large conversation lists become slow.
+- Consider loading only the active conversation's messages or adding a search index if large conversation lists become slow.
 - Consider code-splitting Firebase-heavy client code if the production bundle warning becomes a deployment concern.
+- Recompute conversation previews after delete and move-source removals if stale previews become confusing.
+- Add explicit loading/error UI around Firestore subscriptions if snapshot failures need to be user-visible.
 
 ## Code organization
 
@@ -30,7 +34,7 @@ The React app is split by responsibility:
 - `src/components/Sidebar.tsx` renders search and conversation navigation.
 - `src/components/ConversationPane.tsx` renders the active conversation, messages, reorder controls, and composer.
 - `src/components/ForwardModal.tsx` renders the transfer target picker for forwarding or moving messages.
-- `src/hooks/useMessagingData.ts` owns auth, conversation, and message subscriptions.
+- `src/hooks/useMessagingData.ts` owns auth, conversation, and message subscriptions; it currently subscribes to every conversation's messages to support loaded-message search.
 - `src/services/` contains Firebase auth, conversation, message, and search operations.
 - `src/utils/` contains small shared formatting and error helpers.
 
@@ -57,6 +61,8 @@ VITE_FIREBASE_STORAGE_BUCKET=
 VITE_FIREBASE_MESSAGING_SENDER_ID=
 VITE_FIREBASE_APP_ID=
 ```
+
+If any required value is missing or still looks like a placeholder, the sign-in screen shows a setup notice and disables Google sign-in until `.env` is fixed and the dev server is restarted.
 
 ## Firebase rules
 
@@ -93,6 +99,8 @@ users/{userId}
     messages/{messageId}
 ```
 
+The app does not currently write a profile document at `users/{userId}`; it uses that path as the owner namespace for conversation subcollections.
+
 Messages should include:
 
 - `text`
@@ -106,6 +114,10 @@ Messages should include:
 - `forwardedFromMessageId`
 
 Existing messages without `sortOrder` are displayed in chronological order until a reorder action persists explicit order values.
+
+Message listeners query Firestore by `createdAt` and then normalize/sort by `sortOrder` in client code, preserving chronological fallback behavior for older records.
+
+Conversation `lastMessagePreview` is updated on create, edit, forward, and the target side of a move. It is not currently recalculated after message delete or after removing a moved message from its source conversation.
 
 ## Scripts
 
