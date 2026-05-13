@@ -1,0 +1,125 @@
+# First Build Prompt
+
+Last updated: 2026-05-13
+
+Related docs: [documentation overview](../README.md), [product brief](../product/v1-product-brief.md), [features and screens](../product/v1-features-and-screens.md).
+
+## 18. First build prompt for an AI coding tool
+
+Use this prompt when asking an AI builder to create the first version:
+
+```text
+Build a simple multi-device offline-capable PWA called "My Messages".
+
+The app is for one private user. It should feel like a minimal WhatsApp-style app, but it is for writing, organizing, searching, editing, deleting, and forwarding my own text messages between private conversations.
+
+Target devices:
+- iPhone 8
+- Desktop computer
+- Tablet
+
+Core requirements:
+- Mobile-first responsive design.
+- Simple layout that works well on small iPhone 8 screens.
+- Google/Gmail login using Firebase Authentication.
+- Cloud sync using Firestore.
+- Firestore offline persistence enabled.
+- PWA support with manifest and service worker.
+- App shell should open offline after first load.
+- Cached conversations and messages should be readable offline.
+- Offline writes should sync when the device is online again.
+
+Authentication:
+- Show a sign-in screen when logged out.
+- Add a "Continue with Google" button.
+- Keep user data private to the signed-in user.
+- Add a sign-out option.
+
+Conversations:
+- User can create conversations.
+- User can rename conversations.
+- User can delete conversations with confirmation.
+- Conversation list should show title, latest message preview, and last updated time.
+
+Messages:
+- User can create text messages inside a conversation.
+- Enter should insert a newline in the composer.
+- Ctrl+Enter should send the current text block on Windows/Linux.
+- Cmd+Enter should send the current text block on macOS and iPad hardware keyboards.
+- User can edit messages.
+- User can delete messages with confirmation.
+- User can forward a message to another conversation.
+- User can move a message to another conversation.
+- User can reorder text blocks inside a conversation.
+- Forwarding creates a new message in the target conversation with the same text.
+- Moving creates a message in the target conversation and removes the original from the source conversation.
+- Show an optional "Forwarded" label on forwarded messages.
+- Show an optional "Moved" label on moved messages.
+- Show an "edited" label if a message was changed.
+
+Search:
+- Add simple message search.
+- Search across message text.
+- Show matching message text, conversation title, and date/time.
+- Clicking a search result should open the conversation.
+
+Data model:
+- users/{userId}/conversations/{conversationId}
+- users/{userId}/conversations/{conversationId}/messages/{messageId}
+
+Conversation fields:
+- id
+- userId
+- title
+- createdAt
+- updatedAt
+- lastMessagePreview
+
+Message fields:
+- id
+- userId
+- conversationId
+- text
+- searchText
+- createdAt
+- updatedAt
+- sortOrder
+- isForwarded
+- transferType
+- forwardedFromConversationId
+- forwardedFromMessageId
+
+Keep the app simple. Do not add contacts, group chat, phone numbers, push notifications, media uploads, voice notes, read receipts, or real messaging between different people.
+```
+
+---
+
+## 19. Development order
+
+Build in this order:
+
+1. Responsive app layout
+2. Firebase project setup
+3. Google/Gmail login
+4. Firestore database structure
+5. Conversation list
+6. Create conversation
+7. Open conversation
+8. Create message
+9. Add `Ctrl+Enter` / `Cmd+Enter` send behavior
+10. Sync messages across devices
+11. Edit message
+12. Delete message
+13. Forward message to another conversation
+14. Move message to another conversation
+15. Reorder text blocks
+16. Search messages
+17. Add PWA manifest
+18. Add service worker
+19. Enable Firestore offline persistence
+20. Test on iPhone 8
+21. Test on desktop
+22. Test on tablet
+23. Test offline behavior
+
+---

@@ -12,6 +12,7 @@ A private, Firebase-backed messaging-style PWA for saving and organizing your ow
 - Message create, edit, delete, forward, move between conversations, search, and manual reorder.
 - `Ctrl+Enter` / `Cmd+Enter` sends a new message or saves an edit; plain `Enter` inserts a newline.
 - PWA manifest and generated service worker.
+- Dark visual theme, including matching browser/PWA theme colors.
 - Firestore persistent local cache for cached data and queued offline writes.
 - Message order is stored with `sortOrder` and syncs across devices.
 - Search is client-side over messages loaded by current Firestore subscriptions.
@@ -37,6 +38,7 @@ The React app is split by responsibility:
 - `src/hooks/useMessagingData.ts` owns auth, conversation, and message subscriptions; it currently subscribes to every conversation's messages to support loaded-message search.
 - `src/services/` contains Firebase auth, conversation, message, and search operations.
 - `src/utils/` contains small shared formatting and error helpers.
+- `src/styles.css` owns the dark theme and responsive layout styles; `index.html` and the PWA manifest config use the same dark theme color for browser/install surfaces.
 
 ## Setup
 
@@ -139,6 +141,6 @@ Use `docs/qa-v1-verification.md` for the real-browser Firebase/offline QA pass, 
 
 ## Product documentation
 
-See `simple_offline_messaging_pwa_base_doc.md` for the full product and development base document.
+See `docs/README.md` for the product and development documentation entry point. Detailed docs are split across `docs/product/`, `docs/architecture/`, `docs/implementation/`, and `docs/prompts/`.
 
 See `docs/ai-maintenance-prompts.md` for the AI maintenance prompt index. Individual prompt files live in `docs/ai-maintenance/`.
