@@ -51,6 +51,7 @@ function renderPane(overrides: Partial<ComponentProps<typeof ConversationPane>> 
     onNavigateToSource: vi.fn(),
     onDeleteMessage: vi.fn(),
     onMoveMessage: vi.fn(),
+    onReorderMessage: vi.fn(),
     onMergeMessages: vi.fn(async () => undefined),
     onConvertToEnglish: vi.fn(async (_text: string) => ({
       segments: [
@@ -139,6 +140,32 @@ describe('ConversationPane', () => {
 
     expect(props.onMoveMessage).toHaveBeenCalledWith(0, 1);
     expect(props.onMoveMessage).toHaveBeenCalledWith(1, -1);
+  });
+
+  it('reorders blocks by dragging one block onto another', () => {
+    const props = renderPane();
+    const firstBlock = screen.getByText('First').closest('article') as HTMLElement;
+    const secondBlock = screen.getByText('Second').closest('article') as HTMLElement;
+
+    fireEvent.dragStart(firstBlock, {
+      dataTransfer: {
+        effectAllowed: '',
+        setData: vi.fn(),
+        getData: vi.fn(() => 'first')
+      }
+    });
+    fireEvent.dragOver(secondBlock, {
+      dataTransfer: {
+        dropEffect: ''
+      }
+    });
+    fireEvent.drop(secondBlock, {
+      dataTransfer: {
+        getData: vi.fn(() => 'first')
+      }
+    });
+
+    expect(props.onReorderMessage).toHaveBeenCalledWith('first', 'second');
   });
 
   it('selects multiple blocks and merges them in visible order', async () => {

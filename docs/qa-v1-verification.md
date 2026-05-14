@@ -13,7 +13,7 @@ npm run build
 
 Expected result:
 
-- Vitest passes for search, message service writes, message copy feedback, composer keyboard behavior, reorder controls, selected-block merge, English conversion UI/service behavior, and the forward/move modal.
+- Vitest passes for search, message service writes, message copy feedback, composer keyboard behavior, reorder controls, drag-to-reorder behavior, selected-block merge, English conversion UI/service behavior, and the forward/move modal.
 - The production build completes without TypeScript or Vite errors.
 
 ## English conversion setup
@@ -65,20 +65,21 @@ Run against a configured Firebase project in Chrome or Safari after visiting the
 7. Forward one message to the second conversation.
 8. Move one message to the second conversation.
 9. Reorder messages with the up/down controls.
-10. Select at least two messages, merge them, and confirm one unified block replaces the originals.
-11. Create or use a long conversation and confirm scrolling moves only the message list while the conversation header, merge toolbar, and bottom composer remain visible.
-12. Convert one message to English, choose non-default options for at least one segment, and create the English block.
-13. Confirm the English block appears directly below the original and remains after reload.
-14. Convert another message to English and replace the source block with the selected English text.
-15. Enter draft text in the composer, convert the draft to English, choose an option, and confirm the draft updates before sending.
-16. Search for text that exists in loaded messages.
-17. Disconnect the browser from the network.
-18. Reload the app.
-19. Confirm the app shell opens and cached conversations/messages remain readable.
-20. While offline, create, edit, copy, delete, forward, move, reorder, and merge messages.
-21. Confirm requesting a new English conversion while offline fails gracefully without creating, replacing, or changing draft text.
-22. Reconnect to the network.
-23. Confirm all queued changes sync and remain visible after another reload.
+10. On desktop, drag one text block onto another text block and confirm the visible order changes.
+11. Select at least two messages, merge them, and confirm one unified block replaces the originals.
+12. Create or use a long conversation and confirm scrolling moves only the message list while the conversation header, merge toolbar, and bottom composer remain visible.
+13. Convert one message to English, choose non-default options for at least one segment, and create the English block.
+14. Confirm the English block appears directly below the original and remains after reload.
+15. Convert another message to English and replace the source block with the selected English text.
+16. Enter draft text in the composer, convert the draft to English, choose an option, and confirm the draft updates before sending.
+17. Search for text that exists in loaded messages.
+18. Disconnect the browser from the network.
+19. Reload the app.
+20. Confirm the app shell opens and cached conversations/messages remain readable.
+21. While offline, create, edit, copy, delete, forward, move, reorder, and merge messages.
+22. Confirm requesting a new English conversion while offline fails gracefully without creating, replacing, or changing draft text.
+23. Reconnect to the network.
+24. Confirm all queued changes sync and remain visible after another reload.
 
 Expected result:
 
@@ -86,7 +87,7 @@ Expected result:
 - Plain `Enter` inserts a newline in the composer.
 - Forwarded messages are labeled `Forwarded`; moved messages are labeled `Moved`.
 - Source links navigate back to the original conversation when source metadata exists.
-- Reordered messages keep their order after reconnect and reload.
+- Reordered messages keep their order after reconnect and reload, whether reordered by explicit controls or desktop drag-and-drop.
 - Merged messages keep the selected text in display order, and the original selected blocks remain removed after reconnect and reload.
 - English conversion can keep the original message unchanged by creating a new block, or replace the original when `Replace block` is chosen.
 - Draft English conversion updates only the composer draft until the user sends it.

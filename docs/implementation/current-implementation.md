@@ -11,14 +11,14 @@ The current app state is a working Firebase-backed React PWA named `My Messages`
 Implemented:
 
 - Vite + React frontend.
-- Focused Vitest coverage for message service writes, loaded-message search, composer keyboard sending, reorder controls, multi-block merge, English conversion UI/service behavior, and the shared forward/move modal.
+- Focused Vitest coverage for message service writes, loaded-message search, composer keyboard sending, reorder controls, drag-to-reorder behavior, multi-block merge, English conversion UI/service behavior, and the shared forward/move modal.
 - React code organized into small components, a subscription hook, Firebase services, and utility helpers.
 - Firebase Authentication with Google provider.
 - Firebase configuration guard that shows a setup notice when `.env` is missing or still contains placeholder values.
 - Firestore cloud storage under `users/{userId}/conversations/{conversationId}/messages/{messageId}`.
 - Firestore security rules scoped to the signed-in user's UID.
 - Conversation create, rename, open, and delete.
-- Message create, edit, copy-to-clipboard, delete, forward, move to another conversation, search, manual reorder, and selected-block merge.
+- Message create, edit, copy-to-clipboard, delete, forward, move to another conversation, search, manual up/down reorder, desktop drag-and-drop reorder, and selected-block merge.
 - English conversion for saved messages and composer draft text. It segments text, presents three English options per segment, and can create a new message below a saved source, replace a saved source, or place the selected English text back into the draft.
 - Message transfer support distinguishes forwarded messages from moved messages with `transferType`.
 - Composer keyboard send/save with `Ctrl+Enter` / `Cmd+Enter`, while plain `Enter` inserts a newline.
@@ -37,7 +37,7 @@ Known development follow-ups:
 
 - Keep `docs/qa-v1-verification.md` current as Firebase/offline behavior changes.
 - Add emulator-backed Firestore rules tests if rule complexity grows beyond the current per-user UID isolation model.
-- Verify offline create, edit, delete, forward, move, reorder, and merge behavior in a real browser against Firebase/Firestore.
+- Verify offline create, edit, delete, forward, move, reorder by controls, reorder by desktop drag-and-drop, and merge behavior in a real browser against Firebase/Firestore.
 - Consider loading only the active conversation's messages or adding a search index if large conversation lists become slow; this would require revisiting current loaded-message search behavior.
 - Consider code-splitting Firebase-heavy client code if the production bundle warning becomes a deployment concern.
 - Recompute or clear source conversation previews after message delete and move actions if stale `lastMessagePreview` values become confusing.
@@ -110,7 +110,7 @@ src/components/Sidebar.tsx
   Search, conversation list, create, rename, delete, and navigation UI.
 
 src/components/ConversationPane.tsx
-  Active conversation view, message list, selected-message state, copy/edit/transfer/reorder/merge/English conversion controls, conversion picker state, edit state, and composer UI.
+  Active conversation view, message list, selected-message state, copy/edit/transfer/reorder/drag-and-drop/merge/English conversion controls, conversion picker state, edit state, and composer UI.
 
 src/components/ForwardModal.tsx
   Conversation picker used when forwarding or moving a message.
@@ -134,7 +134,7 @@ src/utils/
   Shared formatting and error helpers.
 
 src/styles.css
-  Global dark theme, responsive layout, viewport-constrained conversation pane, component surfaces, input states, message bubbles, modal styling, English picker styling, and hover states.
+  Global dark theme, responsive layout, viewport-constrained conversation pane, component surfaces, input states, message bubbles, drag reorder states, modal styling, English picker styling, and hover states.
 
 index.html + vite.config.ts
   Browser theme color, generated PWA manifest colors, and local `/api/to-english` development middleware. Theme colors currently match the dark app shell so installed/mobile surfaces do not flash the old light theme.
@@ -206,6 +206,14 @@ Local hosting on an idle machine is not the primary Version 1 deployment target.
 - Merged replacement blocks are normal messages with `isForwarded: false`, `transferType: null`, and no source metadata.
 - `src/components/ConversationPane.tsx` tracks selected message IDs, prunes selections when messages/conversations change, highlights selected bubbles, and enables the merge action only when at least two current messages are selected.
 - Successful merge clears the current selection. Failed merge keeps the selection and shows an inline error in the selection toolbar.
+
+### Reorder messages
+
+- `src/App.tsx` keeps reorder persistence centralized by optimistically updating `messagesByConversation` and then calling `reorderMessages`.
+- `src/components/ConversationPane.tsx` exposes both up/down buttons and native desktop drag-and-drop on each message bubble.
+- Dragging starts from the message bubble itself; interactive controls inside the bubble, such as buttons and checkboxes, cancel drag start so normal actions remain easy to click.
+- Dropping one message on another asks `App.tsx` to move the dragged message to the target message's current position.
+- `src/services/messages.ts` persists the final visible order by rewriting numeric `sortOrder` values in a Firestore batch.
 
 ### Message search
 

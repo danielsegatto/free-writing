@@ -116,6 +116,22 @@ export default function App() {
     await reorderMessages(user.uid, activeConversationId, nextMessages);
   }
 
+  async function handleReorderMessage(draggedMessageId: string, targetMessageId: string) {
+    if (!user || !activeConversationId || draggedMessageId === targetMessageId) return;
+    const draggedIndex = activeMessages.findIndex((message) => message.id === draggedMessageId);
+    const targetIndex = activeMessages.findIndex((message) => message.id === targetMessageId);
+    if (draggedIndex === -1 || targetIndex === -1) return;
+
+    const nextMessages = [...activeMessages];
+    const [draggedMessage] = nextMessages.splice(draggedIndex, 1);
+    nextMessages.splice(targetIndex, 0, draggedMessage);
+    setMessagesByConversation((current) => ({
+      ...current,
+      [activeConversationId]: nextMessages
+    }));
+    await reorderMessages(user.uid, activeConversationId, nextMessages);
+  }
+
   async function handleCreateEnglishBlock(source: Message, text: string) {
     if (!user) return;
     const sourceConversationMessages = messagesByConversation[source.conversationId] ?? [];
@@ -195,6 +211,9 @@ export default function App() {
         onNavigateToSource={handleNavigateToSource}
         onDeleteMessage={(message) => void handleDeleteMessage(message)}
         onMoveMessage={(messageIndex, direction) => void handleMoveMessage(messageIndex, direction)}
+        onReorderMessage={(draggedMessageId, targetMessageId) =>
+          void handleReorderMessage(draggedMessageId, targetMessageId)
+        }
         onMergeMessages={handleMergeMessages}
         onConvertToEnglish={requestEnglishVersions}
         onCreateEnglishBlock={handleCreateEnglishBlock}

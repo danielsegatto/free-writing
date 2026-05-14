@@ -319,11 +319,26 @@ button {
   color: #eff6f4;
   background: #163b36;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.32);
+  cursor: grab;
+  transition: opacity 0.16s ease, transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.message-bubble:active {
+  cursor: grabbing;
 }
 
 .message-bubble.selected {
   outline: 2px solid #54d6bf;
   outline-offset: 2px;
+}
+
+.message-bubble.dragging {
+  opacity: 0.55;
+}
+
+.message-bubble.drag-over {
+  transform: translateY(2px);
+  box-shadow: 0 0 0 2px #54d6bf, 0 10px 24px rgba(0, 0, 0, 0.28);
 }
 
 .message-bubble p {

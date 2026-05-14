@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type DragEvent } from 'react';
 import { ArrowDown, ArrowLeft, ArrowUp, Combine, Copy, Edit3, Forward, Languages, MoreVertical, MoveRight, Reply, Send, Trash2, X } from 'lucide-react';
 import type { Conversation, EnglishConversion, Message } from '../types';
 import { formatDate } from '../utils/date';
@@ -18,6 +18,7 @@ type ConversationPaneProps = {
   onNavigateToSource: (conversationId: string) => void;
   onDeleteMessage: (message: Message) => void;
   onMoveMessage: (messageIndex: number, direction: -1 | 1) => void;
+  onReorderMessage: (draggedMessageId: string, targetMessageId: string) => void;
   onMergeMessages: (messages: Message[]) => Promise<void>;
   onConvertToEnglish: (text: string) => Promise<EnglishConversion>;
   onCreateEnglishBlock: (message: Message, text: string) => Promise<void>;
@@ -64,6 +65,7 @@ export function ConversationPane({
   onNavigateToSource,
   onDeleteMessage,
   onMoveMessage,
+  onReorderMessage,
   onMergeMessages,
   onConvertToEnglish,
   onCreateEnglishBlock,
@@ -74,6 +76,8 @@ export function ConversationPane({
   const [selectedMessageIds, setSelectedMessageIds] = useState<string[]>([]);
   const [isMerging, setIsMerging] = useState(false);
   const [mergeError, setMergeError] = useState<string | null>(null);
+  const [draggedMessageId, setDraggedMessageId] = useState<string | null>(null);
+  const [dragOverMessageId, setDragOverMessageId] = useState<string | null>(null);
 
   const selectedMessages = activeMessages.filter((message) => selectedMessageIds.includes(message.id));
 
@@ -104,6 +108,48 @@ export function ConversationPane({
         ? currentIds.filter((currentId) => currentId !== messageId)
         : [...currentIds, messageId]
     );
+  }
+
+  function isInteractiveDragTarget(target: EventTarget | null) {
+    return target instanceof Element && Boolean(target.closest('button, input, label, a, textarea, select'));
+  }
+
+  function handleMessageDragStart(event: DragEvent<HTMLElement>, messageId: string) {
+    if (isInteractiveDragTarget(event.target)) {
+      event.preventDefault();
+      return;
+    }
+
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', messageId);
+    setDraggedMessageId(messageId);
+  }
+
+  function handleMessageDragOver(event: DragEvent<HTMLElement>, messageId: string) {
+    if (!draggedMessageId || draggedMessageId === messageId) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    setDragOverMessageId(messageId);
+  }
+
+  function handleMessageDragLeave(event: DragEvent<HTMLElement>, messageId: string) {
+    const relatedTarget = event.relatedTarget;
+    if (relatedTarget instanceof Node && event.currentTarget.contains(relatedTarget)) return;
+    setDragOverMessageId((currentId) => (currentId === messageId ? null : currentId));
+  }
+
+  function handleMessageDrop(event: DragEvent<HTMLElement>, targetMessageId: string) {
+    event.preventDefault();
+    const droppedMessageId = event.dataTransfer.getData('text/plain') || draggedMessageId;
+    setDraggedMessageId(null);
+    setDragOverMessageId(null);
+    if (!droppedMessageId || droppedMessageId === targetMessageId) return;
+    onReorderMessage(droppedMessageId, targetMessageId);
+  }
+
+  function handleMessageDragEnd() {
+    setDraggedMessageId(null);
+    setDragOverMessageId(null);
   }
 
   async function mergeSelectedMessages() {
@@ -273,77 +319,98 @@ export function ConversationPane({
           </div>
 
           <div className="messages">
-            {activeMessages.map((message, messageIndex) => (
-              <article className={`message-bubble ${selectedMessageIds.includes(message.id) ? 'selected' : ''}`} key={message.id}>
-                <div className="message-meta">
-                  <label className="message-selector">
-                    <input
-                      type="checkbox"
-                      checked={selectedMessageIds.includes(message.id)}
-                      onChange={() => toggleMessageSelection(message.id)}
-                      aria-label={`Select block: ${message.text.slice(0, 48) || 'empty block'}`}
-                    />
-                  </label>
-                  {getTransferLabel(message) && <span>{getTransferLabel(message)}</span>}
-                  {message.forwardedFromConversationId && (
-                    <button
-                      className="source-link"
-                      title="Open source conversation"
-                      onClick={() => onNavigateToSource(message.forwardedFromConversationId as string)}
-                    >
-                      <Reply size={13} />
-                      Source
+            {activeMessages.map((message, messageIndex) => {
+              const messageClassName = [
+                'message-bubble',
+                selectedMessageIds.includes(message.id) ? 'selected' : '',
+                draggedMessageId === message.id ? 'dragging' : '',
+                dragOverMessageId === message.id ? 'drag-over' : ''
+              ]
+                .filter(Boolean)
+                .join(' ');
+
+              return (
+                <article
+                  className={messageClassName}
+                  draggable={activeMessages.length > 1}
+                  key={message.id}
+                  aria-grabbed={draggedMessageId === message.id}
+                  onDragStart={(event) => handleMessageDragStart(event, message.id)}
+                  onDragOver={(event) => handleMessageDragOver(event, message.id)}
+                  onDragLeave={(event) => handleMessageDragLeave(event, message.id)}
+                  onDrop={(event) => handleMessageDrop(event, message.id)}
+                  onDragEnd={handleMessageDragEnd}
+                >
+                  <div className="message-meta">
+                    <label className="message-selector">
+                      <input
+                        type="checkbox"
+                        checked={selectedMessageIds.includes(message.id)}
+                        onChange={() => toggleMessageSelection(message.id)}
+                        aria-label={`Select block: ${message.text.slice(0, 48) || 'empty block'}`}
+                      />
+                    </label>
+                    {getTransferLabel(message) && <span>{getTransferLabel(message)}</span>}
+                    {message.forwardedFromConversationId && (
+                      <button
+                        className="source-link"
+                        title="Open source conversation"
+                        onClick={() => onNavigateToSource(message.forwardedFromConversationId as string)}
+                      >
+                        <Reply size={13} />
+                        Source
+                      </button>
+                    )}
+                    {message.updatedAt && <span>edited</span>}
+                    <time>{formatDate(message.createdAt)}</time>
+                  </div>
+                  <p>{message.text}</p>
+                  <div className="message-actions">
+                    <div className="reorder-actions" aria-label="Reorder message">
+                      <button
+                        className="icon-button bare"
+                        title="Move up"
+                        disabled={messageIndex === 0}
+                        onClick={() => onMoveMessage(messageIndex, -1)}
+                      >
+                        <ArrowUp size={16} />
+                      </button>
+                      <button
+                        className="icon-button bare"
+                        title="Move down"
+                        disabled={messageIndex === activeMessages.length - 1}
+                        onClick={() => onMoveMessage(messageIndex, 1)}
+                      >
+                        <ArrowDown size={16} />
+                      </button>
+                    </div>
+                    <button className="icon-button bare" title="Edit" onClick={() => onEditMessage(message)}>
+                      <Edit3 size={16} />
                     </button>
-                  )}
-                  {message.updatedAt && <span>edited</span>}
-                  <time>{formatDate(message.createdAt)}</time>
-                </div>
-                <p>{message.text}</p>
-                <div className="message-actions">
-                  <div className="reorder-actions" aria-label="Reorder message">
-                    <button
-                      className="icon-button bare"
-                      title="Move up"
-                      disabled={messageIndex === 0}
-                      onClick={() => onMoveMessage(messageIndex, -1)}
-                    >
-                      <ArrowUp size={16} />
+                    <button className="icon-button bare" title="Copy text" onClick={() => void copyMessageText(message)}>
+                      <Copy size={16} />
                     </button>
-                    <button
-                      className="icon-button bare"
-                      title="Move down"
-                      disabled={messageIndex === activeMessages.length - 1}
-                      onClick={() => onMoveMessage(messageIndex, 1)}
-                    >
-                      <ArrowDown size={16} />
+                    <button className="icon-button bare" title="Convert to English" onClick={() => void openMessageEnglishPicker(message)}>
+                      <Languages size={16} />
+                    </button>
+                    {copyFeedback?.messageId === message.id && (
+                      <span className="copy-status" aria-live="polite">
+                        {getCopyFeedbackLabel(copyFeedback)}
+                      </span>
+                    )}
+                    <button className="icon-button bare" title="Forward" onClick={() => onForwardMessage(message)}>
+                      <Forward size={16} />
+                    </button>
+                    <button className="icon-button bare" title="Move to conversation" onClick={() => onMoveToConversation(message)}>
+                      <MoveRight size={16} />
+                    </button>
+                    <button className="icon-button bare" title="Delete" onClick={() => onDeleteMessage(message)}>
+                      <Trash2 size={16} />
                     </button>
                   </div>
-                  <button className="icon-button bare" title="Edit" onClick={() => onEditMessage(message)}>
-                    <Edit3 size={16} />
-                  </button>
-                  <button className="icon-button bare" title="Copy text" onClick={() => void copyMessageText(message)}>
-                    <Copy size={16} />
-                  </button>
-                  <button className="icon-button bare" title="Convert to English" onClick={() => void openMessageEnglishPicker(message)}>
-                    <Languages size={16} />
-                  </button>
-                  {copyFeedback?.messageId === message.id && (
-                    <span className="copy-status" aria-live="polite">
-                      {getCopyFeedbackLabel(copyFeedback)}
-                    </span>
-                  )}
-                  <button className="icon-button bare" title="Forward" onClick={() => onForwardMessage(message)}>
-                    <Forward size={16} />
-                  </button>
-                  <button className="icon-button bare" title="Move to conversation" onClick={() => onMoveToConversation(message)}>
-                    <MoveRight size={16} />
-                  </button>
-                  <button className="icon-button bare" title="Delete" onClick={() => onDeleteMessage(message)}>
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              </article>
-            ))}
+                </article>
+              );
+            })}
             {activeMessages.length === 0 && <p className="empty-state">Write the first message here.</p>}
           </div>
 
