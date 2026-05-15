@@ -1,7 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState, type DragEvent, type PointerEvent } from 'react';
-import { ArrowDown, ArrowLeft, ArrowUp, Combine, Copy, Edit3, Forward, Languages, MoreVertical, MoveRight, Reply, Send, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowUp, Combine, Copy, Edit3, Forward, Languages, MoreVertical, MoveRight, Reply, Send, Trash2 } from 'lucide-react';
+import { EnglishPickerModal, type EnglishPickerState } from './EnglishPickerModal';
 import type { Conversation, EnglishConversion, Message } from '../types';
 import { formatDate } from '../utils/date';
+import { assembleEnglishText } from '../utils/englishConversion';
 
 type ConversationPaneProps = {
   activeConversation: Conversation | null;
@@ -33,14 +35,6 @@ const SOURCE_MARKER = '<-source';
 type CopyFeedback = {
   messageId: string;
   status: 'copied' | 'failed';
-};
-
-type EnglishPickerState = {
-  source: { type: 'message'; message: Message } | { type: 'draft' };
-  status: 'loading' | 'ready' | 'creating' | 'replacing' | 'sending-draft' | 'error';
-  conversion: EnglishConversion | null;
-  selections: number[];
-  error: string | null;
 };
 
 type TouchDragState = {
@@ -348,17 +342,9 @@ export function ConversationPane({
     });
   }
 
-  function getAssembledEnglishText(state: EnglishPickerState) {
-    if (!state.conversion) return '';
-    return state.conversion.segments
-      .map((segment, segmentIndex) => segment.options[state.selections[segmentIndex] ?? 0])
-      .join(' ')
-      .trim();
-  }
-
   async function saveEnglishResult(action: 'create' | 'replace' | 'draft') {
     if (!englishPicker || !englishPicker.conversion) return;
-    const englishText = getAssembledEnglishText(englishPicker);
+    const englishText = assembleEnglishText(englishPicker.conversion, englishPicker.selections);
     if (!englishText) return;
 
     const nextStatus =
@@ -593,92 +579,13 @@ export function ConversationPane({
           </form>
 
           {englishPicker && (
-            <div className="modal-backdrop" role="presentation">
-              <section className="english-picker" role="dialog" aria-modal="true" aria-labelledby="english-picker-title">
-                <header className="english-picker-header">
-                  <div>
-                    <p className="eyebrow">English conversion</p>
-                    <h3 id="english-picker-title">Choose English versions</h3>
-                  </div>
-                  <button className="icon-button bare" type="button" title="Close" onClick={() => setEnglishPicker(null)}>
-                    <X size={18} />
-                  </button>
-                </header>
-
-                {englishPicker.status === 'loading' && <p className="picker-status">Preparing English options...</p>}
-
-                {englishPicker.error && (
-                  <p className="notice error" role="alert">
-                    {englishPicker.error}
-                  </p>
-                )}
-
-                {englishPicker.conversion && (
-                  <>
-                    <div className="english-segments">
-                      {englishPicker.conversion.segments.map((segment, segmentIndex) => (
-                        <fieldset className="english-segment" key={`${segment.original}-${segmentIndex}`}>
-                          <legend className="visually-hidden">English option group {segmentIndex + 1}</legend>
-                          {segment.options.map((option, optionIndex) => (
-                            <label className="english-option" key={option}>
-                              <input
-                                type="radio"
-                                name={`english-segment-${segmentIndex}`}
-                                checked={(englishPicker.selections[segmentIndex] ?? 0) === optionIndex}
-                                onChange={() => updateEnglishSelection(segmentIndex, optionIndex)}
-                              />
-                              <span>{option}</span>
-                            </label>
-                          ))}
-                        </fieldset>
-                      ))}
-                    </div>
-
-                    <div className="english-preview">
-                      <p className="eyebrow">
-                        English preview
-                      </p>
-                      <p>{getAssembledEnglishText(englishPicker)}</p>
-                    </div>
-                  </>
-                )}
-
-                <footer className="english-picker-actions">
-                  <button className="text-button" type="button" onClick={() => setEnglishPicker(null)}>
-                    Cancel
-                  </button>
-                  {englishPicker.source.type === 'message' ? (
-                    <>
-                      <button
-                        className="text-button"
-                        type="button"
-                        disabled={!englishPicker.conversion || englishPickerIsSaving}
-                        onClick={() => void saveEnglishResult('replace')}
-                      >
-                        {englishPicker.status === 'replacing' ? 'Replacing...' : 'Replace block'}
-                      </button>
-                      <button
-                        className="primary-button"
-                        type="button"
-                        disabled={!englishPicker.conversion || englishPickerIsSaving}
-                        onClick={() => void saveEnglishResult('create')}
-                      >
-                        {englishPicker.status === 'creating' ? 'Creating...' : 'Create block'}
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      className="primary-button"
-                      type="button"
-                      disabled={!englishPicker.conversion || englishPickerIsSaving}
-                      onClick={() => void saveEnglishResult('draft')}
-                    >
-                      {englishPicker.status === 'sending-draft' ? 'Sending...' : 'Send English'}
-                    </button>
-                  )}
-                </footer>
-              </section>
-            </div>
+            <EnglishPickerModal
+              state={englishPicker}
+              isSaving={englishPickerIsSaving}
+              onClose={() => setEnglishPicker(null)}
+              onSelectionChange={updateEnglishSelection}
+              onSave={(action) => void saveEnglishResult(action)}
+            />
           )}
         </>
       ) : (

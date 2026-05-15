@@ -11,7 +11,7 @@ The current app state is a working Firebase-backed React PWA named `Free Writing
 Implemented:
 
 - Vite + React frontend.
-- Focused Vitest coverage for message service writes, loaded-message search, composer keyboard conversion behavior, inline editing, reorder controls, desktop and touch drag-to-reorder behavior, multi-block merge, English conversion UI/service behavior, and the shared forward/move modal.
+- Focused Vitest coverage for message service writes, loaded-message search, composer keyboard conversion behavior, inline editing, reorder controls, desktop and touch drag-to-reorder behavior, multi-block merge, English conversion UI/service/helper behavior, and the shared forward/move modal.
 - React code organized into small components, a subscription hook, Firebase services, and utility helpers.
 - Firebase Authentication with Google provider.
 - Firebase configuration guard that shows a setup notice when `.env` is missing or still contains placeholder values.
@@ -113,6 +113,9 @@ src/components/Sidebar.tsx
 src/components/ConversationPane.tsx
   Active conversation view, message list, selected-message state, copy/edit/transfer/reorder/drag-and-drop/merge/English conversion controls, conversion picker state, inline edit state, and composer UI.
 
+src/components/EnglishPickerModal.tsx
+  English conversion dialog rendering. Receives picker state and callbacks from `ConversationPane`, renders loading/error/ready/saving states, option radios, preview, and saved-message or draft-specific actions.
+
 src/components/ForwardModal.tsx
   Conversation picker used when forwarding or moving a message.
 
@@ -132,7 +135,7 @@ functions/src/index.ts
   Legacy Firebase Function version of the translation proxy. Firebase Functions require the Blaze plan and are not used by the default free hosted deployment.
 
 src/utils/
-  Shared formatting and error helpers.
+  Shared formatting, error, and small pure text helpers. `englishConversion.ts` assembles selected English conversion segment options into the preview/saved text.
 
 src/styles.css
   Global dark theme, responsive layout, viewport-constrained conversation pane, component surfaces, input states, message bubbles, drag reorder states, modal styling, English picker styling, and hover states.
@@ -239,8 +242,9 @@ Local hosting on an idle machine is not the primary Version 1 deployment target.
 
 - `src/services/translation.ts` posts `{ text }` to `VITE_TRANSLATION_API_URL` or `/api/to-english`.
 - The request includes the current Firebase ID token in the `Authorization` header.
-- `src/components/ConversationPane.tsx` owns the English picker modal state. It shows loading, error, ready, creating, replacing, and draft-send states.
-- Each AI segment returns exactly three options. The first is selected by default, and selected options are joined with spaces for the preview/saved text.
+- `src/components/ConversationPane.tsx` owns the English picker state and save orchestration. It opens conversion for saved messages or draft text, tracks loading/error/ready/creating/replacing/draft-send states, and routes saves back to message creation/editing callbacks.
+- `src/components/EnglishPickerModal.tsx` renders the English conversion dialog from that state. It does not call translation or Firestore directly.
+- `src/utils/englishConversion.ts` assembles the selected English options for preview and saving. Each AI segment returns exactly three options, the first option is selected by default, and selected options are joined with spaces.
 - Saved-message conversion can create a new English block below the source or replace the source message by calling the normal edit flow. Draft conversion sends the selected English text directly as a new message and clears the composer draft through the normal create-message path.
 - `src/services/messages.ts` has `createMessageAfter`, which inserts the English result directly below the source message by choosing a midpoint `sortOrder` when possible or rebalancing order when no numeric gap exists.
 - English conversion is online-only. Created and replaced English blocks persist like normal messages and then participate in Firestore cache/sync behavior.
