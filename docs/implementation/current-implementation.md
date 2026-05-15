@@ -141,7 +141,7 @@ functions/src/index.ts
   Legacy Firebase Function version of the translation proxy. Firebase Functions require the Blaze plan and are not used by the default free hosted deployment.
 
 src/utils/
-  Shared formatting, error, and small pure text helpers. `englishConversion.ts` assembles selected English conversion segment options into the preview/saved text.
+  Shared formatting, error, ordering, and small pure text helpers. `englishConversion.ts` assembles selected English conversion segment options into the preview/saved text. `messageOrder.ts` computes behavior-preserving message reorder arrays for up/down controls and drag/drop targets.
 
 src/styles.css
   Global dark theme, responsive layout, viewport-constrained conversation pane, component surfaces, input states, message bubbles, drag reorder states, modal styling, English picker styling, and hover states.
@@ -229,6 +229,7 @@ Local hosting on an idle machine is not the primary Version 1 deployment target.
 ### Reorder messages
 
 - `src/App.tsx` keeps reorder persistence centralized by optimistically updating `messagesByConversation` and then calling `reorderMessages`.
+- `src/utils/messageOrder.ts` keeps the pure reorder-array calculations outside `App.tsx`, with focused tests for up/down moves and drag/drop target moves.
 - `src/components/ConversationPane.tsx` owns drag/reorder state and persistence callbacks, while `src/components/MessageBubble.tsx` exposes up/down buttons, native desktop drag-and-drop bindings, and mobile/touch pointer bindings on each message bubble.
 - Dragging starts from the message bubble itself; interactive controls inside the bubble, such as buttons and checkboxes, cancel drag start so normal actions remain easy to click.
 - Touch/pen dragging tracks the pointer position with `document.elementFromPoint`, highlights the current target bubble, and reorders on pointer release after a small movement threshold.

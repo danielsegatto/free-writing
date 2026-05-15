@@ -22,6 +22,7 @@ import {
 import { searchLoadedMessages } from './services/search';
 import { requestEnglishVersions } from './services/translation';
 import type { Conversation, Message } from './types';
+import { moveMessageByDirection, moveMessageToDropTarget } from './utils/messageOrder';
 
 type TransferAction = {
   mode: 'forward' | 'move';
@@ -107,10 +108,8 @@ export default function App() {
 
   async function handleMoveMessage(messageIndex: number, direction: -1 | 1) {
     if (!user || !activeConversationId) return;
-    const targetIndex = messageIndex + direction;
-    if (targetIndex < 0 || targetIndex >= activeMessages.length) return;
-    const nextMessages = [...activeMessages];
-    [nextMessages[messageIndex], nextMessages[targetIndex]] = [nextMessages[targetIndex], nextMessages[messageIndex]];
+    const nextMessages = moveMessageByDirection(activeMessages, messageIndex, direction);
+    if (!nextMessages) return;
     setMessagesByConversation((current) => ({
       ...current,
       [activeConversationId]: nextMessages
@@ -119,14 +118,9 @@ export default function App() {
   }
 
   async function handleReorderMessage(draggedMessageId: string, targetMessageId: string) {
-    if (!user || !activeConversationId || draggedMessageId === targetMessageId) return;
-    const draggedIndex = activeMessages.findIndex((message) => message.id === draggedMessageId);
-    const targetIndex = activeMessages.findIndex((message) => message.id === targetMessageId);
-    if (draggedIndex === -1 || targetIndex === -1) return;
-
-    const nextMessages = [...activeMessages];
-    const [draggedMessage] = nextMessages.splice(draggedIndex, 1);
-    nextMessages.splice(targetIndex, 0, draggedMessage);
+    if (!user || !activeConversationId) return;
+    const nextMessages = moveMessageToDropTarget(activeMessages, draggedMessageId, targetMessageId);
+    if (!nextMessages) return;
     setMessagesByConversation((current) => ({
       ...current,
       [activeConversationId]: nextMessages
