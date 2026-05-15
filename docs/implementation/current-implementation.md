@@ -214,6 +214,7 @@ Local hosting on an idle machine is not the primary Version 1 deployment target.
 - `src/components/ConversationPane.tsx` exposes up/down buttons, native desktop drag-and-drop, and mobile/touch pointer dragging on each message bubble.
 - Dragging starts from the message bubble itself; interactive controls inside the bubble, such as buttons and checkboxes, cancel drag start so normal actions remain easy to click.
 - Touch/pen dragging tracks the pointer position with `document.elementFromPoint`, highlights the current target bubble, and reorders on pointer release after a small movement threshold.
+- Native desktop drag state is kept independent from touch/pen pointer state so browser pointer-cancel events during desktop drag do not clear the active desktop drop target.
 - Dropping one message on another asks `App.tsx` to move the dragged message to the target message's current position.
 - `src/services/messages.ts` persists the final visible order by rewriting numeric `sortOrder` values in a Firestore batch.
 

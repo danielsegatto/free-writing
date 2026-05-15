@@ -168,6 +168,31 @@ describe('ConversationPane', () => {
     expect(props.onReorderMessage).toHaveBeenCalledWith('first', 'second');
   });
 
+  it('keeps desktop drag active if the browser cancels the pointer during native drag', () => {
+    renderPane();
+    const firstBlock = screen.getByText('First').closest('article') as HTMLElement;
+    const secondBlock = screen.getByText('Second').closest('article') as HTMLElement;
+
+    fireEvent.dragStart(firstBlock, {
+      dataTransfer: {
+        effectAllowed: '',
+        setData: vi.fn(),
+        getData: vi.fn(() => 'first')
+      }
+    });
+    fireEvent.pointerCancel(firstBlock, {
+      pointerId: 1,
+      pointerType: 'mouse'
+    });
+    fireEvent.dragOver(secondBlock, {
+      dataTransfer: {
+        dropEffect: ''
+      }
+    });
+
+    expect(secondBlock).toHaveClass('drag-over');
+  });
+
   it('reorders blocks with touch pointer dragging', () => {
     const props = renderPane();
     const firstBlock = screen.getByText('First').closest('article') as HTMLElement;

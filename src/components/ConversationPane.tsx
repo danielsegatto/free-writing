@@ -136,7 +136,8 @@ export function ConversationPane({
   }
 
   function handleMessageDragOver(event: DragEvent<HTMLElement>, messageId: string) {
-    if (!draggedMessageId || draggedMessageId === messageId) return;
+    const isSameMessage = draggedMessageId === messageId;
+    if (isSameMessage) return;
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
     setDragOverMessageId(messageId);
@@ -217,6 +218,10 @@ export function ConversationPane({
     const shouldReorder = currentDrag.isDragging && targetMessageId && targetMessageId !== currentDrag.messageId;
     clearTouchDrag();
     if (shouldReorder) onReorderMessage(currentDrag.messageId, targetMessageId);
+  }
+
+  function handleMessagePointerCancel(event: PointerEvent<HTMLElement>) {
+    if (touchDrag.current?.pointerId === event.pointerId) clearTouchDrag();
   }
 
   async function mergeSelectedMessages() {
@@ -410,7 +415,7 @@ export function ConversationPane({
                   onPointerDown={(event) => handleMessagePointerDown(event, message.id)}
                   onPointerMove={handleMessagePointerMove}
                   onPointerUp={handleMessagePointerUp}
-                  onPointerCancel={clearTouchDrag}
+                  onPointerCancel={handleMessagePointerCancel}
                 >
                   <div className="message-meta">
                     <label className="message-selector">
