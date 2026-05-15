@@ -1,19 +1,21 @@
-# Commit And Push Context Checkpoint
+# Commit, Push, And Deploy Context Checkpoint
 
 Use after documentation refreshes, AI maintainability refactors, or meaningful feature/fix work.
 
 ## Checkpoint rules
 
+- Prefer the one-command ship workflow so the repository and hosted app advance together.
 - Review both tracked and untracked files before committing.
 - Treat documentation moves as first-class changes: include the new file, the deleted old file, and all reference updates together.
 - If documentation changed, check local Markdown links before committing.
 - Do not include local secrets, `.env` files, generated caches, or unrelated temporary files.
 - If unrelated user changes are present, preserve them and only include them when they clearly belong to the requested checkpoint.
+- Use `npm run ship -- "Commit message"` for normal checkpoint publishing. It runs tests, builds, commits, pushes, and deploys Firebase Hosting. It also deploys Firestore rules or the Cloudflare Worker when matching files changed.
 
 ## Prompt
 
 ```text
-Please review the current git changes, then create a commit and push it using docs/ai-maintenance/commit-and-push.md as the operating guide.
+Please review the current git changes, then create a commit, push it, and deploy the hosted app using docs/ai-maintenance/commit-and-push.md as the operating guide.
 
 Primary objective:
 Create a useful development checkpoint for future AI-assisted work. The commit message should clearly explain the meaningful application changes, refactors, and documentation/context updates so another AI or developer can understand why this checkpoint matters.
@@ -37,7 +39,7 @@ Please:
    - Summarize documentation updates that preserve project context.
    - Mention verification performed.
 
-9. Commit the changes.
-10. Push the commit to the current remote branch.
-11. Report the commit hash, branch, high-level files changed, and whether verification passed.
+9. Commit, push, and deploy with:
+   `npm run ship -- "Commit message"`
+10. Report the commit hash, branch, live URL, high-level files changed, deployment status, and whether verification passed.
 ```

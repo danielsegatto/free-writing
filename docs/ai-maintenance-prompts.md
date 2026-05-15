@@ -7,7 +7,7 @@ Use these prompt files whenever the project has changed enough that future devel
 - [Refresh base development docs](ai-maintenance/refresh-base-docs.md)
 - [Run an AI maintainability refactor](ai-maintenance/refactor.md)
 - [Sync hosted app with local](ai-maintenance/sync-hosted-with-local.md)
-- [Commit and push a context checkpoint](ai-maintenance/commit-and-push.md)
+- [Commit, push, and deploy a context checkpoint](ai-maintenance/commit-and-push.md)
 - [Run the full AI maintenance cycle](ai-maintenance/full-cycle.md)
 
 ## How To Cite A Prompt

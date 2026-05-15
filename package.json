@@ -8,7 +8,9 @@
     "test": "vitest run",
     "build": "tsc -b && vite build",
     "functions:build": "npm --prefix functions run build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy": "npm run build && npx firebase-tools deploy --only hosting",
+    "ship": "bash scripts/commit-push-deploy.sh"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^5.0.0",

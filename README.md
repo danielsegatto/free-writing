@@ -158,6 +158,10 @@ Conversation `lastMessagePreview` is still stored and updated for possible futur
 - `npm run test` runs the focused Vitest suite.
 - `npm run build` type-checks and builds the PWA.
 - `npm run preview` serves the production build locally.
+- `npm run deploy` builds and deploys Firebase Hosting.
+- `npm run ship -- "Commit message"` runs tests, builds with the production Worker URL, commits unignored changes, pushes the current branch, and deploys the hosted app.
+
+`npm run ship` deploys Firestore rules too when `firebase.rules` changed, and deploys the Cloudflare Worker when `workers/translation/` or `wrangler.jsonc` changed. Set `RUN_TESTS=0`, `DEPLOY_WORKER=0`, or `FIREBASE_ONLY=hosting,firestore:rules` to override the defaults for a specific run.
 
 ## Verification
 

@@ -69,7 +69,13 @@ Do not commit unless I explicitly ask for a commit.
 
 ## Quick Manual Command Sequence
 
-Use this when you are running the deployment yourself and already have Firebase and Cloudflare CLI auth set up:
+Use this when you want to commit, push, and deploy together:
+
+```bash
+npm run ship -- "Commit message"
+```
+
+Use this when you are running only the deployment yourself and already have Firebase and Cloudflare CLI auth set up:
 
 ```bash
 npx firebase-tools use
