@@ -133,6 +133,7 @@ src/hooks/useMessagingData.ts
 
 src/services/
   Firebase auth, conversation, message, search, and translation request operations.
+  `messages.ts` keeps Firestore message write payload construction in small local helpers so create, transfer, merge, and English-result writes share the same field defaults.
 
 workers/translation/index.ts
   Cloudflare Worker for authenticated English conversion requests. Verifies Firebase ID tokens through Google Identity Toolkit, calls Groq with the `GROQ_API_KEY` secret, validates the JSON shape, and returns segment/options data.
@@ -206,6 +207,7 @@ Local hosting on an idle machine is not the primary Version 1 deployment target.
 ### Move and merge messages
 
 - `src/services/messages.ts` has `moveMessage`, which writes the target message and deletes the source message in a Firestore batch.
+- `src/services/messages.ts` uses local write-payload helpers to keep normal, forwarded, moved, merged, and English-result message fields consistent.
 - Moved messages currently use `isForwarded: true`, `transferType: 'moved'`, `forwardedFromConversationId`, and `forwardedFromMessageId`.
 - `src/components/MessageBubble.tsx` includes a `Move to conversation` message action and displays `Moved` or `Forwarded` through `getTransferLabel`.
 - `src/components/MessageBubble.tsx` renders the `Source` navigation label only when the message has `forwardedFromConversationId` and its text contains the literal `<-source` marker. Source metadata alone is not enough to display that label.

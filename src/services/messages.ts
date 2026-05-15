@@ -23,8 +23,66 @@ const messagePath = (userId: string, conversationId: string, messageId: string) 
 
 const sortStep = 1000;
 
+type MessageWriteInput = {
+  userId: string;
+  conversationId: string;
+  text: string;
+  searchText?: string;
+  sortOrder: number;
+  isForwarded?: boolean;
+  transferType?: Message['transferType'];
+  forwardedFromConversationId?: string | null;
+  forwardedFromMessageId?: string | null;
+};
+
 function getMessageTime(message: Message) {
   return message.createdAt?.toMillis?.() ?? 0;
+}
+
+function buildMessageWrite({
+  userId,
+  conversationId,
+  text,
+  searchText,
+  sortOrder,
+  isForwarded = false,
+  transferType = null,
+  forwardedFromConversationId = null,
+  forwardedFromMessageId = null
+}: MessageWriteInput) {
+  return {
+    userId,
+    conversationId,
+    text,
+    searchText: searchText ?? text.toLowerCase(),
+    createdAt: serverTimestamp(),
+    updatedAt: null,
+    sortOrder,
+    isForwarded,
+    transferType,
+    forwardedFromConversationId,
+    forwardedFromMessageId
+  };
+}
+
+function buildTransferredMessageWrite(
+  userId: string,
+  source: Message,
+  targetConversationId: string,
+  sortOrder: number,
+  transferType: 'forwarded' | 'moved'
+) {
+  return buildMessageWrite({
+    userId,
+    conversationId: targetConversationId,
+    text: source.text,
+    searchText: source.searchText,
+    sortOrder,
+    isForwarded: true,
+    transferType,
+    forwardedFromConversationId: source.conversationId,
+    forwardedFromMessageId: source.id
+  });
 }
 
 function normalizeMessages(messages: Message[]) {
@@ -60,19 +118,12 @@ export function listenForMessages(
 export async function createMessage(userId: string, conversationId: string, text: string) {
   const cleanText = text.trim();
   const sortOrder = await getNextSortOrder(userId, conversationId);
-  const message = await addDoc(messagesPath(userId, conversationId), {
+  const message = await addDoc(messagesPath(userId, conversationId), buildMessageWrite({
     userId,
     conversationId,
     text: cleanText,
-    searchText: cleanText.toLowerCase(),
-    createdAt: serverTimestamp(),
-    updatedAt: null,
-    sortOrder,
-    isForwarded: false,
-    transferType: null,
-    forwardedFromConversationId: null,
-    forwardedFromMessageId: null
-  });
+    sortOrder
+  }));
   await touchConversation(userId, conversationId, cleanText);
   return message;
 }
@@ -109,19 +160,14 @@ export async function createMessageAfter(
 
   if (!insertion.needsRebalance) {
     const batch = writeBatch(requireDb());
-    batch.set(targetMessage, {
+    batch.set(targetMessage, buildMessageWrite({
       userId,
       conversationId,
       text: cleanText,
-      searchText: cleanText.toLowerCase(),
-      createdAt: serverTimestamp(),
-      updatedAt: null,
       sortOrder: insertion.sortOrder,
-      isForwarded: false,
-      transferType: null,
       forwardedFromConversationId: source.conversationId,
       forwardedFromMessageId: source.id
-    });
+    }));
     await batch.commit();
     await touchConversation(userId, conversationId, cleanText);
     return targetMessage;
@@ -134,19 +180,14 @@ export async function createMessageAfter(
       sortOrder: (shiftedIndex + 1) * sortStep
     });
   });
-  batch.set(targetMessage, {
+  batch.set(targetMessage, buildMessageWrite({
     userId,
     conversationId,
     text: cleanText,
-    searchText: cleanText.toLowerCase(),
-    createdAt: serverTimestamp(),
-    updatedAt: null,
     sortOrder: (insertion.sourceIndex + 2) * sortStep,
-    isForwarded: false,
-    transferType: null,
     forwardedFromConversationId: source.conversationId,
     forwardedFromMessageId: source.id
-  });
+  }));
   await batch.commit();
   await touchConversation(userId, conversationId, cleanText);
   return targetMessage;
@@ -177,19 +218,10 @@ export async function forwardMessage(
   targetConversationId: string
 ) {
   const sortOrder = await getNextSortOrder(userId, targetConversationId);
-  const forwarded = await addDoc(messagesPath(userId, targetConversationId), {
-    userId,
-    conversationId: targetConversationId,
-    text: source.text,
-    searchText: source.searchText,
-    createdAt: serverTimestamp(),
-    updatedAt: null,
-    sortOrder,
-    isForwarded: true,
-    transferType: 'forwarded',
-    forwardedFromConversationId: source.conversationId,
-    forwardedFromMessageId: source.id
-  });
+  const forwarded = await addDoc(
+    messagesPath(userId, targetConversationId),
+    buildTransferredMessageWrite(userId, source, targetConversationId, sortOrder, 'forwarded')
+  );
   await touchConversation(userId, targetConversationId, source.text);
   return forwarded;
 }
@@ -202,19 +234,7 @@ export async function moveMessage(
   const sortOrder = await getNextSortOrder(userId, targetConversationId);
   const targetMessage = doc(messagesPath(userId, targetConversationId));
   const batch = writeBatch(requireDb());
-  batch.set(targetMessage, {
-    userId,
-    conversationId: targetConversationId,
-    text: source.text,
-    searchText: source.searchText,
-    createdAt: serverTimestamp(),
-    updatedAt: null,
-    sortOrder,
-    isForwarded: true,
-    transferType: 'moved',
-    forwardedFromConversationId: source.conversationId,
-    forwardedFromMessageId: source.id
-  });
+  batch.set(targetMessage, buildTransferredMessageWrite(userId, source, targetConversationId, sortOrder, 'moved'));
   batch.delete(messagePath(userId, source.conversationId, source.id));
   await batch.commit();
   await touchConversation(userId, targetConversationId, source.text);
@@ -228,19 +248,12 @@ export async function mergeMessages(userId: string, conversationId: string, mess
 
   const targetMessage = doc(messagesPath(userId, conversationId));
   const batch = writeBatch(requireDb());
-  batch.set(targetMessage, {
+  batch.set(targetMessage, buildMessageWrite({
     userId,
     conversationId,
     text: mergedText,
-    searchText: mergedText.toLowerCase(),
-    createdAt: serverTimestamp(),
-    updatedAt: null,
-    sortOrder: selectedMessages[0].sortOrder,
-    isForwarded: false,
-    transferType: null,
-    forwardedFromConversationId: null,
-    forwardedFromMessageId: null
-  });
+    sortOrder: selectedMessages[0].sortOrder
+  }));
   selectedMessages.forEach((message) => {
     batch.delete(messagePath(userId, conversationId, message.id));
   });
