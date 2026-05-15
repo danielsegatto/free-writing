@@ -184,12 +184,14 @@ button {
 
 .search-box input,
 .rename-form input,
-.composer textarea {
+.composer textarea,
+.message-edit-form textarea {
   color: #e8eef2;
 }
 
 .search-box input::placeholder,
-.composer textarea::placeholder {
+.composer textarea::placeholder,
+.message-edit-form textarea::placeholder {
   color: #7d908c;
 }
 
@@ -390,6 +392,34 @@ button {
   opacity: 0.35;
 }
 
+.message-edit-form {
+  display: grid;
+  margin-top: 10px;
+  gap: 10px;
+}
+
+.message-edit-form textarea {
+  width: 100%;
+  min-height: 0;
+  overflow: hidden;
+  resize: none;
+  border: 1px solid #54d6bf;
+  border-radius: 8px;
+  padding: 11px 12px;
+  background: #101719;
+}
+
+.message-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.message-edit-actions .primary-button {
+  min-height: 38px;
+  padding: 0 16px;
+}
+
 .copy-status {
   color: #6ce5cf;
   font-weight: 700;
@@ -444,15 +474,6 @@ button {
   border-radius: 8px;
   padding: 11px 12px;
   background: #101719;
-}
-
-.editing-strip {
-  display: flex;
-  grid-column: 1 / -1;
-  align-items: center;
-  justify-content: space-between;
-  color: #6ce5cf;
-  font-weight: 700;
 }
 
 .send-button {

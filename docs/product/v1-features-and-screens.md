@@ -83,12 +83,12 @@ The composer should support fast keyboard entry for desktop and hardware-keyboar
 Requirements:
 
 - `Enter` inserts a new line in the message text.
-- `Ctrl+Enter` sends the current block on Windows/Linux.
-- `Cmd+Enter` sends the current block on macOS and iPad hardware keyboards.
-- Keyboard send should use the same validation as the Send button.
+- `Ctrl+Enter` opens draft English conversion on Windows/Linux.
+- `Cmd+Enter` opens draft English conversion on macOS and iPad hardware keyboards.
+- The visible Send button sends the current draft.
 - Empty or whitespace-only messages should not be sent.
-- While editing a message, `Ctrl+Enter` / `Cmd+Enter` should save the edit.
-- The visible Send/Save button remains available for touch users.
+- While editing a message inline, `Ctrl+Enter` / `Cmd+Enter` should save the edit.
+- The visible Send and inline Save buttons remain available for touch users.
 
 ### 7.3.2 Convert text to English
 
@@ -105,7 +105,7 @@ Version 1 behavior:
 - The app shows a preview assembled from the selected options.
 - For a saved message, `Create block` inserts the assembled English text as a new message directly below the original.
 - For a saved message, `Replace block` updates the original block with the assembled English text.
-- For draft text, `Use in draft` replaces the composer draft with the assembled English text before sending.
+- For draft text, `Send English` sends the assembled English text directly as a new message.
 
 Requirements:
 
@@ -123,11 +123,13 @@ The user can edit a message after creating it.
 Requirements:
 
 - Edit action available from each message.
-- Existing message text appears in an edit field.
+- Existing message text appears in an inline edit field inside the message block, not in the bottom composer.
+- The inline edit field expands to show the whole text while editing instead of requiring scrolling inside the field.
 - User can save or cancel.
 - After saving, update the message text.
 - Store `updatedAt` timestamp.
 - Show a small `edited` label when a message has been changed.
+- The bottom composer remains reserved for creating new messages while a block is being edited.
 
 ---
 
@@ -383,7 +385,8 @@ Content:
 ### Messages
 
 - User can create a message.
-- User can send or save a message with `Ctrl+Enter` / `Cmd+Enter`.
+- User can open draft English conversion from the composer with `Ctrl+Enter` / `Cmd+Enter`.
+- User can save an inline edit with `Ctrl+Enter` / `Cmd+Enter`.
 - User can edit a message.
 - User can delete a message.
 - User can forward a message to another conversation.
@@ -391,7 +394,7 @@ Content:
 - User can reorder messages inside a conversation with move controls or drag-and-drop on desktop and touch/pointer devices.
 - User can merge multiple selected messages inside a conversation.
 - User can convert a message to English and either create a new result block or replace the source block.
-- User can convert draft composer text to English before sending.
+- User can convert draft composer text to English and send the selected English result directly.
 - User can search messages.
 
 ### Multi-device
@@ -449,7 +452,7 @@ Version 1 is complete when:
 - I can open the same account on another device and see the same messages.
 - I can edit a message.
 - I can delete a message.
-- I can send a new message with `Ctrl+Enter` / `Cmd+Enter`.
+- I can open draft English conversion with `Ctrl+Enter` / `Cmd+Enter`.
 - I can search messages.
 - I can forward a message from one conversation to another.
 - I can move a message from one conversation to another.
@@ -457,7 +460,7 @@ Version 1 is complete when:
 - I can select multiple text blocks, merge them into one block, and confirm the originals are removed.
 - I can convert a text block to English, select variants, and create the English result below the original.
 - I can replace a source text block with selected English text.
-- I can convert draft composer text to English before sending.
+- I can convert draft composer text to English and send the selected English result directly.
 - I can open the app offline after it was previously loaded.
 - I can read cached content offline.
 - I can create or edit messages offline and have them sync when back online.

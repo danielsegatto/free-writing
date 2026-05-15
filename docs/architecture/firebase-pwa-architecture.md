@@ -160,7 +160,7 @@ Useful user fields:
 `forwardedFromMessageId`
 : Source message ID, if forwarded or moved.
 
-English conversion results are also stored as normal messages. Creating an English block links the new block back to its source through `forwardedFromConversationId` and `forwardedFromMessageId`, while leaving `transferType` as `null` so it does not display as a forwarded or moved message. Replacing a source block with English text updates the same message through the normal edit path. Converting draft text only updates the unsaved composer draft until the user sends it.
+English conversion results are also stored as normal messages. Creating an English block links the new block back to its source through `forwardedFromConversationId` and `forwardedFromMessageId`, while leaving `transferType` as `null` so it does not display as a forwarded or moved message. Replacing a source block with English text updates the same message through the normal edit path. Converting draft text sends the selected assembled English text directly as a new normal message instead of writing it back into the composer draft.
 
 Merged text blocks are stored as normal messages. Merging does not require extra fields; the app creates a replacement message with unified text and deletes the selected original messages in the same batch.
 

@@ -76,15 +76,17 @@ export default function App() {
     setActiveConversationId((current) => (current === conversation.id ? conversations[0]?.id ?? null : current));
   }
 
-  async function handleSubmitMessage() {
-    if (!user || !activeConversationId || !draft.trim()) return;
-    if (editingMessage) {
-      await editMessage(user.uid, activeConversationId, editingMessage.id, draft);
-      setEditingMessage(null);
-    } else {
-      await createMessage(user.uid, activeConversationId, draft);
-    }
+  async function handleSubmitMessage(textOverride?: string) {
+    const messageText = textOverride ?? draft;
+    if (!user || !activeConversationId || !messageText.trim()) return;
+    await createMessage(user.uid, activeConversationId, messageText);
     setDraft('');
+  }
+
+  async function handleSaveEdit(message: Message, text: string) {
+    if (!user || !text.trim()) return;
+    await editMessage(user.uid, message.conversationId, message.id, text);
+    setEditingMessage(null);
   }
 
   async function handleDeleteMessage(message: Message) {
@@ -155,12 +157,10 @@ export default function App() {
 
   function handleEditMessage(message: Message) {
     setEditingMessage(message);
-    setDraft(message.text);
   }
 
   function handleCancelEdit() {
     setEditingMessage(null);
-    setDraft('');
   }
 
   function handleNavigateToSource(conversationId: string) {
@@ -203,9 +203,10 @@ export default function App() {
         editingMessage={editingMessage}
         onBack={() => setActiveConversationId(null)}
         onDraftChange={setDraft}
-        onSubmitMessage={() => void handleSubmitMessage()}
+        onSubmitMessage={handleSubmitMessage}
         onCancelEdit={handleCancelEdit}
         onEditMessage={handleEditMessage}
+        onSaveEdit={handleSaveEdit}
         onForwardMessage={(message) => setTransferAction({ mode: 'forward', message })}
         onMoveToConversation={(message) => setTransferAction({ mode: 'move', message })}
         onNavigateToSource={handleNavigateToSource}

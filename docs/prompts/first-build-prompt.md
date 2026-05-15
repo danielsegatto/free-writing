@@ -45,22 +45,22 @@ Conversations:
 Messages:
 - User can create text messages inside a conversation.
 - Enter should insert a newline in the composer.
-- Ctrl+Enter should send the current text block on Windows/Linux.
-- Cmd+Enter should send the current text block on macOS and iPad hardware keyboards.
-- User can edit messages.
+- Ctrl+Enter should open draft English conversion on Windows/Linux.
+- Cmd+Enter should open draft English conversion on macOS and iPad hardware keyboards.
+- User can edit messages inline inside the message block, without moving the text into the composer.
 - User can delete messages with confirmation.
 - User can forward a message to another conversation.
 - User can move a message to another conversation.
 - User can reorder text blocks inside a conversation with touch-friendly controls and drag on desktop and touch/pointer devices.
 - User can select multiple text blocks inside a conversation and merge them into one unified block.
 - User can convert a text block to English.
-- User can convert draft composer text to English before sending.
+- User can convert draft composer text to English and send the selected English result directly.
 - Forwarding creates a new message in the target conversation with the same text.
 - Moving creates a message in the target conversation and removes the original from the source conversation.
 - Merging creates one normal replacement message from the selected blocks in display order and removes the selected originals.
 - English conversion breaks the source text into a small number of larger logical segments, offers three selectable English versions for each segment, and can create the selected English result as a new message below the original.
 - For saved messages, English conversion can also replace the source block with the selected English text.
-- For draft text, English conversion can place the selected English text back into the composer before the user sends it.
+- For draft text, English conversion sends the selected English text directly as a new message.
 - Show an optional "Forwarded" label on forwarded messages.
 - Show an optional "Moved" label on moved messages.
 - Show an "edited" label if a message was changed.
@@ -119,7 +119,7 @@ Build in this order:
 6. Create conversation
 7. Open conversation
 8. Create message
-9. Add `Ctrl+Enter` / `Cmd+Enter` send behavior
+9. Add `Ctrl+Enter` / `Cmd+Enter` draft English conversion behavior
 10. Sync messages across devices
 11. Edit message
 12. Delete message

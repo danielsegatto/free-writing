@@ -102,7 +102,7 @@ Use [QA verification checklist](qa-v1-verification.md) before treating Firebase,
 
 The first useful version should be:
 
-> A private Google-login PWA where I can create conversations, save text blocks, copy them, convert them to English, send with keyboard shortcuts, edit/delete/search/reorder/merge them, forward or move blocks between conversations, and access everything across iPhone, desktop, and tablet, with offline support for cached data.
+> A private Google-login PWA where I can create conversations, save text blocks, copy them, convert them to English, quickly convert draft text with keyboard shortcuts, edit/delete/search/reorder/merge them, forward or move blocks between conversations, and access everything across iPhone, desktop, and tablet, with offline support for cached data.
 
 ## Maintenance guidance
 

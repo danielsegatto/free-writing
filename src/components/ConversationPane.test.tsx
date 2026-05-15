@@ -46,6 +46,7 @@ function renderPane(overrides: Partial<ComponentProps<typeof ConversationPane>> 
     onSubmitMessage: vi.fn(),
     onCancelEdit: vi.fn(),
     onEditMessage: vi.fn(),
+    onSaveEdit: vi.fn(),
     onForwardMessage: vi.fn(),
     onMoveToConversation: vi.fn(),
     onNavigateToSource: vi.fn(),
@@ -102,27 +103,57 @@ describe('ConversationPane', () => {
     consoleError.mockRestore();
   });
 
-  it('submits with Ctrl+Enter and Cmd+Enter but leaves plain Enter as a newline shortcut', () => {
-    const props = renderPane();
+  it('opens draft English conversion with Ctrl+Enter and Cmd+Enter but leaves plain Enter as a newline shortcut', async () => {
+    const onConvertToEnglish = vi.fn(async () => ({
+      segments: [
+        {
+          original: 'Ready to send',
+          options: ['Ready to send', 'Ready to submit', 'Prepared to send'] as [string, string, string]
+        }
+      ]
+    }));
+    const props = renderPane({ onConvertToEnglish });
     const composer = screen.getByPlaceholderText('Write a message');
 
     fireEvent.keyDown(composer, { key: 'Enter' });
     expect(props.onSubmitMessage).not.toHaveBeenCalled();
 
     fireEvent.keyDown(composer, { key: 'Enter', ctrlKey: true });
+
+    expect(onConvertToEnglish).toHaveBeenCalledWith('Ready to send');
+    expect(await screen.findByRole('dialog', { name: 'Choose English versions' })).toBeInTheDocument();
+    expect(props.onSubmitMessage).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByTitle('Close'));
     fireEvent.keyDown(composer, { key: 'Enter', metaKey: true });
 
-    expect(props.onSubmitMessage).toHaveBeenCalledTimes(2);
+    expect(onConvertToEnglish).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps the composer for new messages while editing a block inline', () => {
+    const editingMessage = message('first', 'First');
+    const onSaveEdit = vi.fn();
+    const props = renderPane({ editingMessage, draft: 'New message draft', onSaveEdit });
+    const composer = screen.getByPlaceholderText('Write a message');
+    const editor = screen.getByLabelText('Edit message text');
+
+    expect(composer).toHaveValue('New message draft');
+    expect(editor).toHaveValue('First');
+
+    fireEvent.change(editor, { target: { value: 'Edited first block' } });
+    fireEvent.keyDown(editor, { key: 'Enter', ctrlKey: true });
+
+    expect(onSaveEdit).toHaveBeenCalledWith(expect.objectContaining({ id: 'first' }), 'Edited first block');
+    expect(props.onSubmitMessage).not.toHaveBeenCalled();
   });
 
   it('shows edit mode and allows canceling an edit', () => {
     const editingMessage = message('first', 'First');
-    const props = renderPane({ editingMessage, draft: editingMessage.text });
+    const props = renderPane({ editingMessage });
 
-    expect(screen.getByText('Editing message')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByTitle('Cancel edit'));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
 
     expect(props.onCancelEdit).toHaveBeenCalled();
   });
@@ -334,8 +365,9 @@ describe('ConversationPane', () => {
     );
   });
 
-  it('converts draft text to English before sending', async () => {
+  it('converts draft text to English and sends the selected text directly', async () => {
     const onDraftChange = vi.fn();
+    const onSubmitMessage = vi.fn(async () => undefined);
     const onConvertToEnglish = vi.fn(async () => ({
       segments: [
         {
@@ -344,14 +376,15 @@ describe('ConversationPane', () => {
         }
       ]
     }));
-    renderPane({ draft: 'Pronto para enviar', onDraftChange, onConvertToEnglish });
+    renderPane({ draft: 'Pronto para enviar', onDraftChange, onSubmitMessage, onConvertToEnglish });
 
     fireEvent.click(screen.getByTitle('Convert draft to English'));
     fireEvent.click(await screen.findByLabelText('Ready to submit'));
-    fireEvent.click(screen.getByRole('button', { name: 'Use in draft' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send English' }));
 
     expect(onConvertToEnglish).toHaveBeenCalledWith('Pronto para enviar');
-    expect(onDraftChange).toHaveBeenCalledWith('Ready to submit');
+    expect(onSubmitMessage).toHaveBeenCalledWith('Ready to submit');
+    expect(onDraftChange).not.toHaveBeenCalled();
   });
 
   it('shows a clear error when English conversion fails', async () => {

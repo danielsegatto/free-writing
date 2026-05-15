@@ -16,7 +16,7 @@ The app should let the user:
 - Search messages
 - Edit messages
 - Delete messages
-- Send a text block with `Ctrl+Enter` / `Cmd+Enter`
+- Open draft English conversion with `Ctrl+Enter` / `Cmd+Enter`
 - Forward text blocks between conversations
 - Reorder text blocks inside a conversation with explicit controls and drag on desktop and touch/pointer devices
 - Merge multiple selected text blocks into one unified block
@@ -82,7 +82,7 @@ The user should be able to:
 7. Delete messages.
 8. Search messages.
 9. Forward/copy text blocks from one conversation to another.
-10. Send a block of text from the composer with `Ctrl+Enter` on Windows/Linux and `Cmd+Enter` on macOS/iPad keyboards.
+10. Open draft English conversion from the composer with `Ctrl+Enter` on Windows/Linux and `Cmd+Enter` on macOS/iPad keyboards.
 11. Reorder text blocks inside a conversation with touch-friendly controls and drag on desktop and touch/pointer devices.
 12. Select multiple text blocks in a conversation and merge them into one unified block, removing the originals.
 13. Convert a saved text block or draft text to English by selecting one of three English versions for each segment.
@@ -122,4 +122,4 @@ As the only user of the app, I want to sign in with Gmail, create private conver
 
 The first useful version should be:
 
-> A private Google-login PWA where I can create conversations, save text blocks, convert them to English, send with keyboard shortcuts, edit/delete/search/reorder/merge them, forward or move blocks between conversations, and access everything across iPhone, desktop, and tablet, with offline support for cached data.
+> A private Google-login PWA where I can create conversations, save text blocks, convert them to English, quickly convert draft text with keyboard shortcuts, edit/delete/search/reorder/merge blocks, forward or move blocks between conversations, and access everything across iPhone, desktop, and tablet, with offline support for cached data.

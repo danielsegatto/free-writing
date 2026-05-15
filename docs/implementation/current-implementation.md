@@ -11,7 +11,7 @@ The current app state is a working Firebase-backed React PWA named `Free Writing
 Implemented:
 
 - Vite + React frontend.
-- Focused Vitest coverage for message service writes, loaded-message search, composer keyboard sending, reorder controls, desktop and touch drag-to-reorder behavior, multi-block merge, English conversion UI/service behavior, and the shared forward/move modal.
+- Focused Vitest coverage for message service writes, loaded-message search, composer keyboard conversion behavior, inline editing, reorder controls, desktop and touch drag-to-reorder behavior, multi-block merge, English conversion UI/service behavior, and the shared forward/move modal.
 - React code organized into small components, a subscription hook, Firebase services, and utility helpers.
 - Firebase Authentication with Google provider.
 - Firebase configuration guard that shows a setup notice when `.env` is missing or still contains placeholder values.
@@ -20,9 +20,9 @@ Implemented:
 - Conversation create, rename, open, and delete.
 - Conversation list rows show conversation title and updated time only; they intentionally do not render stored message previews.
 - Message create, edit, copy-to-clipboard, delete, forward, move to another conversation, search, manual up/down reorder, drag reorder on desktop and touch/pointer devices, and selected-block merge.
-- English conversion for saved messages and composer draft text. It segments text, presents three English options per segment, and can create a new message below a saved source, replace a saved source, or place the selected English text back into the draft.
+- English conversion for saved messages and composer draft text. It segments text, presents three English options per segment, and can create a new message below a saved source, replace a saved source, or send selected draft English text directly as a new message.
 - Message transfer support distinguishes forwarded messages from moved messages with `transferType`.
-- Composer keyboard send/save with `Ctrl+Enter` / `Cmd+Enter`, while plain `Enter` inserts a newline.
+- Composer `Ctrl+Enter` / `Cmd+Enter` opens draft English conversion, while plain `Enter` inserts a newline. Inline message edits use `Ctrl+Enter` / `Cmd+Enter` to save.
 - Responsive phone/desktop layout.
 - Conversation pane layout is constrained to the viewport; only the message list scrolls, keeping the conversation header, merge toolbar, and composer visible in long conversations.
 - Dark visual theme across sign-in, sidebar, conversation pane, composer, message bubbles, modal, and hover states.
@@ -111,7 +111,7 @@ src/components/Sidebar.tsx
   Search, conversation list, create, rename, delete, and navigation UI. Normal conversation rows show title and updated time; search results still show matching message text for context.
 
 src/components/ConversationPane.tsx
-  Active conversation view, message list, selected-message state, copy/edit/transfer/reorder/drag-and-drop/merge/English conversion controls, conversion picker state, edit state, and composer UI.
+  Active conversation view, message list, selected-message state, copy/edit/transfer/reorder/drag-and-drop/merge/English conversion controls, conversion picker state, inline edit state, and composer UI.
 
 src/components/ForwardModal.tsx
   Conversation picker used when forwarding or moving a message.
@@ -208,6 +208,14 @@ Local hosting on an idle machine is not the primary Version 1 deployment target.
 - `src/components/ConversationPane.tsx` tracks selected message IDs, prunes selections when messages/conversations change, highlights selected bubbles, and enables the merge action only when at least two current messages are selected.
 - Successful merge clears the current selection. Failed merge keeps the selection and shows an inline error in the selection toolbar.
 
+### Message editing
+
+- `src/App.tsx` tracks only which `Message` is currently being edited; it no longer copies edit text into the composer draft.
+- `src/components/ConversationPane.tsx` renders the active edit as an inline textarea inside the message bubble with `Save` and `Cancel` actions.
+- The inline edit textarea auto-expands to its content height with `useLayoutEffect`, so the full message remains visible while editing without an internal scrollbar.
+- The bottom composer remains available for creating new messages while a message is being edited.
+- Inline edit save calls `onSaveEdit(message, text)`, which routes to `editMessage` and clears `editingMessage` after the write.
+
 ### Reorder messages
 
 - `src/App.tsx` keeps reorder persistence centralized by optimistically updating `messagesByConversation` and then calling `reorderMessages`.
@@ -230,9 +238,9 @@ Local hosting on an idle machine is not the primary Version 1 deployment target.
 
 - `src/services/translation.ts` posts `{ text }` to `VITE_TRANSLATION_API_URL` or `/api/to-english`.
 - The request includes the current Firebase ID token in the `Authorization` header.
-- `src/components/ConversationPane.tsx` owns the English picker modal state. It shows loading, error, ready, creating, replacing, and draft-update states.
+- `src/components/ConversationPane.tsx` owns the English picker modal state. It shows loading, error, ready, creating, replacing, and draft-send states.
 - Each AI segment returns exactly three options. The first is selected by default, and selected options are joined with spaces for the preview/saved text.
-- Saved-message conversion can create a new English block below the source or replace the source message by calling the normal edit flow. Draft conversion places the selected English text back into the composer without saving until the user sends it.
+- Saved-message conversion can create a new English block below the source or replace the source message by calling the normal edit flow. Draft conversion sends the selected English text directly as a new message and clears the composer draft through the normal create-message path.
 - `src/services/messages.ts` has `createMessageAfter`, which inserts the English result directly below the source message by choosing a midpoint `sortOrder` when possible or rebalancing order when no numeric gap exists.
 - English conversion is online-only. Created and replaced English blocks persist like normal messages and then participate in Firestore cache/sync behavior.
 - Hosted production uses `workers/translation/index.ts`, Firebase ID-token verification through Google Identity Toolkit, and Cloudflare Worker secrets for `GROQ_API_KEY` and `FIREBASE_API_KEY`. Local Vite dev uses equivalent middleware in `vite.config.ts` with `GROQ_API_KEY` from ignored `.env`.

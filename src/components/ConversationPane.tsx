@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type DragEvent, type PointerEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type DragEvent, type PointerEvent } from 'react';
 import { ArrowDown, ArrowLeft, ArrowUp, Combine, Copy, Edit3, Forward, Languages, MoreVertical, MoveRight, Reply, Send, Trash2, X } from 'lucide-react';
 import type { Conversation, EnglishConversion, Message } from '../types';
 import { formatDate } from '../utils/date';
@@ -10,9 +10,10 @@ type ConversationPaneProps = {
   editingMessage: Message | null;
   onBack: () => void;
   onDraftChange: (value: string) => void;
-  onSubmitMessage: () => void;
+  onSubmitMessage: (textOverride?: string) => void | Promise<void>;
   onCancelEdit: () => void;
   onEditMessage: (message: Message) => void;
+  onSaveEdit: (message: Message, text: string) => void | Promise<void>;
   onForwardMessage: (message: Message) => void;
   onMoveToConversation: (message: Message) => void;
   onNavigateToSource: (conversationId: string) => void;
@@ -35,7 +36,7 @@ type CopyFeedback = {
 
 type EnglishPickerState = {
   source: { type: 'message'; message: Message } | { type: 'draft' };
-  status: 'loading' | 'ready' | 'creating' | 'replacing' | 'using-draft' | 'error';
+  status: 'loading' | 'ready' | 'creating' | 'replacing' | 'sending-draft' | 'error';
   conversion: EnglishConversion | null;
   selections: number[];
   error: string | null;
@@ -69,6 +70,7 @@ export function ConversationPane({
   onSubmitMessage,
   onCancelEdit,
   onEditMessage,
+  onSaveEdit,
   onForwardMessage,
   onMoveToConversation,
   onNavigateToSource,
@@ -87,6 +89,9 @@ export function ConversationPane({
   const [mergeError, setMergeError] = useState<string | null>(null);
   const [draggedMessageId, setDraggedMessageId] = useState<string | null>(null);
   const [dragOverMessageId, setDragOverMessageId] = useState<string | null>(null);
+  const [editText, setEditText] = useState('');
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const editTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const touchDrag = useRef<TouchDragState | null>(null);
 
   const selectedMessages = activeMessages.filter((message) => selectedMessageIds.includes(message.id));
@@ -110,6 +115,18 @@ export function ConversationPane({
       return nextIds.length === currentIds.length ? currentIds : nextIds;
     });
   }, [activeConversation?.id, activeMessages]);
+
+  useEffect(() => {
+    setEditText(editingMessage?.text ?? '');
+    setIsSavingEdit(false);
+  }, [editingMessage?.id, editingMessage?.text]);
+
+  useLayoutEffect(() => {
+    const textarea = editTextareaRef.current;
+    if (!textarea) return;
+    textarea.style.height = 'auto';
+    textarea.style.height = `${textarea.scrollHeight}px`;
+  }, [editText, editingMessage?.id]);
 
   function toggleMessageSelection(messageId: string) {
     setMergeError(null);
@@ -248,6 +265,16 @@ export function ConversationPane({
     }
   }
 
+  async function saveInlineEdit(message: Message) {
+    if (!editText.trim() || isSavingEdit) return;
+    setIsSavingEdit(true);
+    try {
+      await onSaveEdit(message, editText);
+    } finally {
+      setIsSavingEdit(false);
+    }
+  }
+
   async function openMessageEnglishPicker(message: Message) {
     setEnglishPicker({
       source: { type: 'message', message },
@@ -330,11 +357,11 @@ export function ConversationPane({
     if (!englishText) return;
 
     const nextStatus =
-      action === 'create' ? 'creating' : action === 'replace' ? 'replacing' : 'using-draft';
+      action === 'create' ? 'creating' : action === 'replace' ? 'replacing' : 'sending-draft';
     setEnglishPicker({ ...englishPicker, status: nextStatus, error: null });
     try {
       if (action === 'draft') {
-        onDraftChange(englishText);
+        await onSubmitMessage(englishText);
       } else if (englishPicker.source.type === 'message') {
         if (action === 'create') {
           await onCreateEnglishBlock(englishPicker.source.message, englishText);
@@ -355,7 +382,7 @@ export function ConversationPane({
   const englishPickerIsSaving =
     englishPicker?.status === 'creating' ||
     englishPicker?.status === 'replacing' ||
-    englishPicker?.status === 'using-draft';
+    englishPicker?.status === 'sending-draft';
 
   return (
     <section className={`conversation-pane ${activeConversation ? 'open' : ''}`}>
@@ -440,50 +467,84 @@ export function ConversationPane({
                     {message.updatedAt && <span>edited</span>}
                     <time>{formatDate(message.createdAt)}</time>
                   </div>
-                  <p>{message.text}</p>
-                  <div className="message-actions">
-                    <div className="reorder-actions" aria-label="Reorder message">
-                      <button
-                        className="icon-button bare"
-                        title="Move up"
-                        disabled={messageIndex === 0}
-                        onClick={() => onMoveMessage(messageIndex, -1)}
-                      >
-                        <ArrowUp size={16} />
-                      </button>
-                      <button
-                        className="icon-button bare"
-                        title="Move down"
-                        disabled={messageIndex === activeMessages.length - 1}
-                        onClick={() => onMoveMessage(messageIndex, 1)}
-                      >
-                        <ArrowDown size={16} />
-                      </button>
-                    </div>
-                    <button className="icon-button bare" title="Edit" onClick={() => onEditMessage(message)}>
-                      <Edit3 size={16} />
-                    </button>
-                    <button className="icon-button bare" title="Copy text" onClick={() => void copyMessageText(message)}>
-                      <Copy size={16} />
-                    </button>
-                    <button className="icon-button bare" title="Convert to English" onClick={() => void openMessageEnglishPicker(message)}>
-                      <Languages size={16} />
-                    </button>
-                    {copyFeedback?.messageId === message.id && (
-                      <span className="copy-status" aria-live="polite">
-                        {getCopyFeedbackLabel(copyFeedback)}
-                      </span>
-                    )}
-                    <button className="icon-button bare" title="Forward" onClick={() => onForwardMessage(message)}>
-                      <Forward size={16} />
-                    </button>
-                    <button className="icon-button bare" title="Move to conversation" onClick={() => onMoveToConversation(message)}>
-                      <MoveRight size={16} />
-                    </button>
-                    <button className="icon-button bare" title="Delete" onClick={() => onDeleteMessage(message)}>
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
+                  {editingMessage?.id === message.id ? (
+                    <form
+                      className="message-edit-form"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        void saveInlineEdit(message);
+                      }}
+                    >
+                      <textarea
+                        aria-label="Edit message text"
+                        ref={editTextareaRef}
+                        value={editText}
+                        rows={1}
+                        onChange={(event) => setEditText(event.target.value)}
+                        onKeyDown={(event) => {
+                          if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+                            event.preventDefault();
+                            void saveInlineEdit(message);
+                          }
+                        }}
+                      />
+                      <div className="message-edit-actions">
+                        <button className="text-button" type="button" onClick={onCancelEdit}>
+                          Cancel
+                        </button>
+                        <button className="primary-button" type="submit" disabled={!editText.trim() || isSavingEdit}>
+                          {isSavingEdit ? 'Saving...' : 'Save'}
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <>
+                      <p>{message.text}</p>
+                      <div className="message-actions">
+                        <div className="reorder-actions" aria-label="Reorder message">
+                          <button
+                            className="icon-button bare"
+                            title="Move up"
+                            disabled={messageIndex === 0}
+                            onClick={() => onMoveMessage(messageIndex, -1)}
+                          >
+                            <ArrowUp size={16} />
+                          </button>
+                          <button
+                            className="icon-button bare"
+                            title="Move down"
+                            disabled={messageIndex === activeMessages.length - 1}
+                            onClick={() => onMoveMessage(messageIndex, 1)}
+                          >
+                            <ArrowDown size={16} />
+                          </button>
+                        </div>
+                        <button className="icon-button bare" title="Edit" onClick={() => onEditMessage(message)}>
+                          <Edit3 size={16} />
+                        </button>
+                        <button className="icon-button bare" title="Copy text" onClick={() => void copyMessageText(message)}>
+                          <Copy size={16} />
+                        </button>
+                        <button className="icon-button bare" title="Convert to English" onClick={() => void openMessageEnglishPicker(message)}>
+                          <Languages size={16} />
+                        </button>
+                        {copyFeedback?.messageId === message.id && (
+                          <span className="copy-status" aria-live="polite">
+                            {getCopyFeedbackLabel(copyFeedback)}
+                          </span>
+                        )}
+                        <button className="icon-button bare" title="Forward" onClick={() => onForwardMessage(message)}>
+                          <Forward size={16} />
+                        </button>
+                        <button className="icon-button bare" title="Move to conversation" onClick={() => onMoveToConversation(message)}>
+                          <MoveRight size={16} />
+                        </button>
+                        <button className="icon-button bare" title="Delete" onClick={() => onDeleteMessage(message)}>
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </article>
               );
             })}
@@ -497,47 +558,31 @@ export function ConversationPane({
               onSubmitMessage();
             }}
           >
-            {editingMessage && (
-              <div className="editing-strip">
-                Editing message
-                <button className="icon-button bare" type="button" title="Cancel edit" onClick={onCancelEdit}>
-                  <X size={16} />
-                </button>
-              </div>
-            )}
             <textarea
               value={draft}
               onChange={(event) => onDraftChange(event.target.value)}
               onKeyDown={(event) => {
                 if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
                   event.preventDefault();
-                  onSubmitMessage();
+                  void openDraftEnglishPicker();
                 }
               }}
               placeholder="Write a message"
               rows={2}
             />
             <div className="composer-actions">
-              {!editingMessage && (
-                <button
-                  className="icon-button"
-                  type="button"
-                  title="Convert draft to English"
-                  disabled={!draft.trim()}
-                  onClick={() => void openDraftEnglishPicker()}
-                >
-                  <Languages size={17} />
-                </button>
-              )}
+              <button
+                className="icon-button"
+                type="button"
+                title="Convert draft to English"
+                disabled={!draft.trim()}
+                onClick={() => void openDraftEnglishPicker()}
+              >
+                <Languages size={17} />
+              </button>
               <button className="primary-button send-button" disabled={!draft.trim()}>
-                {editingMessage ? (
-                  'Save'
-                ) : (
-                  <>
-                    <Send size={16} />
-                    Send
-                  </>
-                )}
+                <Send size={16} />
+                Send
               </button>
             </div>
           </form>
@@ -586,7 +631,7 @@ export function ConversationPane({
 
                     <div className="english-preview">
                       <p className="eyebrow">
-                        {englishPicker.source.type === 'draft' ? 'Draft preview' : 'English preview'}
+                        English preview
                       </p>
                       <p>{getAssembledEnglishText(englishPicker)}</p>
                     </div>
@@ -623,7 +668,7 @@ export function ConversationPane({
                       disabled={!englishPicker.conversion || englishPickerIsSaving}
                       onClick={() => void saveEnglishResult('draft')}
                     >
-                      {englishPicker.status === 'using-draft' ? 'Updating...' : 'Use in draft'}
+                      {englishPicker.status === 'sending-draft' ? 'Sending...' : 'Send English'}
                     </button>
                   )}
                 </footer>
