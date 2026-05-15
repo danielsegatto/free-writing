@@ -111,10 +111,13 @@ src/components/Sidebar.tsx
   Search, conversation list, create, rename, delete, and navigation UI. Normal conversation rows show title and updated time; search results still show matching message text for context.
 
 src/components/ConversationPane.tsx
-  Active conversation view, selected-message state, copy/edit/transfer/reorder/drag-and-drop/merge/English conversion orchestration, conversion picker state, inline edit state, and composer UI.
+  Active conversation view, selected-message state, copy/edit/transfer/reorder/drag-and-drop/merge/English conversion orchestration, conversion picker state, and inline edit state.
 
 src/components/MessageBubble.tsx
   Per-message rendering and local action wiring. Owns message metadata display, source-link visibility, inline edit form markup, copy feedback label, reorder buttons, transfer/delete/English action buttons, and drag/pointer event binding passed down from `ConversationPane`.
+
+src/components/MessageComposer.tsx
+  Draft composer rendering and keyboard behavior. Owns the composer form markup, draft textarea, visible send action, and `Ctrl+Enter` / `Cmd+Enter` draft English conversion shortcut passed down from `ConversationPane`.
 
 src/components/EnglishPickerModal.tsx
   English conversion dialog rendering. Receives picker state and callbacks from `ConversationPane`, renders loading/error/ready/saving states, option radios, preview, and saved-message or draft-specific actions.

@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type DragEvent, type PointerEvent } from 'react';
-import { ArrowLeft, Combine, Languages, MoreVertical, Send } from 'lucide-react';
+import { ArrowLeft, Combine, MoreVertical } from 'lucide-react';
 import { EnglishPickerModal, type EnglishPickerState } from './EnglishPickerModal';
+import { MessageComposer } from './MessageComposer';
 import { MessageBubble, type CopyFeedbackStatus } from './MessageBubble';
 import type { Conversation, EnglishConversion, Message } from '../types';
 import { assembleEnglishText } from '../utils/englishConversion';
@@ -433,41 +434,12 @@ export function ConversationPane({
             {activeMessages.length === 0 && <p className="empty-state">Write the first message here.</p>}
           </div>
 
-          <form
-            className="composer"
-            onSubmit={(event) => {
-              event.preventDefault();
-              onSubmitMessage();
-            }}
-          >
-            <textarea
-              value={draft}
-              onChange={(event) => onDraftChange(event.target.value)}
-              onKeyDown={(event) => {
-                if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
-                  event.preventDefault();
-                  void openDraftEnglishPicker();
-                }
-              }}
-              placeholder="Write a message"
-              rows={2}
-            />
-            <div className="composer-actions">
-              <button
-                className="icon-button"
-                type="button"
-                title="Convert draft to English"
-                disabled={!draft.trim()}
-                onClick={() => void openDraftEnglishPicker()}
-              >
-                <Languages size={17} />
-              </button>
-              <button className="primary-button send-button" disabled={!draft.trim()}>
-                <Send size={16} />
-                Send
-              </button>
-            </div>
-          </form>
+          <MessageComposer
+            draft={draft}
+            onDraftChange={onDraftChange}
+            onSubmitMessage={() => onSubmitMessage()}
+            onConvertDraftToEnglish={() => void openDraftEnglishPicker()}
+          />
 
           {englishPicker && (
             <EnglishPickerModal
