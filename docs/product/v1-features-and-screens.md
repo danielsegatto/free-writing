@@ -45,6 +45,7 @@ Conversation features:
 - Open a conversation
 - See last updated time
 - Delete a conversation, with confirmation
+- Reorder conversations in the conversation list with a drag handle
 
 For Version 1, conversations are private to the signed-in user.
 
@@ -244,9 +245,10 @@ Recommended Version 1 behavior:
 
 - Each message has simple move up/down reorder controls.
 - Touch-friendly move up/down controls should remain available.
-- On desktop, the user can use a visible drag handle to drag a text block onto another block and move it to that position.
-- On mobile/touch devices, the user can use the same drag handle to move a text block onto another block without blocking normal message-list scrolling from the block body.
-- While dragging, the app should show clear feedback: the dragged block follows the pointer as a preview, and the current target block is visually highlighted.
+- On desktop, the user can use a visible drag handle to drag a text block to an insertion position between blocks.
+- On mobile/touch devices, the user can use the same drag handle to move a text block to an insertion position without blocking normal message-list scrolling from the block body.
+- While dragging, the app should show clear feedback: the dragged block follows the pointer as a preview, and an insertion marker highlights the exact space where the block will land.
+- The message list should treat gaps, padding, and near-miss pointer positions as valid drop zones by resolving them to the nearest insertion position.
 - When a drag reaches the top or bottom edge of the visible message list, the list should auto-scroll so off-screen drop targets can be reached without ending the drag.
 - Drag-and-drop is an enhancement; explicit move controls should still exist for predictable accessibility and fallback behavior.
 - Reordering changes the display order of messages in that conversation only.
@@ -366,6 +368,7 @@ Each conversation row should show:
 
 - Conversation title
 - Last updated time
+- Drag handle when more than one conversation exists
 
 Phone layout:
 
@@ -377,6 +380,7 @@ Tablet/desktop layout:
 - Optional two-column layout
 - Conversation list on left
 - Active conversation on right
+- Drag-handle conversation reordering should be available from the list.
 
 ---
 
@@ -446,6 +450,7 @@ Content:
 - User can forward a message to another conversation.
 - User can move a message to another conversation.
 - User can add a conversation or quote reference to a message.
+- User can reorder conversations in the conversation list with a drag handle and see the same order after refresh.
 - User can reorder messages inside a conversation with move controls or drag-handle drop on desktop and touch/pointer devices.
 - User can merge multiple selected messages inside a conversation.
 - User can convert a message to English and either create a new result block or replace the source block.
@@ -515,6 +520,7 @@ Version 1 is complete when:
 - I can search messages.
 - I can forward a message from one conversation to another.
 - I can move a message from one conversation to another.
+- I can reorder conversations and see the same order after refresh.
 - I can reorder text blocks with move controls or a drag handle on desktop and touch/pointer devices and see the same order after refresh.
 - I can select multiple text blocks, merge them into one block, and confirm the originals are removed.
 - I can convert a text block to English, select variants, and create the English result below the original.

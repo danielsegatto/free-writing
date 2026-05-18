@@ -1,12 +1,12 @@
 # Free Writing Documentation
 
-Last updated: 2026-05-15
+Last updated: 2026-05-18
 
 This is the entry point for the Free Writing PWA documentation. The detailed base document has been split into smaller files so product intent, architecture, implementation status, and reusable prompts can be updated independently.
 
 ## App summary
 
-Free Writing is a private, Google-login messaging-style PWA for one user. It supports conversations, saved text/image blocks, image paste and selection, search, copy-to-clipboard, editing, deletion, forwarding, moving, manual up/down and drag-handle reordering on desktop and touch/pointer devices, multi-block merging, per-block English conversion, multi-device access, and offline support for the app shell plus cached Firestore data.
+Free Writing is a private, Google-login messaging-style PWA for one user. It supports conversations, conversation list drag reordering, saved text/image blocks, image paste and selection, search, copy-to-clipboard, editing, deletion, forwarding, moving, manual up/down and drag-handle block reordering on desktop and touch/pointer devices, multi-block merging, per-block English conversion, multi-device access, and offline support for the app shell plus cached Firestore data.
 
 Target devices:
 
@@ -50,7 +50,7 @@ Use the product docs when changing what the app should do or checking whether a 
 [Features and screens](product/v1-features-and-screens.md) contains:
 
 - Google/Gmail login behavior
-- Conversation behavior
+- Conversation behavior, including manual conversation ordering
 - Message creation, image attachments, editing, deletion, forwarding, moving, reordering, merging, and English conversion
 - Message search
 - Sign-in, conversation list, conversation, and search screens
@@ -102,7 +102,7 @@ Use [QA verification checklist](qa-v1-verification.md) before treating Firebase,
 
 The first useful version should be:
 
-> A private Google-login PWA where I can create conversations, save text/image blocks, copy text, convert text to English, quickly convert draft text with keyboard shortcuts, edit/delete/search/reorder/merge blocks, forward or move blocks between conversations, and access everything across iPhone, desktop, and tablet, with offline support for cached data.
+> A private Google-login PWA where I can create and organize conversations, save text/image blocks, copy text, convert text to English, quickly convert draft text with keyboard shortcuts, edit/delete/search/reorder/merge blocks, forward or move blocks between conversations, and access everything across iPhone, desktop, and tablet, with offline support for cached data.
 
 ## Maintenance guidance
 

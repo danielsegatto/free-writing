@@ -1,10 +1,10 @@
 import type { Message } from '../types';
+import type { DropPosition } from './dropTargets';
+export type { DropPosition } from './dropTargets';
 
 type OrderedItem = {
   id: string;
 };
-
-export type DropPosition = 'before' | 'after';
 
 function moveItemByDirection<TItem>(items: TItem[], itemIndex: number, direction: -1 | 1) {
   const targetIndex = itemIndex + direction;

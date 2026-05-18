@@ -41,6 +41,7 @@ Conversations:
 - User can rename conversations.
 - User can delete conversations with confirmation.
 - Conversation list should show title and last updated time, without message previews.
+- User can reorder conversations in the conversation list with a dedicated drag handle.
 
 Messages:
 - User can create text messages inside a conversation.
@@ -55,7 +56,8 @@ Messages:
 - User can forward a message to another conversation.
 - User can move a message to another conversation.
 - User can reorder text blocks inside a conversation with touch-friendly controls and a dedicated drag handle on desktop and touch/pointer devices.
-- Dragging should show a floating preview of the dragged block and a clear target highlight, while normal scrolling remains available from the message body.
+- Dragging should show a floating preview of the dragged block and an insertion marker in the exact space where the block will land, while normal scrolling remains available from the message body.
+- The message list should resolve gaps, padding, and near-miss pointer positions to a valid nearest insertion slot.
 - Drag reordering should auto-scroll the visible message list when the user drags near the top or bottom edge so off-screen drop targets remain reachable.
 - User can select multiple text blocks inside a conversation and merge them into one unified block.
 - User can convert a text block to English.
@@ -88,6 +90,7 @@ Conversation fields:
 - createdAt
 - updatedAt
 - lastMessagePreview
+- sortOrder
 
 Message fields:
 - id

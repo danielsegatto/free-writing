@@ -13,8 +13,8 @@ import { EnglishPickerModal, type EnglishPickerState } from './EnglishPickerModa
 import { MessageComposer } from './MessageComposer';
 import { MessageBubble, type CopyFeedbackStatus } from './MessageBubble';
 import type { Conversation, EnglishConversion, Message, MessageReference } from '../types';
+import { resolveNearestDropTarget, type DropPosition, type DropTargetCandidate } from '../utils/dropTargets';
 import { assembleEnglishText } from '../utils/englishConversion';
-import type { DropPosition } from '../utils/messageOrder';
 import {
   createConversationReference,
   createQuoteReference,
@@ -406,29 +406,23 @@ export function ConversationPane({
     };
   }
 
-  function getMessageElements(currentDraggedMessageId: string | null) {
+  function getMessageElements() {
     return Array.from(messagesRef.current?.querySelectorAll<HTMLElement>('[data-message-id]') ?? []).filter(
-      (element) => element.dataset.messageId && element.dataset.messageId !== currentDraggedMessageId
+      (element) => element.dataset.messageId
     );
   }
 
   function getNearestMessageDropTarget(clientY: number, currentDraggedMessageId: string | null): MessageDropTarget | null {
-    const messageElements = getMessageElements(currentDraggedMessageId);
-    if (messageElements.length === 0) return null;
-
-    for (const messageElement of messageElements) {
+    const candidates = getMessageElements().reduce<DropTargetCandidate[]>((currentCandidates, messageElement) => {
       const messageId = messageElement.dataset.messageId;
-      if (!messageId) continue;
+      if (!messageId) return currentCandidates;
 
       const rect = messageElement.getBoundingClientRect();
-      if (clientY < rect.top + rect.height / 2) {
-        return { messageId, position: 'before' };
-      }
-    }
-
-    const lastMessageElement = messageElements.at(-1);
-    const lastMessageId = lastMessageElement?.dataset.messageId;
-    return lastMessageId ? { messageId: lastMessageId, position: 'after' } : null;
+      currentCandidates.push({ id: messageId, top: rect.top, height: rect.height });
+      return currentCandidates;
+    }, []);
+    const dropTarget = resolveNearestDropTarget(candidates, clientY, currentDraggedMessageId);
+    return dropTarget ? { messageId: dropTarget.itemId, position: dropTarget.position } : null;
   }
 
   function findMessageDropTargetAtPoint(clientX: number, clientY: number, currentDraggedMessageId: string | null) {

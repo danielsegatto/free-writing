@@ -24,12 +24,8 @@ import { searchLoadedMessages } from './services/search';
 import { uploadMessageImages } from './services/storage';
 import { requestEnglishVersions } from './services/translation';
 import type { Conversation, Message, MessageReference } from './types';
-import {
-  moveItemToDropTarget,
-  moveMessageByDirection,
-  moveMessageToDropPosition,
-  type DropPosition
-} from './utils/messageOrder';
+import type { DropPosition } from './utils/dropTargets';
+import { moveItemToDropTarget, moveMessageByDirection, moveMessageToDropPosition } from './utils/messageOrder';
 import type { MessageReferenceNavigationTarget } from './utils/messageReferences';
 
 type TransferAction = {

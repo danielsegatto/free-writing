@@ -78,7 +78,8 @@ Useful user fields:
   "title": "Personal Notes",
   "createdAt": "2026-05-11T12:00:00.000Z",
   "updatedAt": "2026-05-11T12:05:00.000Z",
-  "lastMessagePreview": "Short preview of latest message"
+  "lastMessagePreview": "Short preview of latest message",
+  "sortOrder": 1000
 }
 ```
 
@@ -101,6 +102,9 @@ Useful user fields:
 
 `lastMessagePreview`
 : Short preview of the latest message.
+
+`sortOrder`
+: Numeric display order in the conversation list. Conversations should display by `sortOrder` ascending, with recent update time as a fallback for older records without explicit ordering.
 
 ---
 
@@ -249,6 +253,7 @@ Expected behavior:
 - New messages created offline are saved locally first.
 - Offline edits/deletes are saved locally first.
 - Offline reorder actions are saved locally first.
+- Offline conversation reorder actions are saved locally first.
 - Offline merge actions are saved locally first when the selected messages are cached.
 - Inline image attachments are cached and synced as part of the Firestore message document. Large images may be rejected before writing if client-side compression cannot keep the document small enough.
 - Changes sync to the cloud when the device is online again.

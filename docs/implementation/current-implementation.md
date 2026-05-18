@@ -11,13 +11,13 @@ The current app state is a working Firebase-backed React PWA named `Free Writing
 Implemented:
 
 - Vite + React frontend.
-- Focused Vitest coverage for message service writes, inline image attachments and paste handling, loaded-message search, composer keyboard conversion behavior, inline editing, reorder controls, desktop and touch drag-handle reorder behavior including body-scroll protection and edge autoscroll, multi-block merge, English conversion UI/service/helper behavior, and the shared forward/move modal.
+- Focused Vitest coverage for conversation service writes, sidebar drag reordering, message service writes, inline image attachments and paste handling, loaded-message search, composer keyboard conversion behavior, inline editing, reorder controls, desktop and touch drag-handle reorder behavior including body-scroll protection, gap drop zones, insertion markers, and edge autoscroll, multi-block merge, English conversion UI/service/helper behavior, and the shared forward/move modal.
 - React code organized into small components, a subscription hook, Firebase services, and utility helpers.
 - Firebase Authentication with Google provider.
 - Firebase configuration guard that shows a setup notice when `.env` is missing or still contains placeholder values.
 - Firestore cloud storage under `users/{userId}/conversations/{conversationId}/messages/{messageId}`.
 - Firestore security rules scoped to the signed-in user's UID.
-- Conversation create, rename, open, and delete.
+- Conversation create, rename, open, delete, and drag-handle reorder.
 - Conversation list rows show conversation title and updated time only; they intentionally do not render stored message previews.
 - Message create, edit, copy-to-clipboard, delete, forward, move to another conversation, structured conversation links and quote citations, search, manual up/down reorder, drag-handle reorder on desktop and touch/pointer devices with message-list edge autoscroll, and selected-block merge.
 - Small image attachments on new and edited blocks. Images can be selected, pasted into the composer, pasted through a touch-friendly clipboard action where the browser permits it, or pasted while editing an existing block.
@@ -31,7 +31,7 @@ Implemented:
 - PWA manifest and generated service worker.
 - Browser/PWA theme colors are aligned to the dark app shell color.
 - Firestore persistent local cache is enabled for cached data and offline writes.
-- Message order is persisted with numeric `sortOrder` values and syncs across devices.
+- Conversation order and message order are persisted with numeric `sortOrder` values and sync across devices.
 - Search runs across messages loaded by Firestore subscriptions; the current hook subscribes to every conversation's messages after the conversation list loads.
 - Cloudflare Worker backend proxy for hosted English conversion.
 - Local Vite development middleware for `/api/to-english` so Codespaces/Vite testing works without Firebase Hosting rewrites.
@@ -40,7 +40,7 @@ Known development follow-ups:
 
 - Keep `docs/qa-v1-verification.md` current as Firebase/offline behavior changes.
 - Add emulator-backed Firestore rules tests if rule complexity grows beyond the current per-user UID isolation model.
-- Verify offline create, edit, delete, forward, move, reorder by controls, reorder by drag handle on desktop and mobile/touch devices, and merge behavior in a real browser against Firebase/Firestore.
+- Verify offline create, edit, delete, forward, move, conversation reorder, message reorder by controls, message reorder by drag handle on desktop and mobile/touch devices, and merge behavior in a real browser against Firebase/Firestore.
 - Consider loading only the active conversation's messages or adding a search index if large conversation lists become slow; this would require revisiting current loaded-message search behavior.
 - Consider code-splitting Firebase-heavy client code if the production bundle warning becomes a deployment concern.
 - Recompute or clear stored conversation previews after message delete, merge-original deletion, and move-source deletion if `lastMessagePreview` is reused in UI later.
@@ -111,10 +111,10 @@ src/components/SignInScreen.tsx
   Logged-out Firebase sign-in screen.
 
 src/components/Sidebar.tsx
-  Search, conversation list, create, rename, delete, and navigation UI. Normal conversation rows show title and updated time; search results still show matching message text for context.
+  Search, conversation list, create, rename, delete, drag reorder, and navigation UI. Normal conversation rows show title and updated time; search results still show matching message text for context.
 
 src/components/ConversationPane.tsx
-  Active conversation view, selected-message state, copy/edit/transfer/reorder/drag-and-drop/merge/English conversion orchestration, reference picker state, conversion picker state, and inline edit/image-paste state.
+  Active conversation view, selected-message state, copy/edit/transfer/reorder/drag-and-drop/merge/English conversion orchestration, insertion marker state, reference picker state, conversion picker state, and inline edit/image-paste state.
 
 src/components/MessageBubble.tsx
   Per-message rendering and local action wiring. Owns message metadata display, inert image attachment previews, structured reference cards, inline edit form markup, copy feedback label, reorder buttons and drag handle, transfer/delete/English action buttons, and drag/pointer event binding passed down from `ConversationPane`.
@@ -146,7 +146,7 @@ functions/src/index.ts
   Legacy Firebase Function version of the translation proxy. Firebase Functions require the Blaze plan and are not used by the default free hosted deployment.
 
 src/utils/
-  Shared formatting, error, ordering, and small pure text helpers. `englishConversion.ts` assembles selected English conversion segment options into the text used for saving or sending. `messageOrder.ts` computes behavior-preserving message reorder arrays for up/down controls and drag/drop targets.
+  Shared formatting, error, ordering, and small pure text helpers. `englishConversion.ts` assembles selected English conversion segment options into the text used for saving or sending. `messageOrder.ts` computes behavior-preserving reorder arrays for message up/down controls, conversation drag targets, and message before/after insertion positions. `dropTargets.ts` resolves pointer positions to before/after drop slots from measured item rectangles.
 
 src/styles.css
   Global dark theme, responsive layout, viewport-constrained conversation pane, component surfaces, input states, message bubbles, drag reorder states, modal styling, English picker styling, and hover states.
@@ -255,14 +255,23 @@ Local hosting on an idle machine is not the primary Version 1 deployment target.
 ### Reorder messages
 
 - `src/App.tsx` keeps reorder persistence centralized by optimistically updating `messagesByConversation` and then calling `reorderMessages`.
-- `src/utils/messageOrder.ts` keeps the pure reorder-array calculations outside `App.tsx`, with focused tests for up/down moves and drag/drop target moves.
+- `src/utils/messageOrder.ts` keeps the pure reorder-array calculations outside `App.tsx`, with focused tests for up/down moves, drag/drop target moves, and before/after insertion moves.
+- `src/utils/dropTargets.ts` keeps the geometry-independent nearest-slot calculation outside `ConversationPane`, so gap-tolerant drops can be tested without rendering React components.
 - `src/components/ConversationPane.tsx` owns drag/reorder state, floating preview state, autoscroll, and persistence callbacks, while `src/components/MessageBubble.tsx` exposes up/down buttons and a dedicated drag handle with native desktop drag-and-drop and mobile/touch pointer bindings.
 - Dragging starts only from the drag handle. The message bubble body is no longer draggable and keeps normal touch scrolling available for long text.
-- Desktop and touch/pen dragging show a floating preview of the dragged block, dim the source bubble, and highlight the current target bubble. Touch/pen dragging tracks the pointer position with `document.elementFromPoint` and reorders on pointer release after a small movement threshold.
+- Desktop, touch, and pen dragging start immediately from the handle, show a floating preview of the dragged block, dim the source bubble, and render an insertion marker in the exact space where the block will land.
+- Drop detection first uses the pointer target when it is over a message, then falls back to the nearest before/after insertion slot based on visible message rectangles. This makes gaps, padding, insertion markers, and near-miss positions valid drop zones.
 - Dragging near the top or bottom edge of the `.messages` scroll container starts a `requestAnimationFrame` autoscroll loop so desktop and touch/pen drags can reach off-screen drop targets without releasing the block. The loop is stopped on drop, drag end, pointer release, pointer cancel, or leaving the edge zone.
 - Native desktop drag state is kept independent from touch/pen pointer state so browser pointer-cancel events during desktop drag do not clear the active desktop drop target.
-- Dropping one message on another asks `App.tsx` to move the dragged message to the target message's current position.
+- Dropping a message asks `App.tsx` to move the dragged message before or after the resolved target message.
 - `src/services/messages.ts` persists the final visible order by rewriting numeric `sortOrder` values in a Firestore batch.
+
+### Reorder conversations
+
+- `src/components/Sidebar.tsx` owns conversation drag state, floating preview state, row highlighting, and pointer handlers for the conversation list.
+- Conversation dragging starts from a dedicated row drag handle and is disabled while a row is being renamed or when only one conversation exists.
+- `src/App.tsx` optimistically updates `conversations` and calls `reorderConversations`.
+- `src/services/conversations.ts` normalizes conversations by `sortOrder`, falls back to recent update time for older records, creates new conversations above the current first row, and persists manual ordering by rewriting numeric `sortOrder` values in a Firestore batch.
 
 ### Message search
 
@@ -301,7 +310,7 @@ Local hosting on an idle machine is not the primary Version 1 deployment target.
 
 ### Sync behavior
 
-Conversation `lastMessagePreview` is still stored and updated for possible future use, but the current conversation list does not render it. It is updated on create, edit, forward, move target writes, merge result creation, English conversion result creation, and English replacement edits. It is not currently recalculated after deleting a message, deleting originals during merge, or removing a moved message from its source conversation.
+Conversation `lastMessagePreview` is still stored and updated for possible future use, but the current conversation list does not render it. Conversation `sortOrder` controls manual list ordering, while `updatedAt` remains useful for display and fallback ordering. `lastMessagePreview` is updated on create, edit, forward, move target writes, merge result creation, English conversion result creation, and English replacement edits. It is not currently recalculated after deleting a message, deleting originals during merge, or removing a moved message from its source conversation.
 
 ### Header display
 
