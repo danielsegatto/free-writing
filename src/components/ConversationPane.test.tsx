@@ -765,7 +765,8 @@ describe('ConversationPane', () => {
     expect(screen.queryByText('Part 2')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Hello world')).toBeChecked();
     expect(screen.getByLabelText('All good')).toBeChecked();
-    expect(screen.getByText('Hello world All good')).toBeInTheDocument();
+    expect(screen.queryByText('English preview')).not.toBeInTheDocument();
+    expect(screen.queryByText('Hello world All good')).not.toBeInTheDocument();
   });
 
   it('creates a new English block from the selected options', async () => {

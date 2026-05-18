@@ -1,6 +1,6 @@
 # Current Implementation
 
-Last updated: 2026-05-15
+Last updated: 2026-05-18
 
 Related docs: [documentation overview](../README.md), [product brief](../product/v1-product-brief.md), [architecture](../architecture/firebase-pwa-architecture.md), [QA checklist](../qa-v1-verification.md).
 
@@ -85,7 +85,7 @@ The `.env` file should stay local and must not be committed. `VITE_FIREBASE_STOR
 
 `VITE_TRANSLATION_API_URL` is optional for local Vite dev. Leave it blank locally to use the same-origin `/api/to-english` middleware in `vite.config.ts`. For the hosted app, set it to the deployed Cloudflare Worker URL before building production.
 
-For local Vite-only translation testing, `GROQ_API_KEY` may be stored in ignored `.env` without the `VITE_` prefix. For Cloudflare Worker local testing, copy `.dev.vars.example` to `.dev.vars`. For the deployed Worker, set secrets with Wrangler:
+For local Vite-only translation testing, `GROQ_API_KEY` may be stored in ignored `.env` without the `VITE_` prefix. The local middleware verifies Firebase ID-token JWTs against Google's Firebase public certificates and checks the configured `VITE_FIREBASE_PROJECT_ID`. For Cloudflare Worker local testing, copy `.dev.vars.example` to `.dev.vars`. For the deployed Worker, set secrets with Wrangler:
 
 ```bash
 npx wrangler secret put GROQ_API_KEY
@@ -123,7 +123,7 @@ src/components/MessageComposer.tsx
   Draft composer rendering, pending reference chips, image selection/paste previews, and keyboard behavior. Owns the composer form markup, draft textarea, visible send action, and `Ctrl+Enter` / `Cmd+Enter` draft English conversion shortcut passed down from `ConversationPane`.
 
 src/components/EnglishPickerModal.tsx
-  English conversion dialog rendering. Receives picker state and callbacks from `ConversationPane`, renders loading/error/ready/saving states, option radios, preview, and saved-message or draft-specific actions.
+  English conversion dialog rendering. Receives picker state and callbacks from `ConversationPane`, renders loading/error/ready/saving states, a scrollable segment option list, and saved-message or draft-specific actions. It intentionally does not render a separate assembled preview so large conversions keep the options readable.
 
 src/components/ForwardModal.tsx
   Conversation picker used when forwarding or moving a message.
@@ -146,7 +146,7 @@ functions/src/index.ts
   Legacy Firebase Function version of the translation proxy. Firebase Functions require the Blaze plan and are not used by the default free hosted deployment.
 
 src/utils/
-  Shared formatting, error, ordering, and small pure text helpers. `englishConversion.ts` assembles selected English conversion segment options into the preview/saved text. `messageOrder.ts` computes behavior-preserving message reorder arrays for up/down controls and drag/drop targets.
+  Shared formatting, error, ordering, and small pure text helpers. `englishConversion.ts` assembles selected English conversion segment options into the text used for saving or sending. `messageOrder.ts` computes behavior-preserving message reorder arrays for up/down controls and drag/drop targets.
 
 src/styles.css
   Global dark theme, responsive layout, viewport-constrained conversation pane, component surfaces, input states, message bubbles, drag reorder states, modal styling, English picker styling, and hover states.
@@ -277,12 +277,12 @@ Local hosting on an idle machine is not the primary Version 1 deployment target.
 - `src/services/translation.ts` posts `{ text }` to `VITE_TRANSLATION_API_URL` or `/api/to-english`.
 - The request includes the current Firebase ID token in the `Authorization` header.
 - `src/components/ConversationPane.tsx` owns the English picker state and save orchestration. It opens conversion for saved messages or draft text, tracks loading/error/ready/creating/replacing/draft-send states, and routes saves back to message creation/editing callbacks.
-- `src/components/EnglishPickerModal.tsx` renders the English conversion dialog from that state. It does not call translation or Firestore directly.
-- `src/utils/englishConversion.ts` assembles the selected English options for preview and saving. Each AI segment returns exactly three options, the first option is selected by default, and selected options are joined with spaces.
+- `src/components/EnglishPickerModal.tsx` renders the English conversion dialog from that state. It does not call translation or Firestore directly, and it keeps the ready state focused on the scrollable segment option list rather than rendering a separate selected-text preview.
+- `src/utils/englishConversion.ts` assembles the selected English options for saving or sending. Each AI segment returns exactly three options, the first option is selected by default, and selected options are joined with spaces.
 - Saved-message conversion can create a new English block below the source or replace the source message by calling the normal edit flow. Draft conversion sends the selected English text directly as a new message and clears the composer draft through the normal create-message path.
 - `src/services/messages.ts` has `createMessageAfter`, which inserts the English result directly below the source message by choosing a midpoint `sortOrder` when possible or rebalancing order when no numeric gap exists.
 - English conversion is online-only. Created and replaced English blocks persist like normal messages and then participate in Firestore cache/sync behavior.
-- Hosted production uses `workers/translation/index.ts`, Firebase ID-token verification through Google Identity Toolkit, and Cloudflare Worker secrets for `GROQ_API_KEY` and `FIREBASE_API_KEY`. Local Vite dev uses equivalent middleware in `vite.config.ts` with `GROQ_API_KEY` from ignored `.env`.
+- Hosted production uses `workers/translation/index.ts`, Firebase ID-token verification through Google Identity Toolkit, and Cloudflare Worker secrets for `GROQ_API_KEY` and `FIREBASE_API_KEY`. Local Vite dev uses equivalent middleware in `vite.config.ts` with `GROQ_API_KEY` from ignored `.env`, verifies ID-token JWT signatures against Google's Firebase public certificates, and requires the token audience/issuer to match `VITE_FIREBASE_PROJECT_ID`.
 - Translation prompts in the Worker and Vite middleware ask the model to prefer larger logical segments, complete sentences, or short paragraphs instead of splitting aggressively into small phrases.
 
 ### Offline behavior

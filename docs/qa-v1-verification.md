@@ -26,7 +26,7 @@ npx wrangler secret put FIREBASE_API_KEY
 npx wrangler deploy
 ```
 
-For local Vite-only testing, put `GROQ_API_KEY` in ignored `.env` without the `VITE_` prefix and also ensure `VITE_FIREBASE_API_KEY` and other Firebase values are present in `.env`. Restart the dev server, then confirm the browser calls `/api/to-english`; in Vite dev this is local middleware.
+For local Vite-only testing, put `GROQ_API_KEY` in ignored `.env` without the `VITE_` prefix and also ensure Firebase values, especially `VITE_FIREBASE_PROJECT_ID`, are present in `.env`. Restart the dev server, then confirm the browser calls `/api/to-english`; in Vite dev this is local middleware.
 
 For hosted Firebase testing, set `VITE_TRANSLATION_API_URL` in ignored `.env.production.local` to the deployed Worker URL before `npm run build`, then deploy Firebase Hosting only. The current Worker URL is:
 
@@ -80,7 +80,7 @@ Run against a configured Firebase project in Chrome or Safari after visiting the
 22. Select at least two messages, including a block with an image when possible, merge them, and confirm one unified block replaces the originals and keeps selected attachments.
 23. Create or use a long conversation and confirm scrolling moves only the message list while the conversation header, merge toolbar, and bottom composer remain visible.
 24. Confirm the active conversation header shows the conversation title without a message-count subtitle.
-25. Convert one message to English, choose non-default options for at least one segment, and create the English block.
+25. Convert one message to English, choose non-default options for at least one segment, confirm the picker shows only the scrollable segment option list without a separate assembled preview, and create the English block.
 26. Confirm the English block appears directly below the original and remains after reload.
 27. Convert another message to English and replace the source block with the selected English text.
 28. Enter draft text in the composer, convert the draft to English, choose an option, and confirm `Send English` creates the selected English text as a new message without first placing it in the composer.
@@ -114,5 +114,5 @@ Expected result:
 - If cached reads or queued writes fail, inspect Firestore persistent local cache setup in `src/firebase.ts`.
 - If cross-user access succeeds, stop and fix `firebase.rules` before deployment.
 - If English conversion returns 404 in Vite dev, restart the Vite dev server so local `/api/to-english` middleware is active.
-- If English conversion returns 401, confirm Google sign-in succeeded and the current preview/hosting domain is in Firebase Authentication authorized domains.
+- If English conversion returns 401, confirm Google sign-in succeeded, `VITE_FIREBASE_PROJECT_ID` matches the signed-in app, and the current preview/hosting domain is in Firebase Authentication authorized domains.
 - If English conversion returns 500/502, confirm `GROQ_API_KEY` and `FIREBASE_API_KEY` are configured in the correct Worker runtime and inspect Worker or Vite server logs.

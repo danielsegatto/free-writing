@@ -1,6 +1,6 @@
 # Version 1 Features and Screens
 
-Last updated: 2026-05-15
+Last updated: 2026-05-18
 
 Related docs: [product brief](v1-product-brief.md), [architecture](../architecture/firebase-pwa-architecture.md), [current implementation](../implementation/current-implementation.md).
 
@@ -126,7 +126,7 @@ Version 1 behavior:
 - Each segment shows three selectable English versions.
 - The first option is selected by default.
 - The user can choose one version for every segment.
-- The app shows a preview assembled from the selected options.
+- The picker focuses on the segment option list and does not show a separate assembled preview.
 - For a saved message, `Create block` inserts the assembled English text as a new message directly below the original.
 - For a saved message, `Replace block` updates the original block with the assembled English text.
 - For draft text, `Send English` sends the assembled English text directly as a new message.
@@ -396,7 +396,7 @@ Content:
 - Message action: convert to English
 - Reorder controls for moving text blocks, plus drag-handle reordering between blocks on desktop and touch/pointer devices
 - Selection controls and a merge action for combining multiple selected blocks
-- English conversion picker modal with segment options and assembled preview
+- English conversion picker modal with scrollable segment options
 
 Scrolling behavior:
 

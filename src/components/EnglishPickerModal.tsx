@@ -1,6 +1,5 @@
 import { X } from 'lucide-react';
 import type { EnglishConversion, Message } from '../types';
-import { assembleEnglishText } from '../utils/englishConversion';
 
 export type EnglishPickerSource = { type: 'message'; message: Message } | { type: 'draft' };
 
@@ -29,8 +28,6 @@ export function EnglishPickerModal({
   onSelectionChange,
   onSave
 }: EnglishPickerModalProps) {
-  const englishText = state.conversion ? assembleEnglishText(state.conversion, state.selections) : '';
-
   return (
     <div className="modal-backdrop" role="presentation">
       <section className="english-picker" role="dialog" aria-modal="true" aria-labelledby="english-picker-title">
@@ -71,11 +68,6 @@ export function EnglishPickerModal({
                   ))}
                 </fieldset>
               ))}
-            </div>
-
-            <div className="english-preview">
-              <p className="eyebrow">English preview</p>
-              <p>{englishText}</p>
             </div>
           </>
         )}

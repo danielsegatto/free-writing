@@ -3,6 +3,7 @@ import { loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { createVerify } from 'node:crypto';
 
 const groqEndpoint = 'https://api.groq.com/openai/v1/chat/completions';
 
@@ -10,6 +11,24 @@ type DevEnglishSegment = {
   original: string;
   options: [string, string, string];
 };
+
+type FirebaseTokenHeader = {
+  alg?: unknown;
+  kid?: unknown;
+};
+
+type FirebaseTokenPayload = {
+  aud?: unknown;
+  exp?: unknown;
+  iat?: unknown;
+  iss?: unknown;
+  sub?: unknown;
+};
+
+let firebaseCertCache: {
+  expiresAt: number;
+  certs: Record<string, string>;
+} | null = null;
 
 function buildPrompt(text: string) {
   return `
@@ -39,6 +58,69 @@ ${text}
 function getBearerToken(authorizationHeader: string | undefined) {
   const match = authorizationHeader?.match(/^Bearer\s+(.+)$/i);
   return match?.[1] ?? null;
+}
+
+function decodeBase64UrlJson<T>(value: string): T {
+  return JSON.parse(Buffer.from(value, 'base64url').toString('utf8')) as T;
+}
+
+function getMaxAgeSeconds(cacheControl: string | null) {
+  const match = cacheControl?.match(/(?:^|,\s*)max-age=(\d+)/i);
+  return match ? Number(match[1]) : 3600;
+}
+
+async function fetchFirebaseCerts() {
+  const now = Date.now();
+  if (firebaseCertCache && firebaseCertCache.expiresAt > now) {
+    return firebaseCertCache.certs;
+  }
+
+  const response = await fetch('https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com');
+  if (!response.ok) {
+    throw new Error('Unable to load Firebase token certificates.');
+  }
+
+  const certs = await response.json() as Record<string, string>;
+  const maxAgeSeconds = getMaxAgeSeconds(response.headers.get('cache-control'));
+  firebaseCertCache = {
+    certs,
+    expiresAt: now + maxAgeSeconds * 1000
+  };
+  return certs;
+}
+
+async function verifyFirebaseTokenForDev(projectId: string, token: string) {
+  const [encodedHeader, encodedPayload, encodedSignature] = token.split('.');
+  if (!encodedHeader || !encodedPayload || !encodedSignature) return false;
+
+  try {
+    const header = decodeBase64UrlJson<FirebaseTokenHeader>(encodedHeader);
+    const payload = decodeBase64UrlJson<FirebaseTokenPayload>(encodedPayload);
+    if (header.alg !== 'RS256' || typeof header.kid !== 'string') return false;
+
+    const certs = await fetchFirebaseCerts();
+    const cert = certs[header.kid];
+    if (!cert) return false;
+
+    const verifier = createVerify('RSA-SHA256');
+    verifier.update(`${encodedHeader}.${encodedPayload}`);
+    verifier.end();
+    if (!verifier.verify(cert, Buffer.from(encodedSignature, 'base64url'))) return false;
+
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    return (
+      payload.aud === projectId &&
+      payload.iss === `https://securetoken.google.com/${projectId}` &&
+      typeof payload.sub === 'string' &&
+      payload.sub.length > 0 &&
+      typeof payload.exp === 'number' &&
+      payload.exp > nowSeconds &&
+      typeof payload.iat === 'number' &&
+      payload.iat <= nowSeconds + 300
+    );
+  } catch {
+    return false;
+  }
 }
 
 function isDevEnglishSegment(value: unknown): value is DevEnglishSegment {
@@ -83,15 +165,6 @@ function sendJson(response: ServerResponse, statusCode: number, body: unknown) {
   response.end(JSON.stringify(body));
 }
 
-async function verifyFirebaseTokenForDev(firebaseApiKey: string, token: string) {
-  const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${firebaseApiKey}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ idToken: token })
-  });
-  return response.ok;
-}
-
 function localEnglishApi(env: Record<string, string>): Plugin {
   return {
     name: 'local-english-api',
@@ -108,7 +181,7 @@ function localEnglishApi(env: Record<string, string>): Plugin {
           return;
         }
 
-        if (!env.VITE_FIREBASE_API_KEY || !await verifyFirebaseTokenForDev(env.VITE_FIREBASE_API_KEY, token)) {
+        if (!env.VITE_FIREBASE_PROJECT_ID || !await verifyFirebaseTokenForDev(env.VITE_FIREBASE_PROJECT_ID, token)) {
           sendJson(response, 401, { error: 'Sign in again before converting text to English.' });
           return;
         }

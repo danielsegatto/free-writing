@@ -724,6 +724,7 @@ button {
 
 .english-segments {
   display: grid;
+  flex: 1;
   min-height: 0;
   overflow-y: auto;
   padding: 16px;
@@ -761,20 +762,6 @@ button {
 .english-option input {
   margin-top: 4px;
   accent-color: #54d6bf;
-}
-
-.english-preview {
-  margin: 0 16px 16px;
-  padding: 12px;
-  border: 1px solid #314246;
-  border-radius: 8px;
-  background: #1b282b;
-}
-
-.english-preview p:last-child {
-  margin: 6px 0 0;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
 }
 
 .english-picker-actions {

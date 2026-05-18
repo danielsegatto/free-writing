@@ -1,6 +1,6 @@
 # Firebase PWA Architecture
 
-Last updated: 2026-05-15
+Last updated: 2026-05-18
 
 Related docs: [product brief](../product/v1-product-brief.md), [features and screens](../product/v1-features-and-screens.md), [current implementation](../implementation/current-implementation.md).
 
@@ -327,6 +327,8 @@ Browser
 ```
 
 The browser receives only structured translation options. It must never receive the Groq key.
+
+Local Vite development uses the same browser request shape and same-origin `/api/to-english` path, but the middleware in `vite.config.ts` verifies Firebase ID-token JWT signatures directly against Google's Firebase public certificates and checks the token audience/issuer against `VITE_FIREBASE_PROJECT_ID`.
 
 ---
 
