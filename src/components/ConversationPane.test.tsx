@@ -871,9 +871,7 @@ describe('ConversationPane', () => {
     fireEvent.click(screen.getByTitle('Cite text'));
     fireEvent.click(screen.getByRole('button', { name: 'Source chat' }));
     fireEvent.click(screen.getByRole('button', { name: 'Quoted source text' }));
-    fireEvent.select(screen.getByLabelText('Source message text'), {
-      target: { selectionStart: 0, selectionEnd: 6 }
-    });
+    fireEvent.click(screen.getByRole('button', { name: 'Quoted' }));
     fireEvent.click(screen.getByRole('button', { name: 'Insert citation' }));
     fireEvent.click(screen.getByRole('button', { name: 'Send' }));
 

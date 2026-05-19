@@ -417,6 +417,39 @@ button {
   overflow-wrap: anywhere;
 }
 
+.word-token {
+  display: inline;
+  min-width: 0;
+  margin: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 0 1px;
+  color: inherit;
+  background: transparent;
+  line-height: inherit;
+  text-align: inherit;
+  touch-action: none;
+  user-select: none;
+  vertical-align: baseline;
+}
+
+.word-token:hover {
+  border-color: #54d6bf;
+  color: inherit;
+  background: transparent;
+}
+
+.word-token.selected {
+  border-color: #54d6bf;
+  color: #06201d;
+  background: #54d6bf;
+}
+
+.word-token.selected:hover {
+  color: #06201d;
+  background: #54d6bf;
+}
+
 .reference-highlight {
   border-radius: 4px;
   color: #251d08;
@@ -856,16 +889,18 @@ button {
 
 .reference-picker {
   display: flex;
-  width: min(760px, 100%);
-  max-height: 86vh;
+  width: min(1040px, calc(100vw - 28px));
+  height: min(780px, calc(100dvh - 28px));
+  max-height: calc(100dvh - 28px);
   flex-direction: column;
   overflow: hidden;
 }
 
 .reference-picker-grid {
   display: grid;
-  min-height: 360px;
-  grid-template-columns: minmax(160px, 240px) 1fr;
+  min-height: 0;
+  flex: 1;
+  grid-template-columns: minmax(180px, 260px) minmax(0, 1fr);
 }
 
 .reference-picker-list,
@@ -905,7 +940,8 @@ button {
   background: #54d6bf;
 }
 
-.reference-picker-detail textarea {
+.reference-picker-detail textarea,
+.reference-word-picker {
   width: 100%;
   min-height: 128px;
   resize: vertical;
@@ -914,6 +950,14 @@ button {
   padding: 11px 12px;
   color: #e8eef2;
   background: #101719;
+}
+
+.reference-word-picker {
+  flex: 1;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
 }
 
 .target-row {
@@ -932,6 +976,74 @@ button {
 .conversation-row:hover,
 .icon-button:hover {
   background: #203035;
+}
+
+.transfer-modal {
+  display: flex;
+  width: min(1040px, calc(100vw - 28px));
+  height: min(780px, calc(100dvh - 28px));
+  max-height: calc(100dvh - 28px);
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.transfer-modal-grid {
+  display: grid;
+  min-height: 0;
+  flex: 1;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 280px);
+}
+
+.transfer-selection-panel {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  padding: 12px;
+  gap: 10px;
+  border-right: 1px solid #263337;
+}
+
+.transfer-source-text {
+  flex: 1;
+  min-height: 220px;
+  overflow-y: auto;
+  border: 1px solid #344246;
+  border-radius: 8px;
+  padding: 12px;
+  color: #e8eef2;
+  background: #101719;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+  overscroll-behavior: contain;
+}
+
+.transfer-selection-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #a1c2bb;
+  font-size: 0.88rem;
+}
+
+.transfer-preview {
+  max-height: 110px;
+  margin: 0;
+  overflow-y: auto;
+  border: 1px solid #315047;
+  border-radius: 8px;
+  padding: 10px;
+  color: #dff4ef;
+  background: #102a27;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.transfer-target-list {
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .conversation-row.active:hover {
@@ -991,6 +1103,7 @@ button {
 
   .reference-picker {
     width: min(100%, 430px);
+    height: calc(100dvh - 24px);
     max-height: calc(100dvh - 24px);
   }
 
@@ -1026,7 +1139,8 @@ button {
     line-height: 1.3;
   }
 
-  .reference-picker-detail textarea {
+  .reference-picker-detail textarea,
+  .reference-word-picker {
     flex: 1 1 220px;
     min-height: 220px;
     resize: none;
@@ -1036,6 +1150,26 @@ button {
 
   .reference-picker-detail .primary-button {
     flex-shrink: 0;
+  }
+
+  .transfer-modal {
+    width: min(100%, 430px);
+    height: calc(100dvh - 24px);
+    max-height: calc(100dvh - 24px);
+  }
+
+  .transfer-modal-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  .transfer-selection-panel {
+    border-right: 0;
+    border-bottom: 1px solid #263337;
+  }
+
+  .transfer-target-list {
+    max-height: 180px;
   }
 
   .message-bubble {

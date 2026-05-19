@@ -58,7 +58,127 @@ describe('ForwardModal', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Target' }));
 
-    expect(onForward).toHaveBeenCalledWith('target');
+    expect(onForward).toHaveBeenCalledWith('target', undefined);
+  });
+
+  it('selects words in the transfer dialog and forwards only that range', () => {
+    const onForward = vi.fn();
+
+    render(
+      <ForwardModal
+        conversations={conversations}
+        mode="forward"
+        sourceMessage={sourceMessage}
+        onClose={vi.fn()}
+        onForward={onForward}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'this' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Target' }));
+
+    expect(onForward).toHaveBeenCalledWith('target', [
+      {
+        startOffset: 5,
+        endOffset: 9
+      }
+    ]);
+  });
+
+  it('selects separate words in the transfer dialog', () => {
+    const onForward = vi.fn();
+
+    render(
+      <ForwardModal
+        conversations={conversations}
+        mode="forward"
+        sourceMessage={sourceMessage}
+        onClose={vi.fn()}
+        onForward={onForward}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    fireEvent.click(screen.getByRole('button', { name: 'elsewhere' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Target' }));
+
+    expect(onForward).toHaveBeenCalledWith('target', [
+      {
+        startOffset: 0,
+        endOffset: 4
+      },
+      {
+        startOffset: 10,
+        endOffset: 19
+      }
+    ]);
+  });
+
+  it('deselects a selected word when clicked again', () => {
+    const onForward = vi.fn();
+
+    render(
+      <ForwardModal
+        conversations={conversations}
+        mode="forward"
+        sourceMessage={sourceMessage}
+        onClose={vi.fn()}
+        onForward={onForward}
+      />
+    );
+
+    const sendWord = screen.getByRole('button', { name: 'Send' });
+    const thisWord = screen.getByRole('button', { name: 'this' });
+
+    fireEvent.click(sendWord);
+    fireEvent.click(thisWord);
+    fireEvent.click(sendWord);
+    fireEvent.click(screen.getByRole('button', { name: 'Target' }));
+
+    expect(onForward).toHaveBeenCalledWith('target', [
+      {
+        startOffset: 5,
+        endOffset: 9
+      }
+    ]);
+  });
+
+  it('selects words by dragging across them', () => {
+    const onForward = vi.fn();
+
+    render(
+      <ForwardModal
+        conversations={conversations}
+        mode="forward"
+        sourceMessage={sourceMessage}
+        onClose={vi.fn()}
+        onForward={onForward}
+      />
+    );
+
+    const sendWord = screen.getByRole('button', { name: 'Send' });
+    const elsewhereWord = screen.getByRole('button', { name: 'elsewhere' });
+    const sourceText = screen.getByLabelText('Choose text to transfer');
+    const originalElementFromPoint = document.elementFromPoint;
+    document.elementFromPoint = vi.fn(() => elsewhereWord);
+
+    fireEvent.pointerDown(sendWord, { pointerId: 1, clientX: 4, clientY: 4 });
+    fireEvent.pointerMove(sourceText, { pointerId: 1, clientX: 40, clientY: 4 });
+    fireEvent.pointerUp(sourceText, { pointerId: 1 });
+    fireEvent.click(screen.getByRole('button', { name: 'Target' }));
+
+    expect(onForward).toHaveBeenCalledWith('target', [
+      {
+        startOffset: 0,
+        endOffset: 4
+      },
+      {
+        startOffset: 10,
+        endOffset: 19
+      }
+    ]);
+
+    document.elementFromPoint = originalElementFromPoint;
   });
 
   it('uses move labeling and closes from the icon button', () => {

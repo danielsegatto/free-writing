@@ -1,6 +1,6 @@
 # Version 1 Features and Screens
 
-Last updated: 2026-05-18
+Last updated: 2026-05-19
 
 Related docs: [product brief](v1-product-brief.md), [architecture](../architecture/firebase-pwa-architecture.md), [current implementation](../implementation/current-implementation.md).
 
@@ -200,15 +200,20 @@ Future option:
 
 ### 7.6 Forward messages between conversations
 
-The user can forward a message or text block from one conversation to another.
+The user can forward a whole message block, or selected parts of a text block, from one conversation to another.
 
 Version 1 behavior:
 
 - User opens a message menu.
 - User chooses `Forward`.
-- App shows a list of conversations.
+- App shows a transfer dialog with the source text and a list of conversations.
+- If the user does not select text, the whole block is forwarded.
+- The user can tap words to select or deselect them.
+- The user can press/hold a word and drag across words with mouse, touch, or pen input to select them.
+- Selected words may be adjacent or non-adjacent.
+- Adjacent selected words are transferred as one phrase; separate selected parts are transferred as separate paragraphs.
 - User selects target conversation.
-- App creates a new message in the target conversation using the same text.
+- App creates a new message in the target conversation using the whole text or selected text parts.
 
 The forwarded message should store optional metadata:
 
@@ -223,14 +228,17 @@ Simple display:
 
 ### 7.6.1 Move messages between conversations
 
-The app supports moving a message from one conversation to another.
+The app supports moving a whole message block, or selected parts of a text block, from one conversation to another.
 
 Intended behavior:
 
 - User chooses `Move to conversation` from a message action.
-- App shows the same conversation picker used for forwarding.
-- App creates a replacement message in the target conversation.
-- App deletes the original message from the source conversation in the same Firestore batch.
+- App shows the same transfer dialog used for forwarding.
+- If the user does not select text, the whole block is moved.
+- If the user selects one or more text parts, the app creates a replacement message in the target conversation from those selected parts and removes those selected parts from the original source block.
+- If partial moving leaves no text, attachments, or references in the source block, the source block is deleted.
+- Whole-block moves create the target message and delete the original message from the source conversation in the same Firestore batch.
+- Partial moves update or delete the source message and create the target message in the same Firestore batch.
 - The moved message stores source metadata for transfer history. User-visible cross-conversation navigation is provided by structured conversation links and quote citations.
 - The moved message displays a small `Moved` label.
 
@@ -398,6 +406,7 @@ Content:
 - Message actions: edit, delete, forward
 - Message action: move to another conversation
 - Message action: convert to English
+- Transfer dialog for forwarding/moving whole blocks or selected text parts with tap and drag word selection
 - Reorder controls for moving text blocks, plus drag-handle reordering between blocks on desktop and touch/pointer devices
 - Selection controls and a merge action for combining multiple selected blocks
 - English conversion picker modal with scrollable segment options
@@ -447,8 +456,8 @@ Content:
 - User can edit a message.
 - User can paste images while editing a message and save them onto that block.
 - User can delete a message.
-- User can forward a message to another conversation.
-- User can move a message to another conversation.
+- User can forward a whole message or selected text parts to another conversation.
+- User can move a whole message or selected text parts to another conversation.
 - User can add a conversation or quote reference to a message.
 - User can reorder conversations in the conversation list with a drag handle and see the same order after refresh.
 - User can reorder messages inside a conversation with move controls or drag-handle drop on desktop and touch/pointer devices.
@@ -518,8 +527,8 @@ Version 1 is complete when:
 - I can add a conversation or quote reference to a message and open it when the source is loaded.
 - I can open draft English conversion with `Ctrl+Enter` / `Cmd+Enter`.
 - I can search messages.
-- I can forward a message from one conversation to another.
-- I can move a message from one conversation to another.
+- I can forward a whole message or selected text parts from one conversation to another.
+- I can move a whole message or selected text parts from one conversation to another.
 - I can reorder conversations and see the same order after refresh.
 - I can reorder text blocks with move controls or a drag handle on desktop and touch/pointer devices and see the same order after refresh.
 - I can select multiple text blocks, merge them into one block, and confirm the originals are removed.

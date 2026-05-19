@@ -1,6 +1,6 @@
 # Current Implementation
 
-Last updated: 2026-05-18
+Last updated: 2026-05-19
 
 Related docs: [documentation overview](../README.md), [product brief](../product/v1-product-brief.md), [architecture](../architecture/firebase-pwa-architecture.md), [QA checklist](../qa-v1-verification.md).
 
@@ -19,7 +19,7 @@ Implemented:
 - Firestore security rules scoped to the signed-in user's UID.
 - Conversation create, rename, open, delete, and drag-handle reorder.
 - Conversation list rows show conversation title and updated time only; they intentionally do not render stored message previews.
-- Message create, edit, copy-to-clipboard, delete, forward, move to another conversation, structured conversation links and quote citations, search, manual up/down reorder, drag-handle reorder on desktop and touch/pointer devices with message-list edge autoscroll, and selected-block merge.
+- Message create, edit, copy-to-clipboard, delete, forward, move to another conversation, partial text forwarding/moving from the transfer dialog, structured conversation links and quote citations, search, manual up/down reorder, drag-handle reorder on desktop and touch/pointer devices with message-list edge autoscroll, and selected-block merge.
 - Small image attachments on new and edited blocks. Images can be selected, pasted into the composer, pasted through a touch-friendly clipboard action where the browser permits it, or pasted while editing an existing block.
 - Image attachments are compressed in the browser and stored inline in Firestore message documents. Firebase Storage is intentionally not used so the app stays on the free Spark plan.
 - English conversion for saved messages and composer draft text. It segments text, presents three English options per segment, and can create a new message below a saved source, replace a saved source, or send selected draft English text directly as a new message.
@@ -126,7 +126,7 @@ src/components/EnglishPickerModal.tsx
   English conversion dialog rendering. Receives picker state and callbacks from `ConversationPane`, renders loading/error/ready/saving states, a scrollable segment option list, and saved-message or draft-specific actions. It intentionally does not render a separate assembled preview so large conversions keep the options readable.
 
 src/components/ForwardModal.tsx
-  Conversation picker used when forwarding or moving a message.
+  Transfer dialog used when forwarding or moving a message. It excludes the source conversation, renders the source text as selectable word tokens, supports tap toggling plus pointer drag select/unselect on mouse/touch/pen, previews the whole block or selected parts, and returns selected text ranges with the target conversation.
 
 src/hooks/useMessagingData.ts
   Authentication, conversation, and message subscription lifecycle.
@@ -146,7 +146,7 @@ functions/src/index.ts
   Legacy Firebase Function version of the translation proxy. Firebase Functions require the Blaze plan and are not used by the default free hosted deployment.
 
 src/utils/
-  Shared formatting, error, ordering, and small pure text helpers. `englishConversion.ts` assembles selected English conversion segment options into the text used for saving or sending. `messageOrder.ts` computes behavior-preserving reorder arrays for message up/down controls, conversation drag targets, and message before/after insertion positions. `dropTargets.ts` resolves pointer positions to before/after drop slots from measured item rectangles.
+  Shared formatting, error, ordering, and small pure text helpers. `englishConversion.ts` assembles selected English conversion segment options into the text used for saving or sending. `textSelection.ts` tokenizes transfer/source text into word and whitespace tokens, normalizes selected ranges, assembles selected parts, and removes selected ranges from source text for partial moves. `messageOrder.ts` computes behavior-preserving reorder arrays for message up/down controls, conversation drag targets, and message before/after insertion positions. `dropTargets.ts` resolves pointer positions to before/after drop slots from measured item rectangles.
 
 src/styles.css
   Global dark theme, responsive layout, viewport-constrained conversation pane, component surfaces, input states, message bubbles, drag reorder states, modal styling, English picker styling, and hover states.
@@ -216,17 +216,22 @@ Local hosting on an idle machine is not the primary Version 1 deployment target.
 
 - The app does not currently create or update a profile document at `users/{userId}`. That path is used as the security and ownership namespace for each user's conversation subcollection.
 
-### Move and merge messages
+### Forward, move, and merge messages
 
 - `src/services/messages.ts` has `moveMessage`, which writes the target message and deletes the source message in a Firestore batch.
+- `src/services/messages.ts` has `moveMessageTextSelection`, which creates the moved target text from selected source ranges and updates or deletes the source message in the same Firestore batch.
 - `src/services/messages.ts` uses local write-payload helpers to keep normal, forwarded, moved, merged, and English-result message fields consistent.
 - Moved messages currently use `isForwarded: true`, `transferType: 'moved'`, `forwardedFromConversationId`, and `forwardedFromMessageId`.
 - `src/components/MessageBubble.tsx` includes a `Move to conversation` message action and displays `Moved` or `Forwarded` through `getTransferLabel`.
 - `src/components/MessageBubble.tsx` renders user-visible source navigation through structured reference cards; forwarded and moved source metadata still drives transfer labels.
 - `src/components/MessageBubble.tsx` includes a `Copy text` message action with short-lived success/failure feedback; the copy action is browser clipboard API UI only and does not touch Firestore.
 - `src/App.tsx` models the pending transfer as `{ mode: 'forward' | 'move', message }`.
-- `src/components/ForwardModal.tsx` receives `mode` and `sourceMessage`, changes its heading between `Forward to` and `Move to`, and excludes the source conversation from target choices.
-- Moving touches the target conversation preview after the batch, but does not recompute the source conversation preview after deleting the original.
+- `src/components/ForwardModal.tsx` receives `mode` and `sourceMessage`, changes its heading between `Forward to` and `Move to`, excludes the source conversation from target choices, and returns optional selected source text ranges.
+- Transfer word selection is scoped to the forward/move dialog. Normal message bubbles remain plain readable text and do not expose per-word selection.
+- The transfer dialog supports separate selections: tapping a word toggles it, tapping a selected word deselects it, and pressing/holding then dragging with mouse, finger, or pen selects or unselects words depending on the first word's state. Hover is outline-only; selected words use the filled teal state.
+- Forwarding with selected ranges creates a normal forwarded target message whose text is assembled from the selected parts. Adjacent selected words remain one phrase; non-adjacent selected parts are joined as separate paragraphs.
+- Moving with selected ranges creates the moved target message and removes the selected source text ranges from the original block. If nothing remains in the source block, it is deleted.
+- Whole-block moving touches the target conversation preview after the batch, but does not recompute the source conversation preview after deleting the original. Partial moving touches both the target and source conversation previews.
 - `src/services/messages.ts` has `mergeMessages`, which normalizes the selected messages into display order, joins trimmed block text with blank lines, carries selected attachments forward in display order, creates one replacement message at the first selected message's `sortOrder`, and deletes the selected originals in the same Firestore batch.
 - Merged replacement blocks are normal messages with `isForwarded: false`, `transferType: null`, and no source metadata.
 - `src/components/ConversationPane.tsx` tracks selected message IDs, prunes selections when messages/conversations change, highlights selected bubbles, and enables the merge action only when at least two current messages are selected.

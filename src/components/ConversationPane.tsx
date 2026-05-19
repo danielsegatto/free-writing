@@ -20,6 +20,7 @@ import {
   createQuoteReference,
   type MessageReferenceNavigationTarget
 } from '../utils/messageReferences';
+import { getTextTokens } from '../utils/textSelection';
 
 type ConversationPaneProps = {
   activeConversation: Conversation | null;
@@ -579,6 +580,19 @@ export function ConversationPane({
     closeReferencePicker();
   }
 
+  function selectReferenceWord(startOffset: number, endOffset: number) {
+    setReferenceSelection((currentSelection) => {
+      if (currentSelection.start === currentSelection.end) {
+        return { start: startOffset, end: endOffset };
+      }
+
+      return {
+        start: Math.min(currentSelection.start, startOffset),
+        end: Math.max(currentSelection.end, endOffset)
+      };
+    });
+  }
+
   function canNavigateToReference(reference: MessageReference) {
     if (!conversations.some((conversation) => conversation.id === reference.sourceConversationId)) return false;
     if (reference.type === 'conversation') return true;
@@ -913,17 +927,27 @@ export function ConversationPane({
                           ))}
                       </div>
                       {referenceMessage ? (
-                        <textarea
-                          aria-label="Source message text"
-                          readOnly
-                          value={referenceMessage.text}
-                          onSelect={(event) => {
-                            setReferenceSelection({
-                              start: event.currentTarget.selectionStart,
-                              end: event.currentTarget.selectionEnd
-                            });
-                          }}
-                        />
+                        <div className="reference-word-picker" aria-label="Source message text">
+                          {getTextTokens(referenceMessage.text).map((token) =>
+                            token.isWord ? (
+                              <button
+                                key={`${token.startOffset}-${token.endOffset}`}
+                                className={`word-token ${
+                                  token.startOffset >= referenceSelection.start &&
+                                  token.endOffset <= referenceSelection.end
+                                    ? 'selected'
+                                    : ''
+                                }`}
+                                type="button"
+                                onClick={() => selectReferenceWord(token.startOffset, token.endOffset)}
+                              >
+                                {token.text}
+                              </button>
+                            ) : (
+                              <span key={`${token.startOffset}-${token.endOffset}`}>{token.text}</span>
+                            )
+                          )}
+                        </div>
                       ) : (
                         <p className="empty-state">Choose a text block.</p>
                       )}

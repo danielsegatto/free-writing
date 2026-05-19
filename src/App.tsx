@@ -18,6 +18,7 @@ import {
   forwardMessage,
   mergeMessages,
   moveMessage,
+  moveMessageTextSelection,
   reorderMessages
 } from './services/messages';
 import { searchLoadedMessages } from './services/search';
@@ -27,6 +28,7 @@ import type { Conversation, Message, MessageReference } from './types';
 import type { DropPosition } from './utils/dropTargets';
 import { moveItemToDropTarget, moveMessageByDirection, moveMessageToDropPosition } from './utils/messageOrder';
 import type { MessageReferenceNavigationTarget } from './utils/messageReferences';
+import { getSelectedTextFromRanges, type TextSelectionRange } from './utils/textSelection';
 
 type TransferAction = {
   mode: 'forward' | 'move';
@@ -122,10 +124,24 @@ export default function App() {
     await deleteMessage(user.uid, message.conversationId, message.id);
   }
 
-  async function handleForwardMessage(targetConversationId: string) {
+  async function handleForwardMessage(
+    targetConversationId: string,
+    ranges?: TextSelectionRange[]
+  ) {
     if (!user || !transferAction) return;
-    if (transferAction.mode === 'move') {
+    const selectedText = ranges ? getSelectedTextFromRanges(transferAction.message.text, ranges) : '';
+
+    if (transferAction.mode === 'move' && ranges && selectedText) {
+      await moveMessageTextSelection(
+        user.uid,
+        transferAction.message,
+        targetConversationId,
+        ranges
+      );
+    } else if (transferAction.mode === 'move') {
       await moveMessage(user.uid, transferAction.message, targetConversationId);
+    } else if (ranges && selectedText) {
+      await forwardMessage(user.uid, { ...transferAction.message, text: selectedText }, targetConversationId);
     } else {
       await forwardMessage(user.uid, transferAction.message, targetConversationId);
     }
@@ -264,7 +280,7 @@ export default function App() {
           mode={transferAction.mode}
           sourceMessage={transferAction.message}
           onClose={() => setTransferAction(null)}
-          onForward={(conversationId) => void handleForwardMessage(conversationId)}
+          onForward={(conversationId, ranges) => void handleForwardMessage(conversationId, ranges)}
         />
       )}
     </main>

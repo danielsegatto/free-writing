@@ -14,6 +14,7 @@ import {
 import { requireDb } from '../firebase';
 import type { Message, MessageAttachment, MessageReference } from '../types';
 import { touchConversation } from './conversations';
+import { getSelectedTextFromRanges, removeTextRanges, type TextSelectionRange } from '../utils/textSelection';
 
 const messagesPath = (userId: string, conversationId: string) =>
   collection(requireDb(), 'users', userId, 'conversations', conversationId, 'messages');
@@ -276,6 +277,54 @@ export async function moveMessage(
   batch.delete(messagePath(userId, source.conversationId, source.id));
   await batch.commit();
   await touchConversation(userId, targetConversationId, source.text);
+  return targetMessage;
+}
+
+export async function moveMessageTextSelection(
+  userId: string,
+  source: Message,
+  targetConversationId: string,
+  ranges: TextSelectionRange[]
+) {
+  const selectedText = getSelectedTextFromRanges(source.text, ranges);
+  if (!selectedText) return null;
+
+  const remainingText = removeTextRanges(source.text, ranges);
+  const sortOrder = await getNextSortOrder(userId, targetConversationId);
+  const targetMessage = doc(messagesPath(userId, targetConversationId));
+  const batch = writeBatch(requireDb());
+
+  batch.set(
+    targetMessage,
+    buildMessageWrite({
+      userId,
+      conversationId: targetConversationId,
+      text: selectedText,
+      sortOrder,
+      isForwarded: true,
+      transferType: 'moved',
+      forwardedFromConversationId: source.conversationId,
+      forwardedFromMessageId: source.id
+    })
+  );
+
+  if (!remainingText && (source.attachments?.length ?? 0) === 0 && source.references.length === 0) {
+    batch.delete(messagePath(userId, source.conversationId, source.id));
+  } else {
+    batch.update(messagePath(userId, source.conversationId, source.id), {
+      text: remainingText,
+      searchText: remainingText.toLowerCase(),
+      updatedAt: serverTimestamp()
+    });
+  }
+
+  await batch.commit();
+  await touchConversation(userId, targetConversationId, selectedText);
+  await touchConversation(
+    userId,
+    source.conversationId,
+    getMessagePreview(remainingText, source.attachments ?? [], source.references)
+  );
   return targetMessage;
 }
 

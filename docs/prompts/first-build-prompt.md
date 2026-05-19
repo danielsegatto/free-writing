@@ -1,6 +1,6 @@
 # First Build Prompt
 
-Last updated: 2026-05-15
+Last updated: 2026-05-19
 
 Related docs: [documentation overview](../README.md), [product brief](../product/v1-product-brief.md), [features and screens](../product/v1-features-and-screens.md).
 
@@ -53,8 +53,11 @@ Messages:
 - User can edit messages inline inside the message block, without moving the text into the composer.
 - User can paste images while editing a message, preview them, and save them onto that block.
 - User can delete messages with confirmation.
-- User can forward a message to another conversation.
-- User can move a message to another conversation.
+- User can forward a whole message or selected text parts to another conversation.
+- User can move a whole message or selected text parts to another conversation.
+- Forward/move should use a transfer dialog that shows the source text and target conversations. If no text is selected, transfer the whole block.
+- In the transfer dialog, tapping a word toggles it selected/unselected. Pressing and dragging across words with mouse, touch, or pen selects or unselects multiple words depending on the first word's state.
+- The transfer dialog should support separate non-adjacent selections. Adjacent selected words stay together as a phrase; separate selected parts are sent as separate paragraphs.
 - User can reorder text blocks inside a conversation with touch-friendly controls and a dedicated drag handle on desktop and touch/pointer devices.
 - Dragging should show a floating preview of the dragged block and an insertion marker in the exact space where the block will land, while normal scrolling remains available from the message body.
 - The message list should resolve gaps, padding, and near-miss pointer positions to a valid nearest insertion slot.
@@ -62,8 +65,8 @@ Messages:
 - User can select multiple text blocks inside a conversation and merge them into one unified block.
 - User can convert a text block to English.
 - User can convert draft composer text to English and send the selected English result directly.
-- Forwarding creates a new message in the target conversation with the same text.
-- Moving creates a message in the target conversation and removes the original from the source conversation.
+- Forwarding creates a new message in the target conversation with the same text, or with the selected text parts.
+- Moving creates a message in the target conversation and removes the original from the source conversation, or removes only the selected text parts from the source block when partial text is selected.
 - Merging creates one normal replacement message from the selected blocks in display order and removes the selected originals.
 - Merging preserves selected image attachments in display order.
 - English conversion breaks the source text into a small number of larger logical segments, offers three selectable English versions for each segment, and can create the selected English result as a new message below the original.
