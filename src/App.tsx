@@ -32,7 +32,8 @@ import { getSelectedTextFromRanges, type TextSelectionRange } from './utils/text
 
 type TransferAction = {
   mode: 'forward' | 'move';
-  message: Message;
+  message?: Message;
+  messages?: Message[];
 };
 
 export default function App() {
@@ -124,11 +125,47 @@ export default function App() {
     await deleteMessage(user.uid, message.conversationId, message.id);
   }
 
+  async function handleDeleteMessages(messages: Message[]) {
+    if (!user || messages.length === 0) return;
+    if (!window.confirm(`Delete ${messages.length} selected block${messages.length === 1 ? '' : 's'}?`)) return;
+    await Promise.all(messages.map((message) => deleteMessage(user.uid, message.conversationId, message.id)));
+  }
+
   async function handleForwardMessage(
     targetConversationId: string,
-    ranges?: TextSelectionRange[]
+    ranges?: TextSelectionRange[],
+    messageSelections?: Array<{ messageId: string; ranges: TextSelectionRange[] }>
   ) {
     if (!user || !transferAction) return;
+    if (transferAction.messages && transferAction.messages.length > 0) {
+      const selectedMessages = transferAction.messages;
+      if (messageSelections && messageSelections.length > 0) {
+        for (const selection of messageSelections) {
+          const message = selectedMessages.find((selectedMessage) => selectedMessage.id === selection.messageId);
+          if (!message) continue;
+          const selectedText = getSelectedTextFromRanges(message.text, selection.ranges);
+          if (!selectedText) continue;
+          if (transferAction.mode === 'move') {
+            await moveMessageTextSelection(user.uid, message, targetConversationId, selection.ranges);
+          } else {
+            await forwardMessage(user.uid, { ...message, text: selectedText }, targetConversationId);
+          }
+        }
+      } else if (transferAction.mode === 'move') {
+        for (const message of selectedMessages) {
+          await moveMessage(user.uid, message, targetConversationId);
+        }
+      } else {
+        for (const message of selectedMessages) {
+          await forwardMessage(user.uid, message, targetConversationId);
+        }
+      }
+      setTransferAction(null);
+      setActiveConversationId(targetConversationId);
+      return;
+    }
+
+    if (!transferAction.message) return;
     const selectedText = ranges ? getSelectedTextFromRanges(transferAction.message.text, ranges) : '';
 
     if (transferAction.mode === 'move' && ranges && selectedText) {
@@ -261,9 +298,12 @@ export default function App() {
         onSaveEdit={handleSaveEdit}
         onForwardMessage={(message) => setTransferAction({ mode: 'forward', message })}
         onMoveToConversation={(message) => setTransferAction({ mode: 'move', message })}
+        onForwardMessages={(messages) => setTransferAction({ mode: 'forward', messages })}
+        onMoveMessages={(messages) => setTransferAction({ mode: 'move', messages })}
         onNavigateToReference={handleNavigateToReference}
         onNavigationHandled={() => setNavigationTarget(null)}
         onDeleteMessage={(message) => void handleDeleteMessage(message)}
+        onDeleteMessages={handleDeleteMessages}
         onMoveMessage={(messageIndex, direction) => void handleMoveMessage(messageIndex, direction)}
         onReorderMessage={(draggedMessageId, targetMessageId, position) =>
           void handleReorderMessage(draggedMessageId, targetMessageId, position)
@@ -279,6 +319,7 @@ export default function App() {
           conversations={conversations}
           mode={transferAction.mode}
           sourceMessage={transferAction.message}
+          sourceMessages={transferAction.messages}
           onClose={() => setTransferAction(null)}
           onForward={(conversationId, ranges) => void handleForwardMessage(conversationId, ranges)}
         />

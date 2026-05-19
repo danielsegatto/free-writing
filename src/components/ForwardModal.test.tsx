@@ -200,4 +200,34 @@ describe('ForwardModal', () => {
 
     expect(onClose).toHaveBeenCalled();
   });
+
+  it('selects words from selected blocks and transfers only those parts', () => {
+    const onForward = vi.fn();
+
+    render(
+      <ForwardModal
+        conversations={conversations}
+        mode="forward"
+        sourceMessages={[
+          sourceMessage,
+          { ...sourceMessage, id: 'message-2', text: 'Second selected block', searchText: 'second selected block' }
+        ]}
+        onClose={vi.fn()}
+        onForward={onForward}
+      />
+    );
+
+    expect(screen.getByText('2 blocks')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'this' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Second' }));
+
+    expect(screen.getByText('2 selected')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Target' }));
+
+    expect(onForward).toHaveBeenCalledWith('target', undefined, [
+      { messageId: 'message-1', ranges: [{ startOffset: 5, endOffset: 9 }] },
+      { messageId: 'message-2', ranges: [{ startOffset: 0, endOffset: 6 }] }
+    ]);
+  });
 });

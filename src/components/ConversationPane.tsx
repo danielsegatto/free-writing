@@ -8,7 +8,7 @@ import {
   type DragEvent,
   type PointerEvent
 } from 'react';
-import { ArrowLeft, Combine, Link2, MoreVertical, Quote, X } from 'lucide-react';
+import { ArrowLeft, Combine, Copy, Forward, Link2, MoreVertical, MoveRight, Quote, Trash2, X } from 'lucide-react';
 import { EnglishPickerModal, type EnglishPickerState } from './EnglishPickerModal';
 import { MessageComposer } from './MessageComposer';
 import { MessageBubble, type CopyFeedbackStatus } from './MessageBubble';
@@ -38,9 +38,12 @@ type ConversationPaneProps = {
   onSaveEdit: (message: Message, text: string, imageFiles?: File[], references?: MessageReference[]) => void | Promise<void>;
   onForwardMessage: (message: Message) => void;
   onMoveToConversation: (message: Message) => void;
+  onForwardMessages: (messages: Message[]) => void;
+  onMoveMessages: (messages: Message[]) => void;
   onNavigateToReference: (target: MessageReferenceNavigationTarget) => void;
   onNavigationHandled: () => void;
   onDeleteMessage: (message: Message) => void;
+  onDeleteMessages: (messages: Message[]) => void | Promise<void>;
   onMoveMessage: (messageIndex: number, direction: -1 | 1) => void;
   onReorderMessage: (draggedMessageId: string, targetMessageId: string, position: DropPosition) => void;
   onMergeMessages: (messages: Message[]) => Promise<void>;
@@ -85,6 +88,14 @@ type ReferencePickerMode = 'conversation' | 'quote';
 
 function createPreviewId() {
   return crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function findMessageElement(container: HTMLElement | null, messageId: string) {
+  return (
+    Array.from(container?.querySelectorAll<HTMLElement>('[data-message-id]') ?? []).find(
+      (element) => element.dataset.messageId === messageId
+    ) ?? null
+  );
 }
 
 function getImageFilesFromClipboardData(clipboardData: DataTransfer) {
@@ -189,9 +200,12 @@ export function ConversationPane({
   onSaveEdit,
   onForwardMessage,
   onMoveToConversation,
+  onForwardMessages,
+  onMoveMessages,
   onNavigateToReference,
   onNavigationHandled,
   onDeleteMessage,
+  onDeleteMessages,
   onMoveMessage,
   onReorderMessage,
   onMergeMessages,
@@ -202,6 +216,7 @@ export function ConversationPane({
   const [copyFeedback, setCopyFeedback] = useState<CopyFeedback | null>(null);
   const [englishPicker, setEnglishPicker] = useState<EnglishPickerState | null>(null);
   const [clearComposerImagePreviewsSignal, setClearComposerImagePreviewsSignal] = useState(0);
+  const [isMergeSelectionMode, setIsMergeSelectionMode] = useState(false);
   const [selectedMessageIds, setSelectedMessageIds] = useState<string[]>([]);
   const [pendingReferences, setPendingReferences] = useState<MessageReference[]>([]);
   const [referencePickerMode, setReferencePickerMode] = useState<ReferencePickerMode | null>(null);
@@ -210,6 +225,7 @@ export function ConversationPane({
   const [referenceSelection, setReferenceSelection] = useState({ start: 0, end: 0 });
   const [activeReferenceTarget, setActiveReferenceTarget] = useState<MessageReferenceNavigationTarget | null>(null);
   const [isMerging, setIsMerging] = useState(false);
+  const [isApplyingSelectedAction, setIsApplyingSelectedAction] = useState(false);
   const [mergeError, setMergeError] = useState<string | null>(null);
   const [draggedMessageId, setDraggedMessageId] = useState<string | null>(null);
   const [messageDropTarget, setMessageDropTarget] = useState<MessageDropTarget | null>(null);
@@ -220,6 +236,7 @@ export function ConversationPane({
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const editTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const editImagePreviewsRef = useRef<EditImagePreview[]>([]);
+  const selectionAnchorRef = useRef<{ messageId: string; top: number } | null>(null);
   const touchDrag = useRef<TouchDragState | null>(null);
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const dragAutoScroll = useRef<{ speedY: number; animationId: number | null }>({
@@ -256,6 +273,12 @@ export function ConversationPane({
   }, [activeConversation?.id, activeMessages]);
 
   useEffect(() => {
+    setIsMergeSelectionMode(false);
+    setSelectedMessageIds([]);
+    setMergeError(null);
+  }, [activeConversation?.id]);
+
+  useEffect(() => {
     setEditText(editingMessage?.text ?? '');
     setEditReferences(editingMessage?.references ?? []);
     setEditImagePreviews((currentPreviews) => {
@@ -281,6 +304,22 @@ export function ConversationPane({
     textarea.style.height = 'auto';
     textarea.style.height = `${textarea.scrollHeight}px`;
   }, [editText, editingMessage?.id]);
+
+  useLayoutEffect(() => {
+    const anchor = selectionAnchorRef.current;
+    const messagesElement = messagesRef.current;
+    if (!anchor || !messagesElement) return;
+
+    const anchoredElement = findMessageElement(messagesElement, anchor.messageId);
+    if (!anchoredElement) {
+      selectionAnchorRef.current = null;
+      return;
+    }
+
+    const nextTop = anchoredElement.getBoundingClientRect().top;
+    messagesElement.scrollTop += nextTop - anchor.top;
+    selectionAnchorRef.current = null;
+  }, [isMergeSelectionMode]);
 
   useEffect(() => {
     if (!draggedMessageId) return undefined;
@@ -320,12 +359,39 @@ export function ConversationPane({
   }, [activeConversation?.id, navigationTarget, onNavigationHandled]);
 
   function toggleMessageSelection(messageId: string) {
+    if (!isMergeSelectionMode) return;
     setMergeError(null);
-    setSelectedMessageIds((currentIds) =>
-      currentIds.includes(messageId)
+    setSelectedMessageIds((currentIds) => {
+      const nextIds = currentIds.includes(messageId)
         ? currentIds.filter((currentId) => currentId !== messageId)
-        : [...currentIds, messageId]
-    );
+        : [...currentIds, messageId];
+
+      if (nextIds.length === 0) {
+        setIsMergeSelectionMode(false);
+        setMergeError(null);
+      }
+
+      return nextIds;
+    });
+  }
+
+  function startMergeSelection(messageId: string) {
+    const messageElement = findMessageElement(messagesRef.current, messageId);
+    if (messageElement) {
+      selectionAnchorRef.current = {
+        messageId,
+        top: messageElement.getBoundingClientRect().top
+      };
+    }
+    setIsMergeSelectionMode(true);
+    setMergeError(null);
+    setSelectedMessageIds((currentIds) => (currentIds.includes(messageId) ? currentIds : [...currentIds, messageId]));
+  }
+
+  function cancelMergeSelection() {
+    setIsMergeSelectionMode(false);
+    setSelectedMessageIds([]);
+    setMergeError(null);
   }
 
   function handleMessageDragStart(event: DragEvent<HTMLElement>, messageId: string) {
@@ -575,11 +641,59 @@ export function ConversationPane({
     try {
       await onMergeMessages(selectedMessages);
       setSelectedMessageIds([]);
+      setIsMergeSelectionMode(false);
     } catch (error) {
       setMergeError(error instanceof Error ? error.message : 'Unable to merge the selected blocks.');
     } finally {
       setIsMerging(false);
     }
+  }
+
+  async function copySelectedMessagesText() {
+    const selectedText = selectedMessages.map((message) => message.text.trim()).filter(Boolean).join('\n\n');
+    if (!selectedText) {
+      setMergeError('The selected blocks have no text to copy.');
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(selectedText);
+      setMergeError(null);
+    } catch (error) {
+      setMergeError(error instanceof Error ? error.message : 'Unable to copy the selected text.');
+    }
+  }
+
+  async function deleteSelectedMessages() {
+    if (selectedMessages.length === 0 || isApplyingSelectedAction) return;
+    setIsApplyingSelectedAction(true);
+    setMergeError(null);
+    try {
+      await onDeleteMessages(selectedMessages);
+      cancelMergeSelection();
+    } catch (error) {
+      setMergeError(error instanceof Error ? error.message : 'Unable to delete the selected blocks.');
+    } finally {
+      setIsApplyingSelectedAction(false);
+    }
+  }
+
+  function forwardSelectedMessages() {
+    if (selectedMessages.length === 0) return;
+    if (selectedMessages.length === 1) {
+      onForwardMessage(selectedMessages[0]);
+      return;
+    }
+    onForwardMessages(selectedMessages);
+  }
+
+  function moveSelectedMessages() {
+    if (selectedMessages.length === 0) return;
+    if (selectedMessages.length === 1) {
+      onMoveToConversation(selectedMessages[0]);
+      return;
+    }
+    onMoveMessages(selectedMessages);
   }
 
   async function copyMessageText(message: Message) {
@@ -804,6 +918,71 @@ export function ConversationPane({
     englishPicker?.status === 'creating' ||
     englishPicker?.status === 'replacing' ||
     englishPicker?.status === 'sending-draft';
+  const selectionToolbar = isMergeSelectionMode ? (
+    <div className="selection-toolbar" aria-live="polite">
+      <span>{selectedMessages.length} selected</span>
+      {mergeError && (
+        <span className="merge-error" role="alert">
+          {mergeError}
+        </span>
+      )}
+      <button
+        className="icon-button cancel-merge-button"
+        type="button"
+        title="Cancel merge selection"
+        onClick={cancelMergeSelection}
+      >
+        <X size={16} />
+      </button>
+      <div className="selection-actions">
+        <button
+          className="icon-button merge-button"
+          type="button"
+          title="Merge selected text blocks"
+          disabled={selectedMessages.length < 2 || isMerging}
+          onClick={() => void mergeSelectedMessages()}
+        >
+          <Combine size={16} />
+        </button>
+        <button
+          className="icon-button"
+          type="button"
+          title="Copy selected blocks to conversation"
+          disabled={selectedMessages.length === 0}
+          onClick={forwardSelectedMessages}
+        >
+          <Forward size={16} />
+        </button>
+        <button
+          className="icon-button"
+          type="button"
+          title="Move selected blocks to conversation"
+          disabled={selectedMessages.length === 0}
+          onClick={moveSelectedMessages}
+        >
+          <MoveRight size={16} />
+        </button>
+        <button
+          className="icon-button"
+          type="button"
+          title="Copy selected text"
+          disabled={selectedMessages.length === 0}
+          onClick={() => void copySelectedMessagesText()}
+        >
+          <Copy size={16} />
+        </button>
+        <button
+          className="icon-button"
+          type="button"
+          title="Delete selected blocks"
+          disabled={selectedMessages.length === 0 || isApplyingSelectedAction}
+          onClick={() => void deleteSelectedMessages()}
+        >
+          <Trash2 size={16} />
+        </button>
+      </div>
+    </div>
+  ) : null;
 
   return (
     <section className={`conversation-pane ${activeConversation ? 'open' : ''}`}>
@@ -817,25 +996,6 @@ export function ConversationPane({
               <h2>{activeConversation.title}</h2>
             </div>
           </header>
-
-          <div className="selection-toolbar" aria-live="polite">
-            <span>{selectedMessages.length} selected</span>
-            {mergeError && (
-              <span className="merge-error" role="alert">
-                {mergeError}
-              </span>
-            )}
-            <button
-              className="primary-button merge-button"
-              type="button"
-              title="Merge selected text blocks"
-              disabled={selectedMessages.length < 2 || isMerging}
-              onClick={() => void mergeSelectedMessages()}
-            >
-              <Combine size={16} />
-              {isMerging ? 'Merging...' : 'Merge'}
-            </button>
-          </div>
 
           <div
             className="messages"
@@ -852,6 +1012,7 @@ export function ConversationPane({
                   message={message}
                   messageIndex={messageIndex}
                   messageCount={activeMessages.length}
+                  isSelectionMode={isMergeSelectionMode}
                   isSelected={selectedMessageIds.includes(message.id)}
                   isDragging={draggedMessageId === message.id}
                   isDragOver={false}
@@ -864,6 +1025,7 @@ export function ConversationPane({
                   editTextareaRef={editTextareaRef}
                   copyFeedbackStatus={copyFeedback?.messageId === message.id ? copyFeedback.status : null}
                   onSelect={toggleMessageSelection}
+                  onStartSelection={startMergeSelection}
                   onNavigateToReference={onNavigateToReference}
                   canNavigateToReference={canNavigateToReference}
                   onCancelEdit={onCancelEdit}
@@ -920,19 +1082,23 @@ export function ConversationPane({
             </div>
           )}
 
-          <MessageComposer
-            draft={draft}
-            pendingReferences={pendingReferences}
-            onDraftChange={onDraftChange}
-            onSubmitMessage={(imageFiles) => void submitComposerMessage(imageFiles)}
-            onConvertDraftToEnglish={(imageFiles) => void openDraftEnglishPicker(imageFiles)}
-            clearImagePreviewsSignal={clearComposerImagePreviewsSignal}
-            onAddConversationReference={() => openReferencePicker('conversation')}
-            onAddQuoteReference={() => openReferencePicker('quote')}
-            onRemoveReference={(referenceId) =>
-              setPendingReferences((current) => current.filter((reference) => reference.id !== referenceId))
-            }
-          />
+          {selectionToolbar}
+
+          {!isMergeSelectionMode && (
+            <MessageComposer
+              draft={draft}
+              pendingReferences={pendingReferences}
+              onDraftChange={onDraftChange}
+              onSubmitMessage={(imageFiles) => void submitComposerMessage(imageFiles)}
+              onConvertDraftToEnglish={(imageFiles) => void openDraftEnglishPicker(imageFiles)}
+              clearImagePreviewsSignal={clearComposerImagePreviewsSignal}
+              onAddConversationReference={() => openReferencePicker('conversation')}
+              onAddQuoteReference={() => openReferencePicker('quote')}
+              onRemoveReference={(referenceId) =>
+                setPendingReferences((current) => current.filter((reference) => reference.id !== referenceId))
+              }
+            />
+          )}
 
           {englishPicker && (
             <EnglishPickerModal

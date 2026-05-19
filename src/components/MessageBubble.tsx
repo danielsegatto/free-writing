@@ -1,4 +1,12 @@
-import { type ClipboardEvent, type DragEvent, type PointerEvent, type RefObject } from 'react';
+import {
+  useEffect,
+  useRef,
+  type ClipboardEvent,
+  type DragEvent,
+  type MouseEvent,
+  type PointerEvent,
+  type RefObject
+} from 'react';
 import {
   ArrowDown,
   ArrowUp,
@@ -23,6 +31,7 @@ type MessageBubbleProps = {
   message: Message;
   messageIndex: number;
   messageCount: number;
+  isSelectionMode: boolean;
   isSelected: boolean;
   isDragging: boolean;
   isDragOver: boolean;
@@ -35,6 +44,7 @@ type MessageBubbleProps = {
   editTextareaRef: RefObject<HTMLTextAreaElement | null>;
   copyFeedbackStatus: CopyFeedbackStatus | null;
   onSelect: (messageId: string) => void;
+  onStartSelection: (messageId: string) => void;
   onNavigateToReference: (target: MessageReferenceNavigationTarget) => void;
   canNavigateToReference: (reference: MessageReference) => boolean;
   onCancelEdit: () => void;
@@ -75,6 +85,15 @@ function isMessageTarget(message: Message, target: MessageReferenceNavigationTar
   return target?.messageId === message.id && target.conversationId === message.conversationId;
 }
 
+function clearNativeTextSelection() {
+  window.getSelection()?.removeAllRanges();
+}
+
+function isInteractiveSelectionTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false;
+  return Boolean(target.closest('button, input, textarea, select, a, label, [role="button"]'));
+}
+
 function renderMessageText(message: Message, target: MessageReferenceNavigationTarget | null) {
   if (!message.text) return null;
   const range = isMessageTarget(message, target) ? target?.range : null;
@@ -96,6 +115,7 @@ export function MessageBubble({
   message,
   messageIndex,
   messageCount,
+  isSelectionMode,
   isSelected,
   isDragging,
   isDragOver,
@@ -108,6 +128,7 @@ export function MessageBubble({
   editTextareaRef,
   copyFeedbackStatus,
   onSelect,
+  onStartSelection,
   onNavigateToReference,
   canNavigateToReference,
   onCancelEdit,
@@ -133,6 +154,10 @@ export function MessageBubble({
   onPointerUp,
   onPointerCancel
 }: MessageBubbleProps) {
+  const longPressTimeoutRef = useRef<number | null>(null);
+  const longPressStartRef = useRef<{ pointerId: number; x: number; y: number } | null>(null);
+  const suppressNextClickRef = useRef(false);
+  const suppressClickTimeoutRef = useRef<number | null>(null);
   const messageClassName = [
     'message-bubble',
     isSelected ? 'selected' : '',
@@ -146,24 +171,99 @@ export function MessageBubble({
   const hasAttachments = (message.attachments?.length ?? 0) > 0;
   const copyTitle = hasAttachments ? 'Copy block' : 'Copy text';
 
+  useEffect(() => {
+    return () => {
+      if (longPressTimeoutRef.current !== null) window.clearTimeout(longPressTimeoutRef.current);
+      if (suppressClickTimeoutRef.current !== null) window.clearTimeout(suppressClickTimeoutRef.current);
+    };
+  }, []);
+
+  function clearLongPress() {
+    if (longPressTimeoutRef.current !== null) {
+      window.clearTimeout(longPressTimeoutRef.current);
+      longPressTimeoutRef.current = null;
+    }
+    longPressStartRef.current = null;
+  }
+
+  function clearSuppressedClickSoon() {
+    if (!suppressNextClickRef.current) return;
+    if (suppressClickTimeoutRef.current !== null) window.clearTimeout(suppressClickTimeoutRef.current);
+    suppressClickTimeoutRef.current = window.setTimeout(() => {
+      suppressNextClickRef.current = false;
+      suppressClickTimeoutRef.current = null;
+    }, 250);
+  }
+
+  function handleSelectionPointerDown(event: PointerEvent<HTMLElement>) {
+    if (isEditing || isSelectionMode || event.button !== 0 || isInteractiveSelectionTarget(event.target)) return;
+
+    event.preventDefault();
+    clearNativeTextSelection();
+    longPressStartRef.current = {
+      pointerId: event.pointerId,
+      x: event.clientX,
+      y: event.clientY
+    };
+    longPressTimeoutRef.current = window.setTimeout(() => {
+      suppressNextClickRef.current = true;
+      clearNativeTextSelection();
+      onStartSelection(message.id);
+      clearLongPress();
+    }, 450);
+  }
+
+  function handleSelectionPointerUp() {
+    clearLongPress();
+    clearSuppressedClickSoon();
+  }
+
+  function handleSelectionPointerMove(event: PointerEvent<HTMLElement>) {
+    const start = longPressStartRef.current;
+    if (!start || start.pointerId !== event.pointerId) return;
+    if (Math.abs(event.clientX - start.x) > 8 || Math.abs(event.clientY - start.y) > 8) clearLongPress();
+  }
+
+  function handleSelectionClick(event: MouseEvent<HTMLElement>) {
+    if (suppressNextClickRef.current) {
+      suppressNextClickRef.current = false;
+      if (suppressClickTimeoutRef.current !== null) {
+        window.clearTimeout(suppressClickTimeoutRef.current);
+        suppressClickTimeoutRef.current = null;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    if (!isSelectionMode || isEditing || isInteractiveSelectionTarget(event.target)) return;
+    event.preventDefault();
+    clearNativeTextSelection();
+    onSelect(message.id);
+  }
+
+  function handleBlockContextMenu(event: MouseEvent<HTMLElement>) {
+    if (isInteractiveSelectionTarget(event.target)) return;
+    event.preventDefault();
+    clearNativeTextSelection();
+  }
+
   return (
     <article
       className={messageClassName}
       data-message-id={message.id}
       aria-grabbed={isDragging}
+      style={{ userSelect: isSelectionMode ? 'none' : undefined }}
+      onClick={handleSelectionClick}
+      onContextMenu={handleBlockContextMenu}
+      onPointerDown={handleSelectionPointerDown}
+      onPointerMove={handleSelectionPointerMove}
+      onPointerUp={handleSelectionPointerUp}
+      onPointerCancel={clearLongPress}
       onDragOver={(event) => onDragOver(event, message.id)}
       onDragLeave={(event) => onDragLeave(event, message.id)}
       onDrop={(event) => onDrop(event, message.id)}
     >
       <div className="message-meta">
-        <label className="message-selector">
-          <input
-            type="checkbox"
-            checked={isSelected}
-            onChange={() => onSelect(message.id)}
-            aria-label={`Select block: ${message.text.slice(0, 48) || 'image block'}`}
-          />
-        </label>
         {transferLabel && <span>{transferLabel}</span>}
         {message.updatedAt && <span>edited</span>}
         <time>{formatDate(message.createdAt)}</time>
@@ -288,73 +388,75 @@ export function MessageBubble({
               ))}
             </div>
           )}
-          <div className="message-actions">
-            <div className="reorder-actions" aria-label="Reorder message">
-              <button
-                className="icon-button bare"
-                title="Move up"
-                disabled={messageIndex === 0}
-                onClick={() => onMoveMessage(messageIndex, -1)}
-              >
-                <ArrowUp size={16} />
+          {!isSelectionMode && (
+            <div className="message-actions">
+              <div className="reorder-actions" aria-label="Reorder message">
+                <button
+                  className="icon-button bare"
+                  title="Move up"
+                  disabled={messageIndex === 0}
+                  onClick={() => onMoveMessage(messageIndex, -1)}
+                >
+                  <ArrowUp size={16} />
+                </button>
+                <button
+                  className="icon-button bare"
+                  title="Move down"
+                  disabled={messageIndex === messageCount - 1}
+                  onClick={() => onMoveMessage(messageIndex, 1)}
+                >
+                  <ArrowDown size={16} />
+                </button>
+                <button
+                  className="icon-button bare drag-handle"
+                  title="Drag to reorder"
+                  draggable={messageCount > 1}
+                  disabled={messageCount < 2}
+                  onDragStart={(event) => onDragStart(event, message.id)}
+                  onDragEnd={onDragEnd}
+                  onPointerDown={(event) => onPointerDown(event, message.id)}
+                  onPointerMove={onPointerMove}
+                  onPointerUp={onPointerUp}
+                  onPointerCancel={onPointerCancel}
+                >
+                  <GripVertical size={16} />
+                </button>
+              </div>
+              <button className="icon-button bare" title="Edit" onClick={() => onEditMessage(message)}>
+                <Edit3 size={16} />
               </button>
               <button
                 className="icon-button bare"
-                title="Move down"
-                disabled={messageIndex === messageCount - 1}
-                onClick={() => onMoveMessage(messageIndex, 1)}
+                title={copyTitle}
+                disabled={!message.text.trim() && !hasAttachments}
+                onClick={() => onCopyMessage(message)}
               >
-                <ArrowDown size={16} />
+                <Copy size={16} />
               </button>
               <button
-                className="icon-button bare drag-handle"
-                title="Drag to reorder"
-                draggable={messageCount > 1}
-                disabled={messageCount < 2}
-                onDragStart={(event) => onDragStart(event, message.id)}
-                onDragEnd={onDragEnd}
-                onPointerDown={(event) => onPointerDown(event, message.id)}
-                onPointerMove={onPointerMove}
-                onPointerUp={onPointerUp}
-                onPointerCancel={onPointerCancel}
+                className="icon-button bare"
+                title="Convert to English"
+                disabled={!message.text.trim()}
+                onClick={() => onConvertToEnglish(message)}
               >
-                <GripVertical size={16} />
+                <Languages size={16} />
+              </button>
+              {copyFeedbackStatus && (
+                <span className="copy-status" aria-live="polite">
+                  {getCopyFeedbackLabel(copyFeedbackStatus)}
+                </span>
+              )}
+              <button className="icon-button bare" title="Forward" onClick={() => onForwardMessage(message)}>
+                <Forward size={16} />
+              </button>
+              <button className="icon-button bare" title="Move to conversation" onClick={() => onMoveToConversation(message)}>
+                <MoveRight size={16} />
+              </button>
+              <button className="icon-button bare" title="Delete" onClick={() => onDeleteMessage(message)}>
+                <Trash2 size={16} />
               </button>
             </div>
-            <button className="icon-button bare" title="Edit" onClick={() => onEditMessage(message)}>
-              <Edit3 size={16} />
-            </button>
-            <button
-              className="icon-button bare"
-              title={copyTitle}
-              disabled={!message.text.trim() && !hasAttachments}
-              onClick={() => onCopyMessage(message)}
-            >
-              <Copy size={16} />
-            </button>
-            <button
-              className="icon-button bare"
-              title="Convert to English"
-              disabled={!message.text.trim()}
-              onClick={() => onConvertToEnglish(message)}
-            >
-              <Languages size={16} />
-            </button>
-            {copyFeedbackStatus && (
-              <span className="copy-status" aria-live="polite">
-                {getCopyFeedbackLabel(copyFeedbackStatus)}
-              </span>
-            )}
-            <button className="icon-button bare" title="Forward" onClick={() => onForwardMessage(message)}>
-              <Forward size={16} />
-            </button>
-            <button className="icon-button bare" title="Move to conversation" onClick={() => onMoveToConversation(message)}>
-              <MoveRight size={16} />
-            </button>
-            <button className="icon-button bare" title="Delete" onClick={() => onDeleteMessage(message)}>
-              <Trash2 size={16} />
-            </button>
-          </div>
+          )}
         </>
       )}
     </article>
