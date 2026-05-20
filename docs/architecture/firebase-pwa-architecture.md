@@ -29,7 +29,7 @@ Recommended implementation:
 ```text
 Firebase Authentication + Google Sign-In
 Firebase Firestore for cloud data
-Cloudflare Worker for server-side AI translation requests
+Cloudflare Worker for server-side AI translation and conversation-index synthesis requests
 Firestore offline persistence for offline reads/writes
 PWA service worker for offline app shell
 Firebase Hosting for the deployed static app
@@ -146,7 +146,16 @@ Useful user fields:
   "transferType": null,
   "forwardedFromConversationId": null,
   "forwardedFromConversationTitle": null,
-  "forwardedFromMessageId": null
+  "forwardedFromMessageId": null,
+  "blockKind": "conversation-index",
+  "indexEntries": [
+    {
+      "id": "entry-id",
+      "sourceMessageId": "source-message-id",
+      "title": "Short index title",
+      "summary": "Context-aware navigation summary"
+    }
+  ]
 }
 ```
 
@@ -197,9 +206,17 @@ Useful user fields:
 `forwardedFromMessageId`
 : Source message ID, if forwarded or moved.
 
+`blockKind`
+: Optional specialized block type. Current known value is `conversation-index`; ordinary messages omit this field.
+
+`indexEntries`
+: Optional structured entries for synthesized conversation-index blocks. Each entry points to a source message ID in the same conversation and stores display text for the clickable index row. Old or normal messages without this field are treated as having no index entries.
+
 Forwarded and moved source metadata is kept for transfer labeling and compatibility. Copied/forwarded blocks can expose conversation-level source navigation through `forwardedFromConversationId` plus `forwardedFromConversationTitle`; quote-level navigation is rendered from structured `references` instead of text markers.
 
 English conversion results are also stored as normal messages. Creating an English block links the new block back to its source through `forwardedFromConversationId` and `forwardedFromMessageId`, while leaving `transferType` as `null` so it does not display as a forwarded or moved message. Replacing a source block with English text updates the same message through the normal edit path. Converting draft text sends the selected assembled English text directly as a new normal message instead of writing it back into the composer draft, and it preserves current composer image attachments and structured references on that new message.
+
+Synthesized conversation indexes are stored as ordinary message documents with `blockKind: "conversation-index"` and `indexEntries`. The `text` field stores a plain fallback/search representation of the generated index, while `indexEntries` drives the clickable rows. Creating an index appends a new bottom message and moves the receiving conversation to the top like other new blocks. Previous index blocks remain normal source blocks and are included in later synthesis requests.
 
 Merged text/image blocks are stored as normal messages. Merging does not require extra fields beyond `attachments`; the app creates a replacement message with unified text plus selected attachments in display order and deletes the selected original messages in the same batch.
 
@@ -268,7 +285,7 @@ Important limitation:
 
 If a conversation was never opened on a device before going offline, it may not be available offline on that device.
 
-AI-backed English conversion is an online-only feature. Previously created or replaced English blocks are cached like other messages, but requesting new conversion options requires network access to the server-side API.
+AI-backed English conversion and conversation-index synthesis are online-only features. Previously created English blocks and synthesized index blocks are cached like other messages, but requesting new conversion options or a new index requires network access to the server-side API.
 
 ---
 
@@ -284,6 +301,7 @@ When online:
 - Conversations that receive newly created messages, forwarded blocks, moved blocks, selected moved text, or English result blocks should sync their new top-list `sortOrder`.
 - Merged replacement messages and deletion of their originals should sync to the cloud.
 - English conversion result messages and replacement edits should sync to the cloud.
+- Synthesized conversation index messages should sync to the cloud.
 - Inline image attachments should sync as part of their message documents.
 - Other signed-in devices should receive the updates.
 
@@ -305,7 +323,7 @@ Minimum security requirements:
 - A user can only write their own conversations.
 - A user can only read their own messages.
 - A user can only write their own messages.
-- AI conversion requests must require a signed-in Firebase user.
+- AI conversion and synthesis requests must require a signed-in Firebase user.
 - Third-party AI API keys must be stored server-side as Cloudflare Worker secrets for the free hosted deployment.
 
 Recommended Firebase security rule concept:
@@ -319,12 +337,13 @@ Important privacy note:
 - Cloud sync means messages are stored in a cloud database.
 - Inline image attachments are stored in Firestore message documents, not Firebase Storage.
 - English conversion sends the selected source text to a third-party AI provider through the server-side proxy.
+- Conversation-index synthesis sends the active conversation's current block text/fallback descriptions to the same third-party AI provider through the server-side proxy.
 - This is different from a local-only app.
 - For very sensitive content, future encryption should be considered.
 
-## 13.1 Server-side English conversion
+## 13.1 Server-side AI requests
 
-The deployed app should route English conversion requests to the Cloudflare Worker configured by `VITE_TRANSLATION_API_URL`.
+The deployed app should route English conversion and conversation-index synthesis requests to the Cloudflare Worker configured by `VITE_TRANSLATION_API_URL`. The browser can derive `/api/synthesize-index` from the same Worker URL, or use `VITE_SYNTHESIS_API_URL` if a separate endpoint is needed later.
 
 Expected request flow:
 
@@ -333,12 +352,12 @@ Browser
   -> Firebase ID token in Authorization header
   -> Cloudflare Worker verifies the token through Google Identity Toolkit
   -> Worker calls Groq with GROQ_API_KEY secret
-  -> Worker returns validated segment/options JSON
+  -> Worker returns validated segment/options JSON or validated conversation-index JSON
 ```
 
-The browser receives only structured translation options. It must never receive the Groq key.
+The browser receives only structured AI output. It must never receive the Groq key.
 
-Local Vite development uses the same browser request shape and same-origin `/api/to-english` path, but the middleware in `vite.config.ts` verifies Firebase ID-token JWT signatures directly against Google's Firebase public certificates and checks the token audience/issuer against `VITE_FIREBASE_PROJECT_ID`.
+Local Vite development uses the same browser request shape and same-origin `/api/to-english` and `/api/synthesize-index` paths, but the middleware in `vite.config.ts` verifies Firebase ID-token JWT signatures directly against Google's Firebase public certificates and checks the token audience/issuer against `VITE_FIREBASE_PROJECT_ID`.
 
 ---
 
@@ -362,7 +381,7 @@ Hosting: Firebase Hosting
 React PWA
 Firebase Auth
 Firestore
-Cloudflare Worker translation proxy
+Cloudflare Worker AI proxy
 Firebase Hosting
 ```
 

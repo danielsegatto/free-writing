@@ -83,6 +83,7 @@ function renderPane(overrides: Partial<ComponentProps<typeof ConversationPane>> 
     onMoveMessage: vi.fn(),
     onReorderMessage: vi.fn(),
     onMergeMessages: vi.fn(async () => undefined),
+    onSynthesizeIndex: vi.fn(async () => undefined),
     onConvertToEnglish: vi.fn(async (_text: string) => ({
       segments: [
         {
@@ -1447,5 +1448,95 @@ describe('ConversationPane', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Translation service unavailable');
     expect(screen.getByRole('button', { name: 'Create block' })).toBeDisabled();
+  });
+
+  it('synthesizes the active conversation into one index request', async () => {
+    const onSynthesizeIndex = vi.fn(async () => undefined);
+    const props = renderPane({ onSynthesizeIndex });
+
+    fireEvent.click(screen.getByTitle('Synthesize conversation index'));
+
+    await waitFor(() => {
+      expect(onSynthesizeIndex).toHaveBeenCalledTimes(1);
+    });
+    expect(onSynthesizeIndex).toHaveBeenCalledWith(props.activeMessages, 'Inbox');
+  });
+
+  it('shows a compact loading state while synthesizing an index', async () => {
+    let resolveSynthesis: () => void = () => undefined;
+    const onSynthesizeIndex = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSynthesis = resolve;
+        })
+    );
+
+    renderPane({ onSynthesizeIndex });
+
+    const synthesizeButton = screen.getByTitle('Synthesize conversation index');
+    fireEvent.click(synthesizeButton);
+
+    expect(await screen.findByText('Synthesizing conversation index...')).toBeInTheDocument();
+    expect(synthesizeButton).toBeDisabled();
+
+    await act(async () => {
+      resolveSynthesis();
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText('Synthesizing conversation index...')).not.toBeInTheDocument();
+    });
+  });
+
+  it('shows synthesis errors without creating per-block requests', async () => {
+    const onSynthesizeIndex = vi.fn(async () => {
+      throw new Error('Synthesis unavailable');
+    });
+
+    renderPane({ onSynthesizeIndex });
+
+    fireEvent.click(screen.getByTitle('Synthesize conversation index'));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Synthesis unavailable');
+    expect(onSynthesizeIndex).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders clickable conversation index lines that navigate to their source blocks', () => {
+    const first = message('first', 'First');
+    const indexBlock: Message = {
+      ...message('index', '1. First idea\nThe opening block.\n\n2. Missing\nDeleted block.'),
+      blockKind: 'conversation-index',
+      indexEntries: [
+        {
+          id: 'entry-1',
+          sourceMessageId: 'first',
+          title: 'First idea',
+          summary: 'The opening block.'
+        },
+        {
+          id: 'entry-2',
+          sourceMessageId: 'missing',
+          title: 'Missing',
+          summary: 'Deleted block.'
+        }
+      ]
+    };
+    const onNavigateToReference = vi.fn();
+
+    renderPane({
+      activeMessages: [first, indexBlock],
+      messagesByConversation: {
+        [conversation.id]: [first, indexBlock]
+      },
+      onNavigateToReference
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /First idea/ }));
+
+    expect(onNavigateToReference).toHaveBeenCalledWith({
+      conversationId: conversation.id,
+      messageId: 'first'
+    });
+    expect(screen.getByRole('button', { name: /Missing/ })).toBeDisabled();
   });
 });

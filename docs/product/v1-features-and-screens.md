@@ -77,6 +77,7 @@ Required message actions:
 - Reorder message within the current conversation with explicit controls or a drag handle on desktop and touch/pointer devices
 - Merge multiple selected messages into one unified block
 - Convert message to English
+- Synthesize a clickable conversation index block for the active conversation
 
 Optional message actions:
 
@@ -163,7 +164,30 @@ Requirements:
 
 ---
 
-### 7.3.5 Message references
+### 7.3.5 Conversation index synthesis
+
+The user can synthesize a map-like index for the active conversation.
+
+Version 1 behavior:
+
+- The active conversation header has a `Synthesize conversation index` action.
+- The action sends all currently visible conversation blocks in display order in one contextual AI request.
+- Previous synthesized index blocks are included as source blocks for later synthesis.
+- The newly created index block is appended to the bottom of the conversation.
+- Each index entry is clickable and jumps to the corresponding source block, reusing the same source-block navigation/highlight behavior as references.
+- If a source block is later deleted, its index entry remains visible but disabled.
+
+Requirements:
+
+- Synthesis requires the signed-in user and a working server-side AI endpoint.
+- The AI request must consider the whole conversation context before generating entries and must not make one separate summarization request per block.
+- The response must include exactly one entry for each submitted block.
+- Synthesis failures should show a clear error without creating a new block.
+- The Groq/API key must stay server-side and must not be exposed through `VITE_` browser environment variables.
+
+---
+
+### 7.3.6 Message references
 
 The user can attach structured references to another conversation or a quoted message block.
 
@@ -435,6 +459,7 @@ Content:
 - Message action: copy block content to the clipboard
 - Message action: move to another conversation
 - Message action: convert to English
+- Header action: synthesize a clickable conversation index
 - Transfer dialog for copying/moving whole blocks or selected text parts with tap and drag word selection
 - Reorder controls for moving text blocks, plus drag-handle reordering between blocks on desktop and touch/pointer devices
 - Selection controls and a merge action for combining multiple selected blocks
@@ -496,6 +521,8 @@ Content:
 - User can merge multiple selected messages inside a conversation.
 - User can convert a message to English and either create a new result block or replace the source block.
 - User can convert draft composer text to English and send the selected English result directly with any current composer image attachments and references.
+- User can synthesize a conversation index block from all active conversation blocks in one contextual AI request.
+- User can click each synthesized index entry to jump to its corresponding source block.
 - User can search messages.
 
 ### Multi-device
@@ -571,6 +598,8 @@ Version 1 is complete when:
 - I can convert a text block to English, select variants, and create the English result below the original.
 - I can replace a source text block with selected English text.
 - I can convert draft composer text to English and send the selected English result directly with any current composer image attachments and references.
+- I can synthesize a conversation index, see it appear as the bottom block, and click each entry to jump to the referenced source block.
+- I can synthesize another index later and have previous index blocks included as part of the conversation context.
 - I can open the app offline after it was previously loaded.
 - I can read cached content offline.
 - I can create or edit messages offline and have them sync when back online.

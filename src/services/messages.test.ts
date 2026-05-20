@@ -41,6 +41,7 @@ vi.mock('./conversations', () => conversationMocks);
 
 import {
   createMessage,
+  createConversationIndexMessage,
   createMessageAfter,
   editMessage,
   forwardMessage,
@@ -187,6 +188,52 @@ describe('message service writes', () => {
       forwardedFromMessageId: null
     });
     expect(conversationMocks.touchConversation).toHaveBeenCalledWith('user-1', 'conversation-1', 'Reference', {
+      moveToTop: true
+    });
+  });
+
+  it('creates conversation index messages with structured entries at the next sort order', async () => {
+    firestoreMocks.getDocs.mockResolvedValue(
+      docsWithMessages([
+        sourceMessage({ id: 'first', sortOrder: 1000 }),
+        sourceMessage({ id: 'second', sortOrder: 3000 })
+      ])
+    );
+    const entries = [
+      {
+        id: 'entry-1',
+        sourceMessageId: 'first',
+        title: 'Opening',
+        summary: 'Starts the conversation.'
+      },
+      {
+        id: 'entry-2',
+        sourceMessageId: 'second',
+        title: 'Follow-up',
+        summary: 'Builds on the opening.'
+      }
+    ];
+
+    await createConversationIndexMessage('user-1', 'conversation-1', '  1. Opening  ', entries);
+
+    expect(firestoreMocks.addDoc).toHaveBeenCalledWith(expect.objectContaining({ path: 'users/user-1/conversations/conversation-1/messages' }), {
+      userId: 'user-1',
+      conversationId: 'conversation-1',
+      text: '1. Opening',
+      searchText: '1. opening',
+      references: [],
+      createdAt: 'SERVER_TIMESTAMP',
+      updatedAt: null,
+      sortOrder: 4000,
+      isForwarded: false,
+      transferType: null,
+      forwardedFromConversationId: null,
+      forwardedFromConversationTitle: null,
+      forwardedFromMessageId: null,
+      blockKind: 'conversation-index',
+      indexEntries: entries
+    });
+    expect(conversationMocks.touchConversation).toHaveBeenCalledWith('user-1', 'conversation-1', '1. Opening', {
       moveToTop: true
     });
   });

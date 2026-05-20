@@ -13,12 +13,12 @@ npm run build
 
 Expected result:
 
-- Vitest passes for app-level transfer navigation, search, conversation service writes including top-list touches for new blocks, sidebar drag reordering with insertion markers, gap drop zones, edge autoscroll, and post-drag click suppression, message service writes, image-only messages, composer image selection/paste, inline edit image paste, text-only and rich block copy feedback/fallbacks, composer keyboard conversion behavior including draft English sends with pasted images, inline editing, copied-origin metadata/link rendering, post-move notice rendering, reorder controls, desktop and touch drag-handle reorder behavior including body-scroll protection, insertion markers, gap drop zones, and edge autoscroll, selected-block merge including desktop double-click and mobile double-tap entry, English conversion UI/service behavior, and the forward/move transfer modal including multi-part word selection.
+- Vitest passes for app-level transfer navigation, search, conversation service writes including top-list touches for new blocks, sidebar drag reordering with insertion markers, gap drop zones, edge autoscroll, and post-drag click suppression, message service writes, image-only messages, composer image selection/paste, inline edit image paste, text-only and rich block copy feedback/fallbacks, composer keyboard conversion behavior including draft English sends with pasted images, inline editing, copied-origin metadata/link rendering, post-move notice rendering, reorder controls, desktop and touch drag-handle reorder behavior including body-scroll protection, insertion markers, gap drop zones, and edge autoscroll, selected-block merge including desktop double-click and mobile double-tap entry, English conversion UI/service behavior, conversation index synthesis service/UI/Worker behavior, and the forward/move transfer modal including multi-part word selection.
 - The production build completes without TypeScript or Vite errors.
 
-## English conversion setup
+## AI conversion and synthesis setup
 
-Before testing hosted real conversion, deploy the Cloudflare Worker and configure its server-side secrets:
+Before testing hosted real English conversion or conversation index synthesis, deploy the Cloudflare Worker and configure its server-side secrets:
 
 ```bash
 npx wrangler secret put GROQ_API_KEY
@@ -26,9 +26,9 @@ npx wrangler secret put FIREBASE_API_KEY
 npx wrangler deploy
 ```
 
-For local Vite-only testing, put `GROQ_API_KEY` in ignored `.env` without the `VITE_` prefix and also ensure Firebase values, especially `VITE_FIREBASE_PROJECT_ID`, are present in `.env`. Restart the dev server, then confirm the browser calls `/api/to-english`; in Vite dev this is local middleware.
+For local Vite-only testing, put `GROQ_API_KEY` in ignored `.env` without the `VITE_` prefix and also ensure Firebase values, especially `VITE_FIREBASE_PROJECT_ID`, are present in `.env`. Restart the dev server, then confirm the browser calls `/api/to-english` for English conversion and `/api/synthesize-index` for index synthesis; in Vite dev these are local middleware.
 
-For hosted Firebase testing, set `VITE_TRANSLATION_API_URL` in ignored `.env.production.local` to the deployed Worker URL before `npm run build`, then deploy Firebase Hosting only. The current Worker URL is:
+For hosted Firebase testing, set `VITE_TRANSLATION_API_URL` in ignored `.env.production.local` to the deployed Worker URL before `npm run build`, then deploy Firebase Hosting only. Conversation index synthesis derives `/api/synthesize-index` from this Worker URL unless `VITE_SYNTHESIS_API_URL` is explicitly configured. The current Worker URL is:
 
 ```env
 VITE_TRANSLATION_API_URL=https://free-writing-translation.free-writing-danielsegatto.workers.dev
@@ -95,14 +95,18 @@ Run against a configured Firebase project in Chrome or Safari after visiting the
 37. Confirm the English block appears directly below the original, moves the receiving conversation to the top of the list, and remains after reload.
 38. Convert another message to English and replace the source block with the selected English text.
 39. Enter draft text in the composer, paste or select a small image, convert the draft to English, choose an option, and confirm `Send English` creates the selected English text as a new message with the image attached, clears the composer image preview, and does not first place the English text in the composer.
-40. Search for text that exists in loaded messages.
-41. Disconnect the browser from the network.
-42. Reload the app.
-43. Confirm the app shell opens and cached conversations/messages remain readable.
-44. While offline, create, edit, paste or select a small image where supported, copy, delete, forward whole and selected text, move whole and selected text, reorder conversations, reorder messages by controls, reorder messages by drag handle where supported, and merge messages.
-45. Confirm requesting a new English conversion while offline fails gracefully without creating, replacing, sending, or changing draft text.
-46. Reconnect to the network.
-47. Confirm all queued changes sync and remain visible after another reload.
+40. Click `Synthesize conversation index` in the active conversation header and confirm exactly one new index block appears at the bottom of the conversation.
+41. Confirm the synthesized index includes one clickable row per source block that existed before synthesis, including earlier synthesized index blocks if any existed.
+42. Click several index rows and confirm the message list scrolls to the matching source block and highlights it. Delete a referenced source block if practical and confirm that row becomes disabled rather than failing.
+43. Search for text that exists in loaded messages, including text from a synthesized index block.
+44. Disconnect the browser from the network.
+45. Reload the app.
+46. Confirm the app shell opens and cached conversations/messages remain readable.
+47. While offline, create, edit, paste or select a small image where supported, copy, delete, forward whole and selected text, move whole and selected text, reorder conversations, reorder messages by controls, reorder messages by drag handle where supported, and merge messages.
+48. Confirm requesting a new English conversion while offline fails gracefully without creating, replacing, sending, or changing draft text.
+49. Confirm requesting a new conversation index while offline fails gracefully without creating a new index block.
+50. Reconnect to the network.
+51. Confirm all queued changes sync and remain visible after another reload.
 
 Expected result:
 
@@ -124,6 +128,7 @@ Expected result:
 - Block merge selection starts by double-clicking or double-tapping the first block and then supports single-click/tap toggling for additional blocks. Merged messages keep the selected text in display order, and the original selected blocks remain removed after reconnect and reload.
 - English conversion can keep the original message unchanged by creating a new block, or replace the original when `Replace block` is chosen.
 - Draft English conversion sends the selected English result directly as a new message, preserves current composer image attachments and references, clears sent previews, and leaves the composer out of that send step.
+- Conversation index synthesis sends the active conversation's visible blocks in one request, appends the result as a bottom block, includes previous index blocks in later synthesis, and uses clickable rows that navigate to source blocks.
 - Long conversations keep the composer and merge action reachable without scrolling the whole page.
 
 ## Known follow-up if a step fails
@@ -132,5 +137,6 @@ Expected result:
 - If cached reads or queued writes fail, inspect Firestore persistent local cache setup in `src/firebase.ts`.
 - If cross-user access succeeds, stop and fix `firebase.rules` before deployment.
 - If English conversion returns 404 in Vite dev, restart the Vite dev server so local `/api/to-english` middleware is active.
-- If English conversion returns 401, confirm Google sign-in succeeded, `VITE_FIREBASE_PROJECT_ID` matches the signed-in app, and the current preview/hosting domain is in Firebase Authentication authorized domains.
-- If English conversion returns 500/502, confirm `GROQ_API_KEY` and `FIREBASE_API_KEY` are configured in the correct Worker runtime and inspect Worker or Vite server logs.
+- If conversation index synthesis returns 404 in Vite dev, restart the Vite dev server so local `/api/synthesize-index` middleware is active.
+- If AI conversion or synthesis returns 401, confirm Google sign-in succeeded, `VITE_FIREBASE_PROJECT_ID` matches the signed-in app, and the current preview/hosting domain is in Firebase Authentication authorized domains.
+- If AI conversion or synthesis returns 500/502, confirm `GROQ_API_KEY` and `FIREBASE_API_KEY` are configured in the correct Worker runtime and inspect Worker or Vite server logs.

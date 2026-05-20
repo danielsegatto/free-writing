@@ -3,13 +3,26 @@ import { loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { createVerify } from 'node:crypto';
+import { createVerify, randomUUID } from 'node:crypto';
 
 const groqEndpoint = 'https://api.groq.com/openai/v1/chat/completions';
 
 type DevEnglishSegment = {
   original: string;
   options: [string, string, string];
+};
+
+type DevConversationIndexBlock = {
+  id: string;
+  position: number;
+  text: string;
+};
+
+type DevConversationIndexEntry = {
+  id: string;
+  sourceMessageId: string;
+  title: string;
+  summary: string;
 };
 
 type FirebaseTokenHeader = {
@@ -30,7 +43,7 @@ let firebaseCertCache: {
   certs: Record<string, string>;
 } | null = null;
 
-function buildPrompt(text: string) {
+function buildEnglishPrompt(text: string) {
   return `
 You are a translation editor. Convert the provided text to English.
 
@@ -53,6 +66,36 @@ Return ONLY valid JSON with this exact structure:
 
 Text to process:
 ${text}
+`.trim();
+}
+
+function buildConversationIndexPrompt(conversationTitle: string, blocks: DevConversationIndexBlock[]) {
+  return `
+You are a conversation cartographer. Create a clickable index for the whole conversation.
+
+Conversation title: ${conversationTitle || 'Untitled conversation'}
+
+Task:
+1. First consider the full surrounding context and the progression across all blocks.
+2. Then write exactly one index entry for every provided block ID.
+3. Do not summarize each block in isolation. Each entry should describe the block's role in the conversation map using nearby and overall context.
+4. Preserve the provided block IDs exactly in sourceMessageId.
+5. Do not skip, merge, invent, or duplicate entries.
+6. Keep titles concise and summaries useful for navigating back to the source block.
+
+Return ONLY valid JSON with this exact structure:
+{
+  "entries": [
+    {
+      "sourceMessageId": "source block id",
+      "title": "Short index title",
+      "summary": "Context-aware navigation summary"
+    }
+  ]
+}
+
+Blocks to index:
+${JSON.stringify(blocks, null, 2)}
 `.trim();
 }
 
@@ -136,6 +179,18 @@ function isDevEnglishSegment(value: unknown): value is DevEnglishSegment {
   );
 }
 
+function isDevConversationIndexEntry(value: unknown): value is DevConversationIndexEntry {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as { sourceMessageId?: unknown; title?: unknown; summary?: unknown };
+  return (
+    typeof candidate.sourceMessageId === 'string' &&
+    typeof candidate.title === 'string' &&
+    candidate.title.trim().length > 0 &&
+    typeof candidate.summary === 'string' &&
+    candidate.summary.trim().length > 0
+  );
+}
+
 function parseGroqJson(content: string) {
   const parsed = JSON.parse(content) as unknown;
   const segments = parsed && typeof parsed === 'object' ? (parsed as { segments?: unknown }).segments : null;
@@ -148,6 +203,40 @@ function parseGroqJson(content: string) {
       original: segment.original.trim(),
       options: segment.options.map((option) => option.trim()) as [string, string, string]
     }))
+  };
+}
+
+function parseConversationIndexJson(content: string, blocks: DevConversationIndexBlock[]) {
+  const parsed = JSON.parse(content) as unknown;
+  const entries = parsed && typeof parsed === 'object' ? (parsed as { entries?: unknown }).entries : null;
+  if (!Array.isArray(entries) || entries.length !== blocks.length || !entries.every(isDevConversationIndexEntry)) {
+    throw new Error('Groq returned no usable conversation index.');
+  }
+
+  const expectedIds = new Set(blocks.map((block) => block.id));
+  const seenIds = new Set<string>();
+  const entriesByMessageId = new Map<string, DevConversationIndexEntry>();
+
+  entries.forEach((entry) => {
+    const sourceMessageId = entry.sourceMessageId.trim();
+    if (!expectedIds.has(sourceMessageId) || seenIds.has(sourceMessageId)) {
+      throw new Error('Groq returned no usable conversation index.');
+    }
+    seenIds.add(sourceMessageId);
+    entriesByMessageId.set(sourceMessageId, {
+      id: randomUUID(),
+      sourceMessageId,
+      title: entry.title.trim(),
+      summary: entry.summary.trim()
+    });
+  });
+
+  if (seenIds.size !== expectedIds.size) {
+    throw new Error('Groq returned no usable conversation index.');
+  }
+
+  return {
+    entries: blocks.map((block) => entriesByMessageId.get(block.id) as DevConversationIndexEntry)
   };
 }
 
@@ -164,6 +253,36 @@ function sendJson(response: ServerResponse, statusCode: number, body: unknown) {
   response.statusCode = statusCode;
   response.setHeader('Content-Type', 'application/json');
   response.end(JSON.stringify(body));
+}
+
+function parseSynthesisBody(body: unknown) {
+  const conversationTitle = body && typeof body === 'object' && typeof (body as { conversationTitle?: unknown }).conversationTitle === 'string'
+    ? (body as { conversationTitle: string }).conversationTitle.trim()
+    : '';
+  const rawBlocks = body && typeof body === 'object' && Array.isArray((body as { blocks?: unknown }).blocks)
+    ? (body as { blocks: unknown[] }).blocks
+    : [];
+  const blocks = rawBlocks.flatMap((block): DevConversationIndexBlock[] => {
+    if (!block || typeof block !== 'object') return [];
+    const candidate = block as { id?: unknown; position?: unknown; text?: unknown };
+    if (
+      typeof candidate.id !== 'string' ||
+      candidate.id.trim().length === 0 ||
+      typeof candidate.position !== 'number' ||
+      !Number.isFinite(candidate.position) ||
+      typeof candidate.text !== 'string'
+    ) {
+      return [];
+    }
+
+    return [{
+      id: candidate.id.trim(),
+      position: candidate.position,
+      text: candidate.text.trim() || '[Empty block]'
+    }];
+  });
+
+  return { conversationTitle, blocks };
 }
 
 function localEnglishApi(env: Record<string, string>): Plugin {
@@ -211,7 +330,7 @@ function localEnglishApi(env: Record<string, string>): Plugin {
             },
             body: JSON.stringify({
               model: 'openai/gpt-oss-120b',
-              messages: [{ role: 'user', content: buildPrompt(text) }],
+              messages: [{ role: 'user', content: buildEnglishPrompt(text) }],
               temperature: 1,
               max_completion_tokens: 4096,
               top_p: 1,
@@ -241,6 +360,81 @@ function localEnglishApi(env: Record<string, string>): Plugin {
         } catch (error) {
           console.error('Local English conversion failed.', error);
           sendJson(response, 502, { error: 'Unable to convert this text to English.' });
+        }
+      });
+
+      server.middlewares.use('/api/synthesize-index', async (request, response) => {
+        if (request.method !== 'POST') {
+          sendJson(response, 405, { error: 'Use POST for conversation index synthesis.' });
+          return;
+        }
+
+        const token = getBearerToken(request.headers.authorization);
+        if (!token) {
+          sendJson(response, 401, { error: 'Sign in before synthesizing a conversation index.' });
+          return;
+        }
+
+        if (!env.VITE_FIREBASE_PROJECT_ID || !await verifyFirebaseTokenForDev(env.VITE_FIREBASE_PROJECT_ID, token)) {
+          sendJson(response, 401, { error: 'Sign in again before synthesizing a conversation index.' });
+          return;
+        }
+
+        if (!env.GROQ_API_KEY) {
+          sendJson(response, 500, { error: 'Add GROQ_API_KEY to .env and restart the dev server.' });
+          return;
+        }
+
+        try {
+          const body = await readJsonBody(request);
+          const synthesisRequest = parseSynthesisBody(body);
+
+          if (synthesisRequest.blocks.length === 0) {
+            sendJson(response, 400, { error: 'Conversation blocks are required.' });
+            return;
+          }
+
+          const groqResponse = await fetch(groqEndpoint, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${env.GROQ_API_KEY}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              model: 'openai/gpt-oss-120b',
+              messages: [{
+                role: 'user',
+                content: buildConversationIndexPrompt(synthesisRequest.conversationTitle, synthesisRequest.blocks)
+              }],
+              temperature: 0.7,
+              max_completion_tokens: 4096,
+              top_p: 1,
+              reasoning_effort: 'medium',
+              stream: false,
+              response_format: { type: 'json_object' }
+            })
+          });
+
+          const groqBody = await groqResponse.json() as {
+            error?: { message?: string };
+            choices?: Array<{ message?: { content?: string } }>;
+          };
+
+          if (!groqResponse.ok) {
+            sendJson(response, 502, { error: groqBody.error?.message ?? 'Unable to synthesize a conversation index.' });
+            return;
+          }
+
+          const content = groqBody.choices?.[0]?.message?.content;
+          if (!content) {
+            sendJson(response, 502, { error: 'The conversation index service returned no content.' });
+            return;
+          }
+
+          sendJson(response, 200, parseConversationIndexJson(content, synthesisRequest.blocks));
+        } catch (error) {
+          console.error('Local conversation index synthesis failed.', error);
+          sendJson(response, 502, { error: 'Unable to synthesize a conversation index.' });
         }
       });
     }

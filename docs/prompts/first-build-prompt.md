@@ -1,6 +1,6 @@
 # First Build Prompt
 
-Last updated: 2026-05-19
+Last updated: 2026-05-20
 
 Related docs: [documentation overview](../README.md), [product brief](../product/v1-product-brief.md), [features and screens](../product/v1-features-and-screens.md).
 
@@ -11,7 +11,7 @@ Use this prompt when asking an AI builder to create the first version:
 ```text
 Build a simple multi-device offline-capable PWA called "Free Writing".
 
-The app is for one private user. It should feel like a minimal WhatsApp-style app, but it is for writing, organizing, searching, editing, deleting, merging, converting to English, attaching small images, and copying or moving my own message blocks between private conversations.
+The app is for one private user. It should feel like a minimal WhatsApp-style app, but it is for writing, organizing, searching, editing, deleting, merging, converting to English, synthesizing clickable conversation indexes, attaching small images, and copying or moving my own message blocks between private conversations.
 
 Target devices:
 - iPhone 8
@@ -25,7 +25,7 @@ Core requirements:
 - Cloud sync using Firestore.
 - Firestore offline persistence enabled.
 - PWA support with manifest and service worker.
-- Server-side AI proxy for text-block English conversion.
+- Server-side AI proxy for text-block English conversion and conversation index synthesis.
 - App shell should open offline after first load.
 - Cached conversations and messages should be readable offline.
 - Offline writes should sync when the device is online again.
@@ -67,6 +67,8 @@ Messages:
 - Block selection starts with a double-click on desktop or a double-tap on touch devices; after the first block is selected, single clicks/taps toggle other blocks.
 - User can convert a text block to English.
 - User can convert draft composer text to English and send the selected English result directly.
+- User can synthesize a clickable conversation index from the active conversation header.
+- Index synthesis should send all visible blocks in display order in one contextual AI request, include previous index blocks, append the new index block to the bottom, and render each generated row as a link to its source block.
 - Copying/forwarding creates a new message in the target conversation with the same text, or with the selected text parts, opens the target conversation, and shows `Copied from [conversation name]` in the copied block metadata with the conversation name clickable.
 - Moving creates a message in the target conversation and removes the original from the source conversation, or removes only the selected text parts from the source block when partial text is selected.
 - Moving leaves the user in the current conversation after completion and shows a non-blocking action to open the target conversation.
@@ -113,11 +115,15 @@ Message fields:
 - forwardedFromConversationTitle
 - forwardedFromMessageId
 - attachments
+- references
+- blockKind
+- indexEntries
 
-English conversion:
+AI conversion and synthesis:
 - Use a server-side endpoint such as a Cloudflare Worker so the AI provider key is not exposed in browser code.
-- Require the signed-in Firebase user for conversion requests.
+- Require the signed-in Firebase user for AI requests.
 - Store created English results as normal messages with `sortOrder` immediately after the source message.
+- Store synthesized conversation indexes as normal bottom messages with `blockKind: "conversation-index"` and structured `indexEntries`.
 
 Image attachment constraints:
 - Keep the app on the free Firebase Spark plan.
@@ -153,14 +159,15 @@ Build in this order:
 16. Reorder text blocks
 17. Merge selected text blocks
 18. Add English conversion through a server-side proxy
-19. Search messages
-20. Add PWA manifest
-21. Add service worker
-22. Enable Firestore offline persistence
-23. Test on iPhone 8
-24. Test on desktop
-25. Test on tablet
-26. Test offline behavior
-27. Test authenticated English conversion
+19. Add conversation index synthesis through the server-side proxy
+20. Search messages
+21. Add PWA manifest
+22. Add service worker
+23. Enable Firestore offline persistence
+24. Test on iPhone 8
+25. Test on desktop
+26. Test on tablet
+27. Test offline behavior
+28. Test authenticated English conversion and index synthesis
 
 ---

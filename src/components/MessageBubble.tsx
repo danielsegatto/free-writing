@@ -51,6 +51,8 @@ type MessageBubbleProps = {
   onStartSelection: (messageId: string) => void;
   onNavigateToReference: (target: MessageReferenceNavigationTarget) => void;
   canNavigateToReference: (reference: MessageReference) => boolean;
+  onNavigateToMessage: (messageId: string) => void;
+  canNavigateToMessage: (messageId: string) => boolean;
   onCancelEdit: () => void;
   onEditTextChange: (value: string) => void;
   onRemoveEditReference: (referenceId: string) => void;
@@ -136,6 +138,8 @@ export function MessageBubble({
   onStartSelection,
   onNavigateToReference,
   canNavigateToReference,
+  onNavigateToMessage,
+  canNavigateToMessage,
   onCancelEdit,
   onEditTextChange,
   onRemoveEditReference,
@@ -178,6 +182,7 @@ export function MessageBubble({
   );
   const hasAttachments = (message.attachments?.length ?? 0) > 0;
   const copyTitle = hasAttachments ? 'Copy block' : 'Copy text';
+  const isConversationIndex = message.blockKind === 'conversation-index' && (message.indexEntries?.length ?? 0) > 0;
 
   useEffect(() => {
     return () => {
@@ -430,7 +435,31 @@ export function MessageBubble({
               ))}
             </div>
           )}
-          {renderMessageText(message, activeReferenceTarget)}
+          {isConversationIndex ? (
+            <div className="conversation-index-list" aria-label="Conversation index">
+              {message.indexEntries?.map((entry, entryIndex) => {
+                const canNavigate = canNavigateToMessage(entry.sourceMessageId);
+                return (
+                  <button
+                    key={entry.id}
+                    className="conversation-index-entry"
+                    type="button"
+                    disabled={!canNavigate}
+                    title={canNavigate ? 'Open indexed block' : 'Indexed block is unavailable'}
+                    onClick={() => onNavigateToMessage(entry.sourceMessageId)}
+                  >
+                    <span className="conversation-index-number">{entryIndex + 1}</span>
+                    <span className="conversation-index-content">
+                      <strong>{entry.title}</strong>
+                      <span>{entry.summary}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            renderMessageText(message, activeReferenceTarget)
+          )}
           {message.references.length > 0 && (
             <div className="message-reference-list" aria-label="Message references">
               {message.references.map((reference) => (

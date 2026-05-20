@@ -22,6 +22,23 @@ type EnglishConversion = {
   segments: EnglishSegment[];
 };
 
+type ConversationIndexBlock = {
+  id: string;
+  position: number;
+  text: string;
+};
+
+type ConversationIndexEntry = {
+  id: string;
+  sourceMessageId: string;
+  title: string;
+  summary: string;
+};
+
+type ConversationIndexResponse = {
+  entries: ConversationIndexEntry[];
+};
+
 function getAllowedOrigins(env: WorkerEnv) {
   const configuredOrigins = env.ALLOWED_ORIGINS?.split(',')
     .map((origin) => origin.trim())
@@ -90,6 +107,18 @@ function isEnglishSegment(value: unknown): value is EnglishSegment {
   );
 }
 
+function isConversationIndexEntry(value: unknown): value is ConversationIndexEntry {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as { sourceMessageId?: unknown; title?: unknown; summary?: unknown };
+  return (
+    typeof candidate.sourceMessageId === 'string' &&
+    typeof candidate.title === 'string' &&
+    candidate.title.trim().length > 0 &&
+    typeof candidate.summary === 'string' &&
+    candidate.summary.trim().length > 0
+  );
+}
+
 function parseEnglishConversion(content: string): EnglishConversion {
   const parsed = JSON.parse(content) as unknown;
   if (!parsed || typeof parsed !== 'object') {
@@ -109,7 +138,45 @@ function parseEnglishConversion(content: string): EnglishConversion {
   };
 }
 
-function buildPrompt(text: string) {
+function parseConversationIndex(content: string, blocks: ConversationIndexBlock[]): ConversationIndexResponse {
+  const parsed = JSON.parse(content) as unknown;
+  if (!parsed || typeof parsed !== 'object') {
+    throw new Error('Groq returned a non-object response.');
+  }
+
+  const entries = (parsed as { entries?: unknown }).entries;
+  if (!Array.isArray(entries) || entries.length !== blocks.length || !entries.every(isConversationIndexEntry)) {
+    throw new Error('Groq returned no usable conversation index.');
+  }
+
+  const expectedIds = new Set(blocks.map((block) => block.id));
+  const seenIds = new Set<string>();
+  const entriesByMessageId = new Map<string, ConversationIndexEntry>();
+
+  entries.forEach((entry) => {
+    const sourceMessageId = entry.sourceMessageId.trim();
+    if (!expectedIds.has(sourceMessageId) || seenIds.has(sourceMessageId)) {
+      throw new Error('Groq returned no usable conversation index.');
+    }
+    seenIds.add(sourceMessageId);
+    entriesByMessageId.set(sourceMessageId, {
+      id: crypto.randomUUID(),
+      sourceMessageId,
+      title: entry.title.trim(),
+      summary: entry.summary.trim()
+    });
+  });
+
+  if (seenIds.size !== expectedIds.size) {
+    throw new Error('Groq returned no usable conversation index.');
+  }
+
+  return {
+    entries: blocks.map((block) => entriesByMessageId.get(block.id) as ConversationIndexEntry)
+  };
+}
+
+function buildEnglishPrompt(text: string) {
   return `
 You are a translation editor. Convert the provided text to English.
 
@@ -135,6 +202,36 @@ ${text}
 `.trim();
 }
 
+function buildConversationIndexPrompt(conversationTitle: string, blocks: ConversationIndexBlock[]) {
+  return `
+You are a conversation cartographer. Create a clickable index for the whole conversation.
+
+Conversation title: ${conversationTitle || 'Untitled conversation'}
+
+Task:
+1. First consider the full surrounding context and the progression across all blocks.
+2. Then write exactly one index entry for every provided block ID.
+3. Do not summarize each block in isolation. Each entry should describe the block's role in the conversation map using nearby and overall context.
+4. Preserve the provided block IDs exactly in sourceMessageId.
+5. Do not skip, merge, invent, or duplicate entries.
+6. Keep titles concise and summaries useful for navigating back to the source block.
+
+Return ONLY valid JSON with this exact structure:
+{
+  "entries": [
+    {
+      "sourceMessageId": "source block id",
+      "title": "Short index title",
+      "summary": "Context-aware navigation summary"
+    }
+  ]
+}
+
+Blocks to index:
+${JSON.stringify(blocks, null, 2)}
+`.trim();
+}
+
 async function verifyFirebaseToken(firebaseApiKey: string, token: string) {
   const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${encodeURIComponent(firebaseApiKey)}`, {
     method: 'POST',
@@ -153,6 +250,39 @@ async function readRequestText(request: Request) {
   return body && typeof body === 'object' && typeof (body as { text?: unknown }).text === 'string'
     ? (body as { text: string }).text.trim()
     : '';
+}
+
+async function readSynthesisRequest(request: Request) {
+  const body = await request.json() as unknown;
+  const conversationTitle = body && typeof body === 'object' && typeof (body as { conversationTitle?: unknown }).conversationTitle === 'string'
+    ? (body as { conversationTitle: string }).conversationTitle.trim()
+    : '';
+  const blocks = body && typeof body === 'object' && Array.isArray((body as { blocks?: unknown }).blocks)
+    ? (body as { blocks: unknown[] }).blocks
+    : [];
+
+  return {
+    conversationTitle,
+    blocks: blocks.flatMap((block): ConversationIndexBlock[] => {
+      if (!block || typeof block !== 'object') return [];
+      const candidate = block as { id?: unknown; position?: unknown; text?: unknown };
+      if (
+        typeof candidate.id !== 'string' ||
+        candidate.id.trim().length === 0 ||
+        typeof candidate.position !== 'number' ||
+        !Number.isFinite(candidate.position) ||
+        typeof candidate.text !== 'string'
+      ) {
+        return [];
+      }
+
+      return [{
+        id: candidate.id.trim(),
+        position: candidate.position,
+        text: candidate.text.trim() || '[Empty block]'
+      }];
+    })
+  };
 }
 
 async function handleTranslation(request: Request, env: WorkerEnv) {
@@ -193,7 +323,7 @@ async function handleTranslation(request: Request, env: WorkerEnv) {
       },
       body: JSON.stringify({
         model: 'openai/gpt-oss-120b',
-        messages: [{ role: 'user', content: buildPrompt(text) }],
+        messages: [{ role: 'user', content: buildEnglishPrompt(text) }],
         temperature: 1,
         max_completion_tokens: 4096,
         top_p: 1,
@@ -223,10 +353,81 @@ async function handleTranslation(request: Request, env: WorkerEnv) {
   }
 }
 
+async function handleSynthesis(request: Request, env: WorkerEnv) {
+  if (!getCorsOrigin(request, env)) {
+    return jsonResponse(request, env, 403, { error: 'This origin is not allowed to synthesize conversation indexes.' });
+  }
+
+  if (!env.FIREBASE_API_KEY || !env.GROQ_API_KEY) {
+    return jsonResponse(request, env, 500, { error: 'The conversation index service is not configured.' });
+  }
+
+  const token = getBearerToken(request.headers.get('Authorization'));
+  if (!token) {
+    return jsonResponse(request, env, 401, { error: 'Sign in before synthesizing a conversation index.' });
+  }
+
+  if (!await verifyFirebaseToken(env.FIREBASE_API_KEY, token)) {
+    return jsonResponse(request, env, 401, { error: 'Sign in again before synthesizing a conversation index.' });
+  }
+
+  let synthesisRequest: Awaited<ReturnType<typeof readSynthesisRequest>>;
+  try {
+    synthesisRequest = await readSynthesisRequest(request);
+  } catch {
+    return jsonResponse(request, env, 400, { error: 'Conversation blocks are required.' });
+  }
+
+  if (synthesisRequest.blocks.length === 0) {
+    return jsonResponse(request, env, 400, { error: 'Conversation blocks are required.' });
+  }
+
+  try {
+    const groqResponse = await fetch(groqEndpoint, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${env.GROQ_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'openai/gpt-oss-120b',
+        messages: [{
+          role: 'user',
+          content: buildConversationIndexPrompt(synthesisRequest.conversationTitle, synthesisRequest.blocks)
+        }],
+        temperature: 0.7,
+        max_completion_tokens: 4096,
+        top_p: 1,
+        reasoning_effort: 'medium',
+        stream: false,
+        response_format: { type: 'json_object' }
+      })
+    });
+
+    const groqBody = await groqResponse.json() as {
+      error?: { message?: string };
+      choices?: Array<{ message?: { content?: string } }>;
+    };
+
+    if (!groqResponse.ok) {
+      return jsonResponse(request, env, 502, { error: groqBody.error?.message ?? 'Unable to synthesize a conversation index.' });
+    }
+
+    const content = groqBody.choices?.[0]?.message?.content;
+    if (!content) {
+      return jsonResponse(request, env, 502, { error: 'The conversation index service returned no content.' });
+    }
+
+    return jsonResponse(request, env, 200, parseConversationIndex(content, synthesisRequest.blocks));
+  } catch {
+    return jsonResponse(request, env, 502, { error: 'Unable to synthesize a conversation index.' });
+  }
+}
+
 export default {
   async fetch(request: Request, env: WorkerEnv) {
     const { pathname } = new URL(request.url);
-    const validPath = pathname === '/' || pathname === '/api/to-english';
+    const validPath = pathname === '/' || pathname === '/api/to-english' || pathname === '/api/synthesize-index';
 
     if (request.method === 'OPTIONS') {
       return optionsResponse(request, env);
@@ -240,6 +441,6 @@ export default {
       return jsonResponse(request, env, 405, { error: 'Use POST for English conversion.' });
     }
 
-    return handleTranslation(request, env);
+    return pathname === '/api/synthesize-index' ? handleSynthesis(request, env) : handleTranslation(request, env);
   }
 };

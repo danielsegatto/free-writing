@@ -49,6 +49,13 @@ export type QuoteMessageReference = MessageReferenceBase & {
 
 export type MessageReference = ConversationMessageReference | QuoteMessageReference;
 
+export type ConversationIndexEntry = {
+  id: string;
+  sourceMessageId: string;
+  title: string;
+  summary: string;
+};
+
 export type Message = {
   id: string;
   userId: string;
@@ -65,6 +72,8 @@ export type Message = {
   forwardedFromConversationId: string | null;
   forwardedFromConversationTitle?: string | null;
   forwardedFromMessageId: string | null;
+  blockKind?: 'conversation-index';
+  indexEntries?: ConversationIndexEntry[];
 };
 
 export type EnglishSegment = {

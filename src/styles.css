@@ -316,6 +316,20 @@ button {
   white-space: nowrap;
 }
 
+.conversation-header > div:not(.conversation-header-actions) {
+  min-width: 0;
+}
+
+.conversation-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.conversation-status.error {
+  color: #ffc5bf;
+}
+
 .row-actions {
   display: flex;
 }
@@ -583,6 +597,63 @@ button {
 .message-reference-card:disabled {
   cursor: not-allowed;
   opacity: 0.62;
+}
+
+.conversation-index-list {
+  display: grid;
+  margin: 8px 0 10px;
+  gap: 8px;
+}
+
+.conversation-index-entry {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #315047;
+  border-radius: 8px;
+  padding: 10px;
+  gap: 10px;
+  color: #dff4ef;
+  background: #102a27;
+  text-align: left;
+}
+
+.conversation-index-entry:hover:not(:disabled) {
+  border-color: #54d6bf;
+  background: #123b36;
+}
+
+.conversation-index-entry:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.conversation-index-number {
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 50%;
+  color: #0a1718;
+  background: #54d6bf;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.conversation-index-content {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.conversation-index-content strong,
+.conversation-index-content span {
+  overflow-wrap: anywhere;
+}
+
+.conversation-index-content span {
+  color: #a8c4bd;
 }
 
 .pending-reference {

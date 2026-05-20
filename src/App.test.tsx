@@ -124,6 +124,7 @@ vi.mock('./services/conversations', () => ({
 
 vi.mock('./services/messages', () => ({
   createMessage: vi.fn(),
+  createConversationIndexMessage: vi.fn(),
   createMessageAfter: vi.fn(),
   deleteMessage: vi.fn(),
   editMessage: vi.fn(),
@@ -144,6 +145,10 @@ vi.mock('./services/storage', () => ({
 
 vi.mock('./services/translation', () => ({
   requestEnglishVersions: vi.fn()
+}));
+
+vi.mock('./services/synthesis', () => ({
+  requestConversationIndex: vi.fn()
 }));
 
 describe('App transfer navigation', () => {

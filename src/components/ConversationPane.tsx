@@ -8,7 +8,7 @@ import {
   type DragEvent,
   type PointerEvent
 } from 'react';
-import { ArrowLeft, Combine, Copy, Forward, Link2, MoreVertical, MoveRight, Quote, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Combine, Copy, Forward, Link2, Map as MapIcon, MoreVertical, MoveRight, Quote, Trash2, X } from 'lucide-react';
 import { EnglishPickerModal, type EnglishPickerState } from './EnglishPickerModal';
 import { MessageComposer } from './MessageComposer';
 import { MessageBubble, type CopyFeedbackStatus } from './MessageBubble';
@@ -50,6 +50,7 @@ type ConversationPaneProps = {
   onMoveMessage: (messageIndex: number, direction: -1 | 1) => void;
   onReorderMessage: (draggedMessageId: string, targetMessageId: string, position: DropPosition) => void;
   onMergeMessages: (messages: Message[]) => Promise<void>;
+  onSynthesizeIndex: (messages: Message[], conversationTitle: string) => Promise<void>;
   onConvertToEnglish: (text: string) => Promise<EnglishConversion>;
   onCreateEnglishBlock: (message: Message, text: string) => Promise<void>;
   onReplaceWithEnglish: (message: Message, text: string) => Promise<void>;
@@ -215,6 +216,7 @@ export function ConversationPane({
   onMoveMessage,
   onReorderMessage,
   onMergeMessages,
+  onSynthesizeIndex,
   onConvertToEnglish,
   onCreateEnglishBlock,
   onReplaceWithEnglish
@@ -231,8 +233,10 @@ export function ConversationPane({
   const [referenceSelection, setReferenceSelection] = useState({ start: 0, end: 0 });
   const [activeReferenceTarget, setActiveReferenceTarget] = useState<MessageReferenceNavigationTarget | null>(null);
   const [isMerging, setIsMerging] = useState(false);
+  const [isSynthesizingIndex, setIsSynthesizingIndex] = useState(false);
   const [isApplyingSelectedAction, setIsApplyingSelectedAction] = useState(false);
   const [mergeError, setMergeError] = useState<string | null>(null);
+  const [synthesisError, setSynthesisError] = useState<string | null>(null);
   const [draggedMessageId, setDraggedMessageId] = useState<string | null>(null);
   const [messageDropTarget, setMessageDropTarget] = useState<MessageDropTarget | null>(null);
   const [dragPreview, setDragPreview] = useState<DragPreview | null>(null);
@@ -287,6 +291,7 @@ export function ConversationPane({
     setIsMergeSelectionMode(false);
     setSelectedMessageIds([]);
     setMergeError(null);
+    setSynthesisError(null);
   }, [activeConversation?.id]);
 
   useEffect(() => {
@@ -802,6 +807,23 @@ export function ConversationPane({
     );
   }
 
+  function canNavigateToMessage(messageId: string) {
+    return activeMessages.some((message) => message.id === messageId);
+  }
+
+  async function synthesizeConversationIndex() {
+    if (!activeConversation || activeMessages.length === 0 || isSynthesizingIndex) return;
+    setIsSynthesizingIndex(true);
+    setSynthesisError(null);
+    try {
+      await onSynthesizeIndex(activeMessages, activeConversation.title);
+    } catch (error) {
+      setSynthesisError(error instanceof Error ? error.message : 'Unable to synthesize a conversation index.');
+    } finally {
+      setIsSynthesizingIndex(false);
+    }
+  }
+
   function handleEditImagePaste(event: ClipboardEvent<HTMLTextAreaElement>) {
     const imageFiles = getImageFilesFromClipboardData(event.clipboardData);
     if (imageFiles.length === 0) return;
@@ -1005,6 +1027,22 @@ export function ConversationPane({
             </button>
             <div>
               <h2>{activeConversation.title}</h2>
+              {(isSynthesizingIndex || synthesisError) && (
+                <p className={synthesisError ? 'conversation-status error' : 'conversation-status'} role={synthesisError ? 'alert' : 'status'}>
+                  {synthesisError ?? 'Synthesizing conversation index...'}
+                </p>
+              )}
+            </div>
+            <div className="conversation-header-actions">
+              <button
+                className="icon-button"
+                type="button"
+                title="Synthesize conversation index"
+                disabled={activeMessages.length === 0 || isSynthesizingIndex}
+                onClick={() => void synthesizeConversationIndex()}
+              >
+                <MapIcon size={18} />
+              </button>
             </div>
           </header>
 
@@ -1042,6 +1080,10 @@ export function ConversationPane({
                   onStartSelection={startMergeSelection}
                   onNavigateToReference={onNavigateToReference}
                   canNavigateToReference={canNavigateToReference}
+                  onNavigateToMessage={(messageId) =>
+                    onNavigateToReference({ conversationId: message.conversationId, messageId })
+                  }
+                  canNavigateToMessage={canNavigateToMessage}
                   onCancelEdit={onCancelEdit}
                   onEditTextChange={setEditText}
                   onRemoveEditReference={(referenceId) =>

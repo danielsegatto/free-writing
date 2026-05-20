@@ -12,7 +12,7 @@ import {
   writeBatch
 } from 'firebase/firestore';
 import { requireDb } from '../firebase';
-import type { Message, MessageAttachment, MessageReference } from '../types';
+import type { ConversationIndexEntry, Message, MessageAttachment, MessageReference } from '../types';
 import { touchConversation } from './conversations';
 import { getSelectedTextFromRanges, removeTextRanges, type TextSelectionRange } from '../utils/textSelection';
 
@@ -37,6 +37,8 @@ type MessageWriteInput = {
   forwardedFromConversationId?: string | null;
   forwardedFromConversationTitle?: string | null;
   forwardedFromMessageId?: string | null;
+  blockKind?: Message['blockKind'];
+  indexEntries?: ConversationIndexEntry[];
 };
 
 function getMessageTime(message: Message) {
@@ -55,7 +57,9 @@ function buildMessageWrite({
   transferType = null,
   forwardedFromConversationId = null,
   forwardedFromConversationTitle = null,
-  forwardedFromMessageId = null
+  forwardedFromMessageId = null,
+  blockKind,
+  indexEntries
 }: MessageWriteInput) {
   const message = {
     userId,
@@ -73,7 +77,12 @@ function buildMessageWrite({
     forwardedFromMessageId
   };
 
-  return attachments.length > 0 ? { ...message, attachments } : message;
+  return {
+    ...message,
+    ...(attachments.length > 0 ? { attachments } : {}),
+    ...(blockKind ? { blockKind } : {}),
+    ...(indexEntries ? { indexEntries } : {})
+  };
 }
 
 function buildTransferredMessageWrite(
@@ -106,6 +115,7 @@ function normalizeMessages(messages: Message[]) {
       ...message,
       attachments: message.attachments ?? [],
       references: message.references ?? [],
+      indexEntries: message.indexEntries ?? [],
       sortOrder: typeof message.sortOrder === 'number' ? message.sortOrder : (index + 1) * sortStep,
       transferType: message.transferType ?? (message.isForwarded ? 'forwarded' : null),
       forwardedFromConversationTitle: message.forwardedFromConversationTitle ?? null
@@ -161,6 +171,27 @@ export async function createMessage(
   await touchConversation(userId, conversationId, getMessagePreview(cleanText, attachments, references), {
     moveToTop: true
   });
+  return message;
+}
+
+export async function createConversationIndexMessage(
+  userId: string,
+  conversationId: string,
+  text: string,
+  indexEntries: ConversationIndexEntry[]
+) {
+  const cleanText = text.trim();
+  if (!cleanText || indexEntries.length === 0) return null;
+  const sortOrder = await getNextSortOrder(userId, conversationId);
+  const message = await addDoc(messagesPath(userId, conversationId), buildMessageWrite({
+    userId,
+    conversationId,
+    text: cleanText,
+    sortOrder,
+    blockKind: 'conversation-index',
+    indexEntries
+  }));
+  await touchConversation(userId, conversationId, cleanText, { moveToTop: true });
   return message;
 }
 

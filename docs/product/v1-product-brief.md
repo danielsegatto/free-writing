@@ -1,6 +1,6 @@
 # Version 1 Product Brief
 
-Last updated: 2026-05-19
+Last updated: 2026-05-20
 
 Related docs: [features and screens](v1-features-and-screens.md), [architecture](../architecture/firebase-pwa-architecture.md), [current implementation](../implementation/current-implementation.md).
 
@@ -25,6 +25,7 @@ The app should let the user:
 - Reorder text blocks inside a conversation with explicit controls and a drag handle on desktop and touch/pointer devices
 - Merge multiple selected text blocks into one unified block
 - Convert saved text blocks or draft text to English by choosing from AI-generated variants
+- Synthesize a clickable index that maps the current conversation
 - Access the same content from iPhone, desktop, and tablet
 - Use the app offline when possible
 - Sign in easily using a Google/Gmail account
@@ -92,8 +93,9 @@ The user should be able to:
 13. Reorder conversations and reorder text blocks inside a conversation with touch-friendly controls and drag handles on desktop and touch/pointer devices.
 14. Select multiple text blocks in a conversation and merge them into one unified block, removing the originals.
 15. Convert a saved text block or draft text to English by selecting one of three English versions for each segment.
-16. Access the same content from iPhone, desktop, and tablet.
-17. Continue reading and writing offline when the app has already loaded and local data is cached.
+16. Synthesize a clickable conversation index that maps every current block back to its source.
+17. Access the same content from iPhone, desktop, and tablet.
+18. Continue reading and writing offline when the app has already loaded and local data is cached.
 
 ## 5. What Version 1 should not include
 
@@ -121,7 +123,7 @@ This version is still for one private user.
 
 ## 6. Core user story
 
-As the only user of the app, I want to sign in with Gmail, create and organize private conversations, write and organize text/image message blocks, copy saved blocks out to other apps when needed, merge related blocks, move or copy full blocks and selected parts between conversations while keeping copied-block origins visible, convert text blocks to English when needed, search them, edit them, delete them, and access them from my iPhone, desktop, and tablet, even with limited offline support.
+As the only user of the app, I want to sign in with Gmail, create and organize private conversations, write and organize text/image message blocks, copy saved blocks out to other apps when needed, merge related blocks, move or copy full blocks and selected parts between conversations while keeping copied-block origins visible, convert text blocks to English when needed, synthesize clickable conversation maps, search them, edit them, delete them, and access them from my iPhone, desktop, and tablet, even with limited offline support.
 
 ---
 
@@ -129,4 +131,4 @@ As the only user of the app, I want to sign in with Gmail, create and organize p
 
 The first useful version should be:
 
-> A private Google-login PWA where I can create and organize conversations, save text/image blocks, convert text to English, quickly convert draft text with keyboard shortcuts, edit/delete/search/reorder/merge blocks, copy or move whole blocks or selected parts between conversations while copied blocks show their source conversation, and access everything across iPhone, desktop, and tablet, with offline support for cached data.
+> A private Google-login PWA where I can create and organize conversations, save text/image blocks, convert text to English, synthesize clickable conversation indexes, quickly convert draft text with keyboard shortcuts, edit/delete/search/reorder/merge blocks, copy or move whole blocks or selected parts between conversations while copied blocks show their source conversation, and access everything across iPhone, desktop, and tablet, with offline support for cached data.

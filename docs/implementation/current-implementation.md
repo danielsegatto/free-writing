@@ -11,7 +11,7 @@ The current app state is a working Firebase-backed React PWA named `Free Writing
 Implemented:
 
 - Vite + React frontend.
-- Focused Vitest coverage for app transfer navigation, conversation service writes, sidebar drag reordering, message service writes, inline image attachments and paste handling, loaded-message search, composer keyboard conversion behavior, inline editing, text/rich block copy feedback and fallbacks, reorder controls, desktop and touch drag-handle reorder behavior including body-scroll protection, gap drop zones, insertion markers, and edge autoscroll, multi-block merge selection on desktop and touch, English conversion UI/service/helper behavior, and the shared forward/move modal.
+- Focused Vitest coverage for app transfer navigation, conversation service writes, sidebar drag reordering, message service writes, inline image attachments and paste handling, loaded-message search, composer keyboard conversion behavior, inline editing, text/rich block copy feedback and fallbacks, reorder controls, desktop and touch drag-handle reorder behavior including body-scroll protection, gap drop zones, insertion markers, and edge autoscroll, multi-block merge selection on desktop and touch, English conversion UI/service/helper behavior, conversation index synthesis service/UI/Worker behavior, and the shared forward/move modal.
 - React code organized into small components, a subscription hook, Firebase services, and utility helpers.
 - Firebase Authentication with Google provider.
 - Firebase configuration guard that shows a setup notice when `.env` is missing or still contains placeholder values.
@@ -19,10 +19,11 @@ Implemented:
 - Firestore security rules scoped to the signed-in user's UID.
 - Conversation create, rename, open, delete, and drag-handle reorder with floating preview, insertion marker, gap-tolerant drops, and edge autoscroll.
 - Conversation list rows show conversation title and updated time only; they intentionally do not render stored message previews.
-- Message create, edit, copy-to-clipboard for text-only, text/image, and image-only blocks, delete, copy/forward to another conversation with clickable source-conversation metadata, move to another conversation with a post-move open-target notice, partial text copying/moving from the transfer dialog, structured conversation links and quote citations, search, manual up/down reorder, drag-handle reorder on desktop and touch/pointer devices with message-list edge autoscroll, and selected-block merge.
+- Message create, edit, copy-to-clipboard for text-only, text/image, and image-only blocks, delete, copy/forward to another conversation with clickable source-conversation metadata, move to another conversation with a post-move open-target notice, partial text copying/moving from the transfer dialog, structured conversation links and quote citations, search, manual up/down reorder, drag-handle reorder on desktop and touch/pointer devices with message-list edge autoscroll, selected-block merge, and synthesized clickable conversation index blocks.
 - Small image attachments on new and edited blocks. Images can be selected, pasted into the composer, pasted through a touch-friendly clipboard action where the browser permits it, or pasted while editing an existing block.
 - Image attachments are compressed in the browser and stored inline in Firestore message documents. Firebase Storage is intentionally not used so the app stays on the free Spark plan.
 - English conversion for saved messages and composer draft text. It segments text, presents three English options per segment, and can create a new message below a saved source, replace a saved source, or send selected draft English text directly as a new message.
+- Conversation index synthesis for the active conversation. The header action sends all visible blocks in one contextual AI request, appends a new bottom index block, and renders each generated entry as a clickable row that jumps to its source block.
 - Message transfer support distinguishes copied/forwarded messages from moved messages with `transferType` and stores `forwardedFromConversationTitle` for copied-block origin display.
 - Composer `Ctrl+Enter` / `Cmd+Enter` opens draft English conversion, while plain `Enter` inserts a newline. Inline message edits use `Ctrl+Enter` / `Cmd+Enter` to save.
 - Responsive phone/desktop layout.
@@ -33,8 +34,8 @@ Implemented:
 - Firestore persistent local cache is enabled for cached data and offline writes.
 - Conversation order and message order are persisted with numeric `sortOrder` values and sync across devices. New blocks move the receiving conversation to the top by assigning a top `sortOrder`; manual reorder remains stable until a later new block arrives in a conversation.
 - Search runs across messages loaded by Firestore subscriptions; the current hook subscribes to every conversation's messages after the conversation list loads.
-- Cloudflare Worker backend proxy for hosted English conversion.
-- Local Vite development middleware for `/api/to-english` so Codespaces/Vite testing works without Firebase Hosting rewrites.
+- Cloudflare Worker backend proxy for hosted English conversion and conversation index synthesis.
+- Local Vite development middleware for `/api/to-english` and `/api/synthesize-index` so Codespaces/Vite testing works without Firebase Hosting rewrites.
 
 Known development follow-ups:
 
@@ -60,7 +61,7 @@ The current codebase uses:
 - Legacy Firebase Functions and Admin SDK in the `functions/` package
 - `vite-plugin-pwa`
 - `lucide-react` for icons
-- Groq Chat Completions for English conversion through a server-side proxy
+- Groq Chat Completions for English conversion and conversation index synthesis through a server-side proxy
 
 Current visual system:
 
@@ -80,11 +81,12 @@ VITE_FIREBASE_STORAGE_BUCKET=
 VITE_FIREBASE_MESSAGING_SENDER_ID=
 VITE_FIREBASE_APP_ID=
 VITE_TRANSLATION_API_URL=
+VITE_SYNTHESIS_API_URL=
 ```
 
 The `.env` file should stay local and must not be committed. `VITE_FIREBASE_STORAGE_BUCKET` can be blank; image attachments are compressed client-side and stored inline in Firestore message documents so the app stays compatible with the free Firebase Spark plan.
 
-`VITE_TRANSLATION_API_URL` is optional for local Vite dev. Leave it blank locally to use the same-origin `/api/to-english` middleware in `vite.config.ts`. For the hosted app, set it to the deployed Cloudflare Worker URL before building production.
+`VITE_TRANSLATION_API_URL` is optional for local Vite dev. Leave it blank locally to use the same-origin `/api/to-english` and `/api/synthesize-index` middleware in `vite.config.ts`. For the hosted app, set it to the deployed Cloudflare Worker URL before building production; conversation index synthesis derives `/api/synthesize-index` from that same Worker URL unless `VITE_SYNTHESIS_API_URL` is explicitly set.
 
 For local Vite-only translation testing, `GROQ_API_KEY` may be stored in ignored `.env` without the `VITE_` prefix. The local middleware verifies Firebase ID-token JWTs against Google's Firebase public certificates and checks the configured `VITE_FIREBASE_PROJECT_ID`. For Cloudflare Worker local testing, copy `.dev.vars.example` to `.dev.vars`. For the deployed Worker, set secrets with Wrangler:
 
@@ -115,10 +117,10 @@ src/components/Sidebar.tsx
   Search, conversation list, create, rename, delete, drag reorder, and navigation UI. Normal conversation rows show title and updated time; search results still show matching message text for context.
 
 src/components/ConversationPane.tsx
-  Active conversation view, selected-message state, copy/edit/transfer/reorder/drag-and-drop/merge/English conversion orchestration, insertion marker state, reference picker state, conversion picker state, and inline edit/image-paste state.
+  Active conversation view, selected-message state, copy/edit/transfer/reorder/drag-and-drop/merge/English conversion and index synthesis orchestration, insertion marker state, reference picker state, conversion picker state, and inline edit/image-paste state.
 
 src/components/MessageBubble.tsx
-  Per-message rendering and local action wiring. Owns message metadata display including clickable copied-origin conversation names, inert image attachment previews, structured reference cards, inline edit form markup, copy feedback label, reorder buttons and drag handle, transfer/delete/English action buttons, and drag/pointer event binding passed down from `ConversationPane`.
+  Per-message rendering and local action wiring. Owns message metadata display including clickable copied-origin conversation names, inert image attachment previews, structured reference cards, synthesized index rows, inline edit form markup, copy feedback label, reorder buttons and drag handle, transfer/delete/English action buttons, and drag/pointer event binding passed down from `ConversationPane`.
 
 src/components/MessageComposer.tsx
   Draft composer rendering, pending reference chips, image selection/paste previews, and keyboard behavior. Owns the composer form markup, draft textarea, visible send action, and `Ctrl+Enter` / `Cmd+Enter` draft English conversion shortcut passed down from `ConversationPane`.
@@ -136,12 +138,13 @@ src/hooks/useMessagingData.ts
   It does not currently expose per-subscription loading or error states to the UI.
 
 src/services/
-  Firebase auth, conversation, message, image preparation, search, and translation request operations.
-  `messages.ts` keeps Firestore message write payload construction in small local helpers so create, transfer, merge, image attachment, and English-result writes share the same field defaults.
+  Firebase auth, conversation, message, image preparation, search, translation, and synthesis request operations.
+  `messages.ts` keeps Firestore message write payload construction in small local helpers so create, transfer, merge, image attachment, English-result, and synthesized-index writes share the same field defaults.
   `storage.ts` is named for historical upload intent but currently performs free-plan client-side image compression and inline attachment construction; it does not call Firebase Storage.
+  `synthesis.ts` posts the active conversation title and all visible blocks to the AI proxy, validates one returned index entry per source block, and normalizes empty/image-only blocks to fallback descriptions.
 
 workers/translation/index.ts
-  Cloudflare Worker for authenticated English conversion requests. Verifies Firebase ID tokens through Google Identity Toolkit, calls Groq with the `GROQ_API_KEY` secret, validates the JSON shape, and returns segment/options data.
+  Cloudflare Worker for authenticated AI requests. Verifies Firebase ID tokens through Google Identity Toolkit, calls Groq with the `GROQ_API_KEY` secret, validates the JSON shape, and returns either English segment/options data or conversation-index entries.
 
 functions/src/index.ts
   Legacy Firebase Function version of the translation proxy. Firebase Functions require the Blaze plan and are not used by the default free hosted deployment.
@@ -153,7 +156,7 @@ src/styles.css
   Global dark theme, responsive layout, viewport-constrained conversation pane, component surfaces, input states, shared button/icon alignment, message bubbles, drag reorder states, modal styling, English picker styling, and hover states.
 
 index.html + vite.config.ts
-  Browser theme color, generated PWA manifest colors, and local `/api/to-english` development middleware. Theme colors currently match the dark app shell so installed/mobile surfaces do not flash the old light theme.
+  Browser theme color, generated PWA manifest colors, and local `/api/to-english` plus `/api/synthesize-index` development middleware. Theme colors currently match the dark app shell so installed/mobile surfaces do not flash the old light theme.
 ```
 
 Development impact:
@@ -162,7 +165,7 @@ Development impact:
 - UI changes should usually start in `src/components/`.
 - Theme and layout styling changes should usually start in `src/styles.css`, then update PWA theme colors if the app shell color changes. The app shell and active conversation pane are viewport-height flex layouts; keep message-list scrolling isolated so the header, merge toolbar, and composer remain reachable.
 - Firebase read/write behavior should usually start in `src/services/`.
-- Hosted translation backend behavior should usually start in `workers/translation/index.ts`; local-only Vite proxy behavior lives in `vite.config.ts`. `functions/src/index.ts` is legacy Firebase Functions code and is not used by the free hosted path.
+- Hosted AI backend behavior should usually start in `workers/translation/index.ts`; local-only Vite proxy behavior lives in `vite.config.ts`. `functions/src/index.ts` is legacy Firebase Functions code and is not used by the free hosted path.
 - Subscription and data-loading behavior should usually start in `src/hooks/useMessagingData.ts`.
 - Small reusable helpers should live in `src/utils/`.
 - Recurring AI maintenance prompts live in `docs/ai-maintenance/`; `docs/ai-maintenance-prompts.md` is only the index.
@@ -177,7 +180,7 @@ Current hosting configuration:
 
 - `firebase.json` serves the production build from `dist/`.
 - All routes rewrite to `/index.html` so the React app can handle navigation.
-- Hosted English conversion uses the Cloudflare Worker URL configured through `VITE_TRANSLATION_API_URL`.
+- Hosted English conversion and conversation index synthesis use the Cloudflare Worker URL configured through `VITE_TRANSLATION_API_URL`; synthesis can override with `VITE_SYNTHESIS_API_URL` if needed.
 - Current deployed Worker URL: `https://free-writing-translation.free-writing-danielsegatto.workers.dev`.
 - Firestore rules are deployed from `firebase.rules`.
 
@@ -302,6 +305,17 @@ Local hosting on an idle machine is not the primary Version 1 deployment target.
 - Inline editing can remove existing references from a saved message. Adding new references is composer-only.
 - Old messages without `references` are normalized to an empty reference list by the message subscription path.
 
+### Conversation index synthesis
+
+- `src/services/synthesis.ts` posts `{ conversationTitle, blocks }` to `VITE_SYNTHESIS_API_URL`, a `/api/synthesize-index` path derived from `VITE_TRANSLATION_API_URL`, or same-origin `/api/synthesize-index`.
+- `src/components/ConversationPane.tsx` owns the header synthesis action, loading/error state, and calls `onSynthesizeIndex(activeMessages, activeConversation.title)` once for the current visible message list.
+- `src/App.tsx` routes synthesis through `requestConversationIndex`, formats a plain-text fallback/search representation, and persists the result with `createConversationIndexMessage`.
+- `src/services/messages.ts` has `createConversationIndexMessage`, which appends a normal bottom message with `blockKind: 'conversation-index'` and `indexEntries`, then touches the receiving conversation with `moveToTop: true`.
+- `src/components/MessageBubble.tsx` renders index blocks from `indexEntries` as clickable rows. Each row navigates to the source message ID in the same conversation and reuses the existing scroll/highlight behavior. Rows for deleted/unloaded source blocks stay visible but disabled.
+- Synthesis includes previous index blocks because they are ordinary visible messages. The newly generated index cannot include itself because it is only written after the AI response returns.
+- Empty or image/reference-only source blocks are sent to the synthesis service with fallback descriptions. The AI response must contain exactly one entry for every submitted source message ID; unknown, duplicate, or missing IDs are rejected.
+- Conversation index synthesis is online-only. Created index blocks persist like normal messages and then participate in Firestore cache/sync behavior.
+
 ### English conversion
 
 - `src/services/translation.ts` posts `{ text }` to `VITE_TRANSLATION_API_URL` or `/api/to-english`.
@@ -323,7 +337,7 @@ Local hosting on an idle machine is not the primary Version 1 deployment target.
 
 ### Sync behavior
 
-Conversation `lastMessagePreview` is still stored and updated for possible future use, but the current conversation list does not render it. Conversation `sortOrder` controls list ordering, while `updatedAt` remains useful for display and fallback ordering. `touchConversation(..., { moveToTop: true })` updates preview/time and assigns a new top `sortOrder`; it is used for direct message creation, forwarded blocks, moved whole blocks, selected moved text on the target conversation, and English result block creation. Edits, merges, English replacements, and source-side partial move updates touch preview/time without moving the conversation to the top. `lastMessagePreview` is not currently recalculated after deleting a message, deleting originals during merge, or removing a moved message from its source conversation.
+Conversation `lastMessagePreview` is still stored and updated for possible future use, but the current conversation list does not render it. Conversation `sortOrder` controls list ordering, while `updatedAt` remains useful for display and fallback ordering. `touchConversation(..., { moveToTop: true })` updates preview/time and assigns a new top `sortOrder`; it is used for direct message creation, forwarded blocks, moved whole blocks, selected moved text on the target conversation, English result block creation, and synthesized index block creation. Edits, merges, English replacements, and source-side partial move updates touch preview/time without moving the conversation to the top. `lastMessagePreview` is not currently recalculated after deleting a message, deleting originals during merge, or removing a moved message from its source conversation.
 
 ### Header display
 

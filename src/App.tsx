@@ -12,6 +12,7 @@ import {
 } from './services/conversations';
 import {
   createMessage,
+  createConversationIndexMessage,
   createMessageAfter,
   deleteMessage,
   editMessage,
@@ -24,7 +25,8 @@ import {
 import { searchLoadedMessages } from './services/search';
 import { uploadMessageImages } from './services/storage';
 import { requestEnglishVersions } from './services/translation';
-import type { Conversation, Message, MessageReference } from './types';
+import { requestConversationIndex } from './services/synthesis';
+import type { Conversation, ConversationIndexEntry, Message, MessageReference } from './types';
 import type { DropPosition } from './utils/dropTargets';
 import { moveItemToDropPosition, moveMessageByDirection, moveMessageToDropPosition } from './utils/messageOrder';
 import type { MessageReferenceNavigationTarget } from './utils/messageReferences';
@@ -40,6 +42,12 @@ type MoveNotice = {
   targetConversationId: string;
   targetConversationTitle: string;
 };
+
+function formatConversationIndexText(entries: ConversationIndexEntry[]) {
+  return entries
+    .map((entry, index) => `${index + 1}. ${entry.title}\n${entry.summary}`)
+    .join('\n\n');
+}
 
 export default function App() {
   const {
@@ -287,6 +295,17 @@ export default function App() {
     await mergeMessages(user.uid, activeConversationId, messages);
   }
 
+  async function handleSynthesizeConversationIndex(messages: Message[], conversationTitle: string) {
+    if (!user || !activeConversationId || messages.length === 0) return;
+    const index = await requestConversationIndex(messages, conversationTitle);
+    await createConversationIndexMessage(
+      user.uid,
+      activeConversationId,
+      formatConversationIndexText(index.entries),
+      index.entries
+    );
+  }
+
   function handleStartRename(conversation: Conversation) {
     setRenamingId(conversation.id);
     setRenameDraft(conversation.title);
@@ -370,6 +389,7 @@ export default function App() {
           void handleReorderMessage(draggedMessageId, targetMessageId, position)
         }
         onMergeMessages={handleMergeMessages}
+        onSynthesizeIndex={handleSynthesizeConversationIndex}
         onConvertToEnglish={requestEnglishVersions}
         onCreateEnglishBlock={handleCreateEnglishBlock}
         onReplaceWithEnglish={handleReplaceWithEnglish}

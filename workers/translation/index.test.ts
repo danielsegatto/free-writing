@@ -21,6 +21,26 @@ function request(init: RequestInit = {}) {
   });
 }
 
+function synthesisRequest(init: RequestInit = {}) {
+  return new Request('https://free-writing-translation.example.workers.dev/api/synthesize-index', {
+    method: 'POST',
+    headers: {
+      Origin: 'https://free-writing-e29a1.web.app',
+      Authorization: 'Bearer id-token',
+      'Content-Type': 'application/json',
+      ...init.headers
+    },
+    body: JSON.stringify({
+      conversationTitle: 'Inbox',
+      blocks: [
+        { id: 'first', position: 1, text: 'First block' },
+        { id: 'second', position: 2, text: 'Second block' }
+      ]
+    }),
+    ...init
+  });
+}
+
 describe('translation worker', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -114,5 +134,89 @@ describe('translation worker', () => {
     expect(groqRequest.messages[0]?.content).toContain('sentence-level segments');
     expect(groqRequest.messages[0]?.content).toContain('Prefer one segment per complete sentence or short standalone line');
     expect(groqRequest.messages[0]?.content).toContain('Do not merge separate sentences into one segment');
+  });
+
+  it('returns parsed conversation index entries from Groq', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ users: [{ localId: 'user-id' }] })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                entries: [
+                  {
+                    sourceMessageId: 'first',
+                    title: 'Opening',
+                    summary: 'Starts the conversation.'
+                  },
+                  {
+                    sourceMessageId: 'second',
+                    title: 'Follow-up',
+                    summary: 'Builds on the opening.'
+                  }
+                ]
+              })
+            }
+          }
+        ]
+      })));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await worker.fetch(synthesisRequest(), env);
+    const body = await response.json() as { entries: Array<{ sourceMessageId: string; title: string; summary: string }> };
+
+    expect(response.status).toBe(200);
+    expect(body.entries.map((entry) => entry.sourceMessageId)).toEqual(['first', 'second']);
+    expect(body.entries[0].title).toBe('Opening');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    const groqRequest = JSON.parse(fetchMock.mock.calls[1]?.[1]?.body as string) as {
+      messages: Array<{ content: string }>;
+    };
+    expect(groqRequest.messages[0]?.content).toContain('full surrounding context');
+    expect(groqRequest.messages[0]?.content).toContain('Do not summarize each block in isolation');
+    expect(groqRequest.messages[0]?.content).toContain('exactly one index entry for every provided block ID');
+    expect(groqRequest.messages[0]?.content).toContain('"id": "first"');
+    expect(groqRequest.messages[0]?.content).toContain('"id": "second"');
+  });
+
+  it('requires conversation blocks for synthesis', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ users: [{ localId: 'user-id' }] }))));
+
+    const response = await worker.fetch(synthesisRequest({ body: JSON.stringify({ conversationTitle: 'Inbox', blocks: [] }) }), env);
+    const body = await response.json() as { error: string };
+
+    expect(response.status).toBe(400);
+    expect(body.error).toContain('Conversation blocks are required');
+  });
+
+  it('rejects synthesis responses that do not cover every submitted block exactly once', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ users: [{ localId: 'user-id' }] })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                entries: [
+                  {
+                    sourceMessageId: 'first',
+                    title: 'Opening',
+                    summary: 'Starts the conversation.'
+                  }
+                ]
+              })
+            }
+          }
+        ]
+      })));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await worker.fetch(synthesisRequest(), env);
+    const body = await response.json() as { error: string };
+
+    expect(response.status).toBe(502);
+    expect(body.error).toContain('Unable to synthesize');
   });
 });
