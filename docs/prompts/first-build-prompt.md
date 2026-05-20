@@ -72,7 +72,7 @@ Messages:
 - Moving leaves the user in the current conversation after completion and shows a non-blocking action to open the target conversation.
 - Merging creates one normal replacement message from the selected blocks in display order and removes the selected originals.
 - Merging preserves selected image attachments in display order.
-- English conversion breaks the source text into a small number of larger logical segments, offers three selectable English versions for each segment, and can create the selected English result as a new message below the original.
+- English conversion breaks the source text into sentence-level segments, offers three selectable English versions for each segment, and can create the selected English result as a new message below the original.
 - For saved messages, English conversion can also replace the source block with the selected English text.
 - For draft text, English conversion sends the selected English text directly as a new message.
 - Show an optional "Copied" / "Copied from [conversation name]" label on copied/forwarded messages.

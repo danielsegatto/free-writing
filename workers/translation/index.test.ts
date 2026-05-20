@@ -107,5 +107,12 @@ describe('translation worker', () => {
     expect(body.segments[0].original).toBe('Olá');
     expect(body.segments[0].options).toEqual(['Hello', 'Hi', 'Hey']);
     expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    const groqRequest = JSON.parse(fetchMock.mock.calls[1]?.[1]?.body as string) as {
+      messages: Array<{ content: string }>;
+    };
+    expect(groqRequest.messages[0]?.content).toContain('sentence-level segments');
+    expect(groqRequest.messages[0]?.content).toContain('Prefer one segment per complete sentence or short standalone line');
+    expect(groqRequest.messages[0]?.content).toContain('Do not merge separate sentences into one segment');
   });
 });

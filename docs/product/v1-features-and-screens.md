@@ -145,7 +145,7 @@ Version 1 behavior:
 
 - Each message has a `Convert to English` action.
 - The composer has a `Convert draft to English` action when a non-empty draft is present.
-- The app breaks the text into a small number of readable segments, preferring complete sentences or short paragraphs.
+- The app breaks the text into sentence-level segments, preferring one segment per complete sentence or short standalone line.
 - Each segment shows three selectable English versions.
 - The first option is selected by default.
 - The user can choose one version for every segment.

@@ -313,7 +313,7 @@ Local hosting on an idle machine is not the primary Version 1 deployment target.
 - `src/services/messages.ts` has `createMessageAfter`, which inserts the English result directly below the source message by choosing a midpoint `sortOrder` when possible or rebalancing order when no numeric gap exists.
 - English conversion is online-only. Created and replaced English blocks persist like normal messages and then participate in Firestore cache/sync behavior.
 - Hosted production uses `workers/translation/index.ts`, Firebase ID-token verification through Google Identity Toolkit, and Cloudflare Worker secrets for `GROQ_API_KEY` and `FIREBASE_API_KEY`. Local Vite dev uses equivalent middleware in `vite.config.ts` with `GROQ_API_KEY` from ignored `.env`, verifies ID-token JWT signatures against Google's Firebase public certificates, and requires the token audience/issuer to match `VITE_FIREBASE_PROJECT_ID`.
-- Translation prompts in the Worker and Vite middleware ask the model to prefer larger logical segments, complete sentences, or short paragraphs instead of splitting aggressively into small phrases.
+- Translation prompts in the Worker and Vite middleware ask the model to prefer sentence-level segments, with one segment per complete sentence or short standalone line.
 
 ### Offline behavior
 
