@@ -12,7 +12,7 @@ Implemented:
 
 - Vite + React frontend.
 - Focused Vitest coverage for app transfer navigation, conversation service writes, sidebar drag reordering, message service writes, inline image attachments and paste handling, loaded-message search, composer keyboard conversion behavior, inline editing, text/rich block copy feedback and fallbacks, reorder controls, desktop and touch drag-handle reorder behavior including body-scroll protection, gap drop zones, insertion markers, and edge autoscroll, multi-block merge selection on desktop and touch, English conversion UI/service/helper behavior, conversation index synthesis service/UI/Worker behavior, and the shared forward/move modal.
-- React code organized into small components, a subscription hook, Firebase services, and utility helpers.
+- React code organized into small components, subscription/shared UI hooks, Firebase services, and utility helpers.
 - Firebase Authentication with Google provider.
 - Firebase configuration guard that shows a setup notice when `.env` is missing or still contains placeholder values.
 - Firestore cloud storage under `users/{userId}/conversations/{conversationId}/messages/{messageId}`.
@@ -146,6 +146,12 @@ src/hooks/useMessagingData.ts
   This keeps loaded-message search simple, but can become expensive for large datasets.
   It does not currently expose per-subscription loading or error states to the UI.
 
+src/hooks/useListReorderDrag.ts
+  Shared native drag, touch/pointer drag, insertion target, floating preview, and edge-autoscroll state for reorderable lists.
+
+src/hooks/useImagePreviews.ts
+  Shared object-URL image preview lifecycle for composer and inline edit image files.
+
 src/services/
   Firebase auth, conversation, message, image preparation, search, translation, and synthesis request operations.
   `messages.ts` keeps Firestore message write payload construction in small local helpers so create, transfer, merge, image attachment, English-result, and synthesized-index writes share the same field defaults.
@@ -159,7 +165,7 @@ functions/src/index.ts
   Legacy Firebase Function version of the translation proxy. Firebase Functions require the Blaze plan and are not used by the default free hosted deployment.
 
 src/utils/
-  Shared formatting, clipboard, error, ordering, and small pure text helpers. `messageClipboard.ts` owns block copy formatting and rich/plain clipboard fallbacks. `englishConversion.ts` assembles selected English conversion segment options into the text used for saving or sending. `textSelection.ts` tokenizes transfer/source text into word and whitespace tokens, normalizes selected ranges, assembles selected parts, and removes selected ranges from source text for partial moves. `messageOrder.ts` computes behavior-preserving reorder arrays for message up/down controls, conversation drag targets, and message before/after insertion positions. `dropTargets.ts` resolves pointer positions to before/after drop slots from measured item rectangles.
+  Shared formatting, clipboard, error, ordering, image-file, and small pure text helpers. `messageClipboard.ts` owns block copy formatting and rich/plain clipboard fallbacks. `englishConversion.ts` assembles selected English conversion segment options into the text used for saving or sending. `textSelection.ts` tokenizes transfer/source text into word and whitespace tokens, normalizes selected ranges, assembles selected parts, and removes selected ranges from source text for partial moves. `messageOrder.ts` computes behavior-preserving reorder arrays for message up/down controls, conversation drag targets, and message before/after insertion positions. `dropTargets.ts` resolves pointer positions to before/after drop slots from measured item rectangles. `imageFiles.ts` centralizes clipboard image extraction, preview IDs, and clipboard image filename extensions.
 
 src/styles.css
   Global dark theme, responsive layout, viewport-constrained conversation pane, component surfaces, input states, shared button/icon alignment, message bubbles, drag reorder states, modal styling, English picker styling, and hover states.
@@ -268,7 +274,7 @@ Local hosting on an idle machine is not the primary Version 1 deployment target.
 - `src/types.ts` models optional `attachments` on messages. The only current attachment type is `image`.
 - `src/services/storage.ts` compresses images client-side to JPEG data URLs, enforces per-image and per-message inline size limits, and returns message attachment metadata. The service name is historical; there is no Firebase Storage upload path.
 - `src/App.tsx` prepares image files before message create/edit writes by calling `uploadMessageImages`, then passes inline attachments into `createMessage` or `editMessage`.
-- `src/components/MessageComposer.tsx` supports image file selection, normal paste events, and a visible paste-image button for touch devices. Clipboard read support is browser-dependent; when it is unavailable, the button falls back to file selection.
+- `src/components/MessageComposer.tsx` supports image file selection, normal paste events, and a visible paste-image button for touch devices. `src/hooks/useImagePreviews.ts` owns object URL creation/revocation for composer and inline edit preview files. Clipboard read support is browser-dependent; when it is unavailable, the button falls back to file selection.
 - `src/components/MessageBubble.tsx` renders saved image previews as inert elements, not links. Clicking a saved image intentionally does nothing.
 - Image-only messages are allowed. Conversation previews use `Image` or `{n} images` when a message has no text.
 - Search, English conversion, and conversation index synthesis use message text or fallback block descriptions only; image contents are not OCR-indexed or sent to the AI endpoint.
@@ -278,8 +284,8 @@ Local hosting on an idle machine is not the primary Version 1 deployment target.
 
 - `src/App.tsx` keeps reorder persistence centralized by optimistically updating `messagesByConversation` and then calling `reorderMessages`.
 - `src/utils/messageOrder.ts` keeps the pure reorder-array calculations outside `App.tsx`, with focused tests for up/down moves, drag/drop target moves, and before/after insertion moves.
-- `src/utils/dropTargets.ts` keeps the geometry-independent nearest-slot calculation outside `ConversationPane`, so gap-tolerant drops can be tested without rendering React components.
-- `src/components/ConversationPane.tsx` owns drag/reorder state, floating preview state, autoscroll, and persistence callbacks. `src/components/MessageDragPreview.tsx` renders the floating preview, while `src/components/MessageBubble.tsx` exposes up/down buttons and a dedicated drag handle with native desktop drag-and-drop and mobile/touch pointer bindings.
+- `src/utils/dropTargets.ts` keeps the geometry-independent nearest-slot calculation outside React components, so gap-tolerant drops can be tested without rendering React.
+- `src/hooks/useListReorderDrag.ts` owns shared drag/reorder state, floating preview state, drop target resolution, and autoscroll for reorderable lists. `ConversationPane` wires that hook to message reorder persistence. `src/components/MessageDragPreview.tsx` renders the floating preview, while `src/components/MessageBubble.tsx` exposes up/down buttons and a dedicated drag handle with native desktop drag-and-drop and mobile/touch pointer bindings.
 - Dragging starts only from the drag handle. The message bubble body is no longer draggable and keeps normal touch scrolling available for long text.
 - Desktop, touch, and pen dragging start immediately from the handle, show a floating preview of the dragged block, dim the source bubble, and render an insertion marker in the exact space where the block will land.
 - Drop detection first uses the pointer target when it is over a message, then falls back to the nearest before/after insertion slot based on visible message rectangles. This makes gaps, padding, insertion markers, and near-miss positions valid drop zones.
@@ -290,7 +296,7 @@ Local hosting on an idle machine is not the primary Version 1 deployment target.
 
 ### Reorder conversations
 
-- `src/components/Sidebar.tsx` owns conversation drag state, floating preview state, before/after insertion marker state, native desktop drag handlers, pointer handlers, gap-tolerant drop target resolution, edge autoscroll, and post-drag click suppression for the conversation list.
+- `src/components/Sidebar.tsx` uses `src/hooks/useListReorderDrag.ts` for conversation drag state, floating preview state, before/after insertion marker state, native desktop drag handlers, pointer handlers, gap-tolerant drop target resolution, and edge autoscroll. Sidebar keeps post-drag click suppression local to the conversation list.
 - Conversation dragging starts from a dedicated row drag handle and is disabled while a row is being renamed or when only one conversation exists.
 - Conversation dragging mirrors block dragging: desktop, touch, and pen drags show a floating row preview, dim the source row, render an insertion marker where the row will land, treat gaps/padding/near-miss positions as nearest insertion slots, and autoscroll the `.conversation-list` near its top or bottom edge.
 - Releasing a reordered conversation suppresses the follow-up row click so the app stays on the conversation list instead of opening the dragged row or the new top row.

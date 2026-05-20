@@ -1,9 +1,10 @@
-import { Fragment, useEffect, useRef, useState, type DragEvent, type MouseEvent, type PointerEvent } from 'react';
+import { Fragment, useEffect, useRef, type MouseEvent } from 'react';
 import { Edit3, GripVertical, LogOut, Plus, Search, Trash2, X } from 'lucide-react';
+import { useListReorderDrag } from '../hooks/useListReorderDrag';
 import { signOutUser } from '../services/auth';
 import type { Conversation, Message } from '../types';
 import { formatDate } from '../utils/date';
-import { resolveNearestDropTarget, type DropPosition, type DropTargetCandidate } from '../utils/dropTargets';
+import type { DropPosition } from '../utils/dropTargets';
 
 type SearchResult = {
   conversation: Conversation;
@@ -28,26 +29,6 @@ type SidebarProps = {
   onReorderConversation: (draggedConversationId: string, targetConversationId: string, position: DropPosition) => void;
 };
 
-type ConversationDragState = {
-  conversationId: string;
-  pointerId: number;
-};
-
-type ConversationDropTarget = {
-  conversationId: string;
-  position: DropPosition;
-};
-
-type ConversationDragPreview = {
-  conversationId: string;
-  x: number;
-  y: number;
-  width: number;
-};
-
-const DRAG_AUTOSCROLL_EDGE_PX = 72;
-const DRAG_AUTOSCROLL_MAX_PX = 18;
-
 export function Sidebar({
   activeConversation,
   activeConversationId,
@@ -65,150 +46,41 @@ export function Sidebar({
   onDeleteConversation,
   onReorderConversation
 }: SidebarProps) {
-  const [draggedConversationId, setDraggedConversationId] = useState<string | null>(null);
-  const [conversationDropTarget, setConversationDropTarget] = useState<ConversationDropTarget | null>(null);
-  const [dragPreview, setDragPreview] = useState<ConversationDragPreview | null>(null);
-  const conversationDrag = useRef<ConversationDragState | null>(null);
   const conversationListRef = useRef<HTMLElement | null>(null);
   const suppressNextSelectRef = useRef(false);
   const suppressSelectTimeoutRef = useRef<number | null>(null);
-  const dragAutoScroll = useRef<{ speedY: number; animationId: number | null }>({
-    speedY: 0,
-    animationId: null
+  const {
+    draggedItemId: draggedConversationId,
+    dropTarget: conversationDropTarget,
+    dragPreview,
+    handleItemDragStart: handleConversationDragStart,
+    handleItemDragOver: handleConversationDragOver,
+    handleItemDragLeave: handleConversationDragLeave,
+    handleItemDrop: handleConversationDrop,
+    handleItemDragEnd: handleConversationDragEnd,
+    handleContainerDragOver: handleConversationListDragOver,
+    handleContainerDrop: handleConversationListDrop,
+    handleItemPointerDown: handleConversationPointerDown,
+    handleItemPointerMove: handleConversationPointerMove,
+    handleItemPointerUp: handleConversationPointerUp,
+    handleItemPointerCancel: handleConversationPointerCancel
+  } = useListReorderDrag({
+    containerRef: conversationListRef,
+    itemSelector: '[data-conversation-id]',
+    getItemId: (element) => element.dataset.conversationId,
+    itemCount: conversations.length,
+    onReorder: onReorderConversation,
+    onDragInteractionEnd: suppressNextSelect
   });
   const draggedConversation = dragPreview
-    ? conversations.find((conversation) => conversation.id === dragPreview.conversationId) ?? null
+    ? conversations.find((conversation) => conversation.id === dragPreview.itemId) ?? null
     : null;
-
-  useEffect(() => {
-    if (!draggedConversationId) return undefined;
-
-    function handleWindowDragOver(event: globalThis.DragEvent) {
-      updateDragAutoScroll(event.clientY);
-      updateDragPreview(event.clientX, event.clientY);
-    }
-
-    window.addEventListener('dragover', handleWindowDragOver);
-    return () => {
-      window.removeEventListener('dragover', handleWindowDragOver);
-      stopDragAutoScroll();
-    };
-  }, [draggedConversationId]);
 
   useEffect(() => {
     return () => {
       if (suppressSelectTimeoutRef.current !== null) window.clearTimeout(suppressSelectTimeoutRef.current);
-      stopDragAutoScroll();
     };
   }, []);
-
-  function getConversationDropPosition(conversationElement: HTMLElement, clientY: number): DropPosition {
-    const rect = conversationElement.getBoundingClientRect();
-    return clientY < rect.top + rect.height / 2 ? 'before' : 'after';
-  }
-
-  function getConversationDropTarget(
-    conversationElement: HTMLElement,
-    conversationId: string,
-    clientY: number,
-    currentDraggedConversationId: string | null
-  ) {
-    if (currentDraggedConversationId === conversationId) return null;
-    return {
-      conversationId,
-      position: getConversationDropPosition(conversationElement, clientY)
-    };
-  }
-
-  function getConversationElements() {
-    return Array.from(conversationListRef.current?.querySelectorAll<HTMLElement>('[data-conversation-id]') ?? []).filter(
-      (element) => element.dataset.conversationId
-    );
-  }
-
-  function getNearestConversationDropTarget(
-    clientY: number,
-    currentDraggedConversationId: string | null
-  ): ConversationDropTarget | null {
-    const candidates = getConversationElements().reduce<DropTargetCandidate[]>((currentCandidates, conversationElement) => {
-      const conversationId = conversationElement.dataset.conversationId;
-      if (!conversationId) return currentCandidates;
-
-      const rect = conversationElement.getBoundingClientRect();
-      currentCandidates.push({ id: conversationId, top: rect.top, height: rect.height });
-      return currentCandidates;
-    }, []);
-    const dropTarget = resolveNearestDropTarget(candidates, clientY, currentDraggedConversationId);
-    return dropTarget ? { conversationId: dropTarget.itemId, position: dropTarget.position } : null;
-  }
-
-  function findConversationDropTargetAtPoint(
-    clientX: number,
-    clientY: number,
-    currentDraggedConversationId: string | null
-  ) {
-    const target = document.elementFromPoint(clientX, clientY);
-    if (!(target instanceof Element)) return getNearestConversationDropTarget(clientY, currentDraggedConversationId);
-    const conversationElement = target.closest<HTMLElement>('[data-conversation-id]');
-    const conversationId = conversationElement?.dataset.conversationId;
-    if (!conversationElement || !conversationId || currentDraggedConversationId === conversationId) {
-      return getNearestConversationDropTarget(clientY, currentDraggedConversationId);
-    }
-    return getConversationDropTarget(conversationElement, conversationId, clientY, currentDraggedConversationId);
-  }
-
-  function stopDragAutoScroll() {
-    const currentAutoScroll = dragAutoScroll.current;
-    if (currentAutoScroll.animationId !== null) {
-      window.cancelAnimationFrame(currentAutoScroll.animationId);
-    }
-    dragAutoScroll.current = { speedY: 0, animationId: null };
-  }
-
-  function runDragAutoScroll() {
-    const container = conversationListRef.current;
-    const currentAutoScroll = dragAutoScroll.current;
-    if (!container || currentAutoScroll.speedY === 0) {
-      stopDragAutoScroll();
-      return;
-    }
-
-    container.scrollBy({ top: currentAutoScroll.speedY });
-    currentAutoScroll.animationId = window.requestAnimationFrame(runDragAutoScroll);
-  }
-
-  function updateDragAutoScroll(clientY: number) {
-    const container = conversationListRef.current;
-    if (!container) return;
-
-    const rect = container.getBoundingClientRect();
-    const topDistance = clientY - rect.top;
-    const bottomDistance = rect.bottom - clientY;
-    const topIntensity = (DRAG_AUTOSCROLL_EDGE_PX - topDistance) / DRAG_AUTOSCROLL_EDGE_PX;
-    const bottomIntensity = (DRAG_AUTOSCROLL_EDGE_PX - bottomDistance) / DRAG_AUTOSCROLL_EDGE_PX;
-    const nextSpeedY =
-      topIntensity > 0
-        ? -Math.min(DRAG_AUTOSCROLL_MAX_PX, Math.ceil(topIntensity * DRAG_AUTOSCROLL_MAX_PX))
-        : bottomIntensity > 0
-          ? Math.min(DRAG_AUTOSCROLL_MAX_PX, Math.ceil(bottomIntensity * DRAG_AUTOSCROLL_MAX_PX))
-          : 0;
-
-    dragAutoScroll.current.speedY = nextSpeedY;
-    if (nextSpeedY === 0) {
-      stopDragAutoScroll();
-      return;
-    }
-
-    if (dragAutoScroll.current.animationId === null) {
-      dragAutoScroll.current.animationId = window.requestAnimationFrame(runDragAutoScroll);
-    }
-  }
-
-  function updateDragPreview(clientX: number, clientY: number) {
-    setDragPreview((currentPreview) =>
-      currentPreview ? { ...currentPreview, x: clientX, y: clientY } : currentPreview
-    );
-  }
 
   function suppressNextSelect() {
     suppressNextSelectRef.current = true;
@@ -232,151 +104,6 @@ export function Sidebar({
     }
 
     onSelectConversation(conversationId);
-  }
-
-  function clearConversationDrag() {
-    conversationDrag.current = null;
-    stopDragAutoScroll();
-    setDraggedConversationId(null);
-    setConversationDropTarget(null);
-    setDragPreview(null);
-  }
-
-  function completeConversationReorder(dropTarget: ConversationDropTarget | null, conversationId: string) {
-    suppressNextSelect();
-    clearConversationDrag();
-    if (dropTarget) onReorderConversation(conversationId, dropTarget.conversationId, dropTarget.position);
-  }
-
-  function handleConversationDragStart(event: DragEvent<HTMLButtonElement>, conversationId: string) {
-    event.dataTransfer.effectAllowed = 'move';
-    event.dataTransfer.setData('text/plain', conversationId);
-    const conversationElement = event.currentTarget.closest<HTMLElement>('[data-conversation-id]');
-    const rect = conversationElement?.getBoundingClientRect();
-    if (rect) {
-      setDragPreview({
-        conversationId,
-        x: event.clientX,
-        y: event.clientY,
-        width: rect.width
-      });
-    }
-    const dragImage = document.createElement('div');
-    dragImage.style.width = '1px';
-    dragImage.style.height = '1px';
-    dragImage.style.opacity = '0';
-    document.body.appendChild(dragImage);
-    event.dataTransfer.setDragImage?.(dragImage, 0, 0);
-    window.setTimeout(() => dragImage.remove(), 0);
-    setDraggedConversationId(conversationId);
-    updateDragAutoScroll(event.clientY);
-  }
-
-  function handleConversationDragOver(event: DragEvent<HTMLElement>, conversationId: string) {
-    const isSameConversation = draggedConversationId === conversationId;
-    event.preventDefault();
-    event.dataTransfer.dropEffect = 'move';
-    updateDragAutoScroll(event.clientY);
-    updateDragPreview(event.clientX, event.clientY);
-    setConversationDropTarget(
-      isSameConversation
-        ? getNearestConversationDropTarget(event.clientY, conversationId)
-        : getConversationDropTarget(event.currentTarget, conversationId, event.clientY, draggedConversationId)
-    );
-  }
-
-  function handleConversationDragLeave(event: DragEvent<HTMLElement>, conversationId: string) {
-    const relatedTarget = event.relatedTarget;
-    if (relatedTarget instanceof Node && event.currentTarget.contains(relatedTarget)) return;
-    setConversationDropTarget((currentTarget) =>
-      currentTarget?.conversationId === conversationId ? null : currentTarget
-    );
-  }
-
-  function handleConversationDrop(event: DragEvent<HTMLElement>, targetConversationId: string) {
-    event.preventDefault();
-    event.stopPropagation();
-    const droppedConversationId = event.dataTransfer.getData('text/plain') || draggedConversationId;
-    const dropPosition = getConversationDropPosition(event.currentTarget, event.clientY);
-    stopDragAutoScroll();
-    setDraggedConversationId(null);
-    setConversationDropTarget(null);
-    setDragPreview(null);
-    suppressNextSelect();
-    if (!droppedConversationId || droppedConversationId === targetConversationId) return;
-    onReorderConversation(droppedConversationId, targetConversationId, dropPosition);
-  }
-
-  function handleConversationListDragOver(event: DragEvent<HTMLElement>) {
-    if (!draggedConversationId) return;
-    event.preventDefault();
-    event.dataTransfer.dropEffect = 'move';
-    updateDragAutoScroll(event.clientY);
-    updateDragPreview(event.clientX, event.clientY);
-    setConversationDropTarget(getNearestConversationDropTarget(event.clientY, draggedConversationId));
-  }
-
-  function handleConversationListDrop(event: DragEvent<HTMLElement>) {
-    if (!draggedConversationId) return;
-    event.preventDefault();
-    const droppedConversationId = event.dataTransfer.getData('text/plain') || draggedConversationId;
-    const dropTarget = getNearestConversationDropTarget(event.clientY, droppedConversationId);
-    stopDragAutoScroll();
-    setDraggedConversationId(null);
-    setConversationDropTarget(null);
-    setDragPreview(null);
-    suppressNextSelect();
-    if (dropTarget) onReorderConversation(droppedConversationId, dropTarget.conversationId, dropTarget.position);
-  }
-
-  function handleConversationDragEnd() {
-    clearConversationDrag();
-    suppressNextSelect();
-  }
-
-  function handleConversationPointerDown(event: PointerEvent<HTMLButtonElement>, conversationId: string) {
-    if (conversations.length < 2) return;
-
-    const conversationElement = event.currentTarget.closest<HTMLElement>('[data-conversation-id]');
-    const rect = conversationElement?.getBoundingClientRect();
-    const width = rect?.width ?? 280;
-
-    conversationDrag.current = {
-      conversationId,
-      pointerId: event.pointerId
-    };
-    event.preventDefault();
-    event.currentTarget.setPointerCapture?.(event.pointerId);
-    setDraggedConversationId(conversationId);
-    setDragPreview({
-      conversationId,
-      x: event.clientX,
-      y: event.clientY,
-      width
-    });
-    updateDragAutoScroll(event.clientY);
-  }
-
-  function handleConversationPointerMove(event: PointerEvent<HTMLButtonElement>) {
-    const currentDrag = conversationDrag.current;
-    if (!currentDrag || currentDrag.pointerId !== event.pointerId) return;
-
-    event.preventDefault();
-    updateDragAutoScroll(event.clientY);
-    updateDragPreview(event.clientX, event.clientY);
-    setConversationDropTarget(findConversationDropTargetAtPoint(event.clientX, event.clientY, currentDrag.conversationId));
-  }
-
-  function handleConversationPointerUp(event: PointerEvent<HTMLButtonElement>) {
-    const currentDrag = conversationDrag.current;
-    if (!currentDrag || currentDrag.pointerId !== event.pointerId) return;
-
-    const dropTarget = findConversationDropTargetAtPoint(event.clientX, event.clientY, currentDrag.conversationId);
-    completeConversationReorder(dropTarget, currentDrag.conversationId);
-  }
-
-  function handleConversationPointerCancel(event: PointerEvent<HTMLButtonElement>) {
-    if (event.pointerType !== 'mouse' && conversationDrag.current?.pointerId === event.pointerId) clearConversationDrag();
   }
 
   return (
@@ -436,7 +163,7 @@ export function Sidebar({
           </button>
           {conversations.map((conversation) => (
             <Fragment key={conversation.id}>
-              {conversationDropTarget?.conversationId === conversation.id &&
+              {conversationDropTarget?.itemId === conversation.id &&
                 conversationDropTarget.position === 'before' && (
                   <div className="conversation-drop-indicator" aria-hidden="true" />
                 )}
@@ -499,7 +226,7 @@ export function Sidebar({
                   </button>
                 </div>
               </article>
-              {conversationDropTarget?.conversationId === conversation.id &&
+              {conversationDropTarget?.itemId === conversation.id &&
                 conversationDropTarget.position === 'after' && (
                   <div className="conversation-drop-indicator" aria-hidden="true" />
                 )}

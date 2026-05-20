@@ -4,9 +4,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
-  type ClipboardEvent,
-  type DragEvent,
-  type PointerEvent
+  type ClipboardEvent
 } from 'react';
 import { ArrowLeft, Map as MapIcon, MoreVertical, X } from 'lucide-react';
 import { EnglishPickerModal, type EnglishPickerState } from './EnglishPickerModal';
@@ -15,9 +13,12 @@ import { MessageComposer } from './MessageComposer';
 import { MessageBubble, type CopyFeedbackStatus } from './MessageBubble';
 import { ReferencePickerModal, type ReferencePickerMode } from './ReferencePickerModal';
 import { SelectionToolbar } from './SelectionToolbar';
+import { useImagePreviews } from '../hooks/useImagePreviews';
+import { useListReorderDrag } from '../hooks/useListReorderDrag';
 import type { Conversation, EnglishConversion, Message, MessageReference } from '../types';
-import { resolveNearestDropTarget, type DropPosition, type DropTargetCandidate } from '../utils/dropTargets';
+import type { DropPosition } from '../utils/dropTargets';
 import { assembleEnglishText } from '../utils/englishConversion';
+import { getImageFilesFromClipboardData } from '../utils/imageFiles';
 import { copyMessageToClipboard } from '../utils/messageClipboard';
 import type { MessageReferenceNavigationTarget } from '../utils/messageReferences';
 
@@ -56,40 +57,11 @@ type ConversationPaneProps = {
 };
 
 const COPY_FEEDBACK_TIMEOUT_MS = 1600;
-const DRAG_AUTOSCROLL_EDGE_PX = 72;
-const DRAG_AUTOSCROLL_MAX_PX = 18;
-
-type MessageDropTarget = {
-  messageId: string;
-  position: DropPosition;
-};
 
 type CopyFeedback = {
   messageId: string;
   status: CopyFeedbackStatus;
 };
-
-type TouchDragState = {
-  messageId: string;
-  pointerId: number;
-};
-
-type DragPreview = {
-  messageId: string;
-  x: number;
-  y: number;
-  width: number;
-};
-
-type EditImagePreview = {
-  id: string;
-  file: File;
-  url: string;
-};
-
-function createPreviewId() {
-  return crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
 
 function findMessageElement(container: HTMLElement | null, messageId: string) {
   return (
@@ -97,16 +69,6 @@ function findMessageElement(container: HTMLElement | null, messageId: string) {
       (element) => element.dataset.messageId === messageId
     ) ?? null
   );
-}
-
-function getImageFilesFromClipboardData(clipboardData: DataTransfer) {
-  const itemFiles = Array.from(clipboardData.items)
-    .filter((item) => item.kind === 'file' && item.type.startsWith('image/'))
-    .map((item) => item.getAsFile())
-    .filter((file): file is File => Boolean(file));
-
-  if (itemFiles.length > 0) return itemFiles;
-  return Array.from(clipboardData.files).filter((file) => file.type.startsWith('image/'));
 }
 
 export function ConversationPane({
@@ -155,26 +117,45 @@ export function ConversationPane({
   const [isApplyingSelectedAction, setIsApplyingSelectedAction] = useState(false);
   const [mergeError, setMergeError] = useState<string | null>(null);
   const [synthesisError, setSynthesisError] = useState<string | null>(null);
-  const [draggedMessageId, setDraggedMessageId] = useState<string | null>(null);
-  const [messageDropTarget, setMessageDropTarget] = useState<MessageDropTarget | null>(null);
-  const [dragPreview, setDragPreview] = useState<DragPreview | null>(null);
   const [editText, setEditText] = useState('');
   const [editReferences, setEditReferences] = useState<MessageReference[]>([]);
-  const [editImagePreviews, setEditImagePreviews] = useState<EditImagePreview[]>([]);
+  const {
+    imagePreviews: editImagePreviews,
+    getImageFiles: getEditImageFiles,
+    addImageFiles: addEditImageFiles,
+    removeImage: removeEditImage,
+    clearImagePreviews: clearEditImagePreviews
+  } = useImagePreviews();
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const editTextareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const editImagePreviewsRef = useRef<EditImagePreview[]>([]);
   const selectionAnchorRef = useRef<{ messageId: string; top: number } | null>(null);
-  const touchDrag = useRef<TouchDragState | null>(null);
   const messagesRef = useRef<HTMLDivElement | null>(null);
-  const dragAutoScroll = useRef<{ speedY: number; animationId: number | null }>({
-    speedY: 0,
-    animationId: null
+  const {
+    draggedItemId: draggedMessageId,
+    dropTarget: messageDropTarget,
+    dragPreview,
+    handleItemDragStart: handleMessageDragStart,
+    handleItemDragOver: handleMessageDragOver,
+    handleItemDragLeave: handleMessageDragLeave,
+    handleItemDrop: handleMessageDrop,
+    handleItemDragEnd: handleMessageDragEnd,
+    handleContainerDragOver: handleMessagesDragOver,
+    handleContainerDrop: handleMessagesDrop,
+    handleItemPointerDown: handleMessagePointerDown,
+    handleItemPointerMove: handleMessagePointerMove,
+    handleItemPointerUp: handleMessagePointerUp,
+    handleItemPointerCancel: handleMessagePointerCancel
+  } = useListReorderDrag({
+    containerRef: messagesRef,
+    itemSelector: '[data-message-id]',
+    getItemId: (element) => element.dataset.messageId,
+    itemCount: activeMessages.length,
+    onReorder: onReorderMessage
   });
 
   const selectedMessages = activeMessages.filter((message) => selectedMessageIds.includes(message.id));
   const draggedMessage = dragPreview
-    ? activeMessages.find((message) => message.id === dragPreview.messageId) ?? null
+    ? activeMessages.find((message) => message.id === dragPreview.itemId) ?? null
     : null;
 
   function getConversationTitle(conversationId: string | null) {
@@ -212,22 +193,9 @@ export function ConversationPane({
   useEffect(() => {
     setEditText(editingMessage?.text ?? '');
     setEditReferences(editingMessage?.references ?? []);
-    setEditImagePreviews((currentPreviews) => {
-      currentPreviews.forEach((preview) => URL.revokeObjectURL(preview.url));
-      return [];
-    });
+    clearEditImagePreviews();
     setIsSavingEdit(false);
-  }, [editingMessage?.id, editingMessage?.text]);
-
-  useEffect(() => {
-    editImagePreviewsRef.current = editImagePreviews;
-  }, [editImagePreviews]);
-
-  useEffect(() => {
-    return () => {
-      editImagePreviewsRef.current.forEach((preview) => URL.revokeObjectURL(preview.url));
-    };
-  }, []);
+  }, [clearEditImagePreviews, editingMessage?.id, editingMessage?.text]);
 
   useLayoutEffect(() => {
     const textarea = editTextareaRef.current;
@@ -251,21 +219,6 @@ export function ConversationPane({
     messagesElement.scrollTop += nextTop - anchor.top;
     selectionAnchorRef.current = null;
   }, [isMergeSelectionMode]);
-
-  useEffect(() => {
-    if (!draggedMessageId) return undefined;
-
-    function handleWindowDragOver(event: globalThis.DragEvent) {
-      updateDragAutoScroll(event.clientY);
-      updateDragPreview(event.clientX, event.clientY);
-    }
-
-    window.addEventListener('dragover', handleWindowDragOver);
-    return () => {
-      window.removeEventListener('dragover', handleWindowDragOver);
-      stopDragAutoScroll();
-    };
-  }, [draggedMessageId]);
 
   useEffect(() => {
     if (!navigationTarget || navigationTarget.conversationId !== activeConversation?.id) return undefined;
@@ -323,246 +276,6 @@ export function ConversationPane({
     setIsMergeSelectionMode(false);
     setSelectedMessageIds([]);
     setMergeError(null);
-  }
-
-  function handleMessageDragStart(event: DragEvent<HTMLElement>, messageId: string) {
-    event.dataTransfer.effectAllowed = 'move';
-    event.dataTransfer.setData('text/plain', messageId);
-    const messageElement = event.currentTarget.closest<HTMLElement>('[data-message-id]');
-    const rect = messageElement?.getBoundingClientRect();
-    if (rect) {
-      setDragPreview({
-        messageId,
-        x: event.clientX,
-        y: event.clientY,
-        width: rect.width
-      });
-    }
-    const dragImage = document.createElement('div');
-    dragImage.style.width = '1px';
-    dragImage.style.height = '1px';
-    dragImage.style.opacity = '0';
-    document.body.appendChild(dragImage);
-    event.dataTransfer.setDragImage?.(dragImage, 0, 0);
-    window.setTimeout(() => dragImage.remove(), 0);
-    setDraggedMessageId(messageId);
-    updateDragAutoScroll(event.clientY);
-  }
-
-  function handleMessageDragOver(event: DragEvent<HTMLElement>, messageId: string) {
-    const isSameMessage = draggedMessageId === messageId;
-    event.preventDefault();
-    event.dataTransfer.dropEffect = 'move';
-    updateDragAutoScroll(event.clientY);
-    updateDragPreview(event.clientX, event.clientY);
-    setMessageDropTarget(
-      isSameMessage
-        ? getNearestMessageDropTarget(event.clientY, messageId)
-        : getMessageDropTarget(event.currentTarget, messageId, event.clientY, draggedMessageId)
-    );
-  }
-
-  function handleMessageDragLeave(event: DragEvent<HTMLElement>, messageId: string) {
-    const relatedTarget = event.relatedTarget;
-    if (relatedTarget instanceof Node && event.currentTarget.contains(relatedTarget)) return;
-    setMessageDropTarget((currentTarget) => (currentTarget?.messageId === messageId ? null : currentTarget));
-  }
-
-  function handleMessageDrop(event: DragEvent<HTMLElement>, targetMessageId: string) {
-    event.preventDefault();
-    event.stopPropagation();
-    const droppedMessageId = event.dataTransfer.getData('text/plain') || draggedMessageId;
-    const dropPosition = getMessageDropPosition(event.currentTarget, event.clientY);
-    stopDragAutoScroll();
-    setDraggedMessageId(null);
-    setMessageDropTarget(null);
-    setDragPreview(null);
-    if (!droppedMessageId || droppedMessageId === targetMessageId) return;
-    onReorderMessage(droppedMessageId, targetMessageId, dropPosition);
-  }
-
-  function handleMessagesDragOver(event: DragEvent<HTMLDivElement>) {
-    if (!draggedMessageId) return;
-    event.preventDefault();
-    event.dataTransfer.dropEffect = 'move';
-    updateDragAutoScroll(event.clientY);
-    updateDragPreview(event.clientX, event.clientY);
-    setMessageDropTarget(getNearestMessageDropTarget(event.clientY, draggedMessageId));
-  }
-
-  function handleMessagesDrop(event: DragEvent<HTMLDivElement>) {
-    if (!draggedMessageId) return;
-    event.preventDefault();
-    const droppedMessageId = event.dataTransfer.getData('text/plain') || draggedMessageId;
-    const dropTarget = getNearestMessageDropTarget(event.clientY, droppedMessageId);
-    stopDragAutoScroll();
-    setDraggedMessageId(null);
-    setMessageDropTarget(null);
-    setDragPreview(null);
-    if (dropTarget) onReorderMessage(droppedMessageId, dropTarget.messageId, dropTarget.position);
-  }
-
-  function handleMessageDragEnd() {
-    stopDragAutoScroll();
-    setDraggedMessageId(null);
-    setMessageDropTarget(null);
-    setDragPreview(null);
-  }
-
-  function stopDragAutoScroll() {
-    const currentAutoScroll = dragAutoScroll.current;
-    if (currentAutoScroll.animationId !== null) {
-      window.cancelAnimationFrame(currentAutoScroll.animationId);
-    }
-    dragAutoScroll.current = { speedY: 0, animationId: null };
-  }
-
-  function runDragAutoScroll() {
-    const container = messagesRef.current;
-    const currentAutoScroll = dragAutoScroll.current;
-    if (!container || currentAutoScroll.speedY === 0) {
-      stopDragAutoScroll();
-      return;
-    }
-
-    container.scrollBy({ top: currentAutoScroll.speedY });
-    currentAutoScroll.animationId = window.requestAnimationFrame(runDragAutoScroll);
-  }
-
-  function updateDragAutoScroll(clientY: number) {
-    const container = messagesRef.current;
-    if (!container) return;
-
-    const rect = container.getBoundingClientRect();
-    const topDistance = clientY - rect.top;
-    const bottomDistance = rect.bottom - clientY;
-    const topIntensity = (DRAG_AUTOSCROLL_EDGE_PX - topDistance) / DRAG_AUTOSCROLL_EDGE_PX;
-    const bottomIntensity = (DRAG_AUTOSCROLL_EDGE_PX - bottomDistance) / DRAG_AUTOSCROLL_EDGE_PX;
-    const nextSpeedY =
-      topIntensity > 0
-        ? -Math.min(DRAG_AUTOSCROLL_MAX_PX, Math.ceil(topIntensity * DRAG_AUTOSCROLL_MAX_PX))
-        : bottomIntensity > 0
-          ? Math.min(DRAG_AUTOSCROLL_MAX_PX, Math.ceil(bottomIntensity * DRAG_AUTOSCROLL_MAX_PX))
-          : 0;
-
-    dragAutoScroll.current.speedY = nextSpeedY;
-    if (nextSpeedY === 0) {
-      stopDragAutoScroll();
-      return;
-    }
-
-    if (dragAutoScroll.current.animationId === null) {
-      dragAutoScroll.current.animationId = window.requestAnimationFrame(runDragAutoScroll);
-    }
-  }
-
-  function updateDragPreview(clientX: number, clientY: number) {
-    setDragPreview((currentPreview) =>
-      currentPreview ? { ...currentPreview, x: clientX, y: clientY } : currentPreview
-    );
-  }
-
-  function getMessageDropPosition(messageElement: HTMLElement, clientY: number): DropPosition {
-    const rect = messageElement.getBoundingClientRect();
-    return clientY < rect.top + rect.height / 2 ? 'before' : 'after';
-  }
-
-  function getMessageDropTarget(
-    messageElement: HTMLElement,
-    messageId: string,
-    clientY: number,
-    currentDraggedMessageId: string | null
-  ) {
-    if (currentDraggedMessageId === messageId) return null;
-    return {
-      messageId,
-      position: getMessageDropPosition(messageElement, clientY)
-    };
-  }
-
-  function getMessageElements() {
-    return Array.from(messagesRef.current?.querySelectorAll<HTMLElement>('[data-message-id]') ?? []).filter(
-      (element) => element.dataset.messageId
-    );
-  }
-
-  function getNearestMessageDropTarget(clientY: number, currentDraggedMessageId: string | null): MessageDropTarget | null {
-    const candidates = getMessageElements().reduce<DropTargetCandidate[]>((currentCandidates, messageElement) => {
-      const messageId = messageElement.dataset.messageId;
-      if (!messageId) return currentCandidates;
-
-      const rect = messageElement.getBoundingClientRect();
-      currentCandidates.push({ id: messageId, top: rect.top, height: rect.height });
-      return currentCandidates;
-    }, []);
-    const dropTarget = resolveNearestDropTarget(candidates, clientY, currentDraggedMessageId);
-    return dropTarget ? { messageId: dropTarget.itemId, position: dropTarget.position } : null;
-  }
-
-  function findMessageDropTargetAtPoint(clientX: number, clientY: number, currentDraggedMessageId: string | null) {
-    const target = document.elementFromPoint(clientX, clientY);
-    if (!(target instanceof Element)) return getNearestMessageDropTarget(clientY, currentDraggedMessageId);
-    const messageElement = target.closest<HTMLElement>('[data-message-id]');
-    const messageId = messageElement?.dataset.messageId;
-    if (!messageElement || !messageId || currentDraggedMessageId === messageId) {
-      return getNearestMessageDropTarget(clientY, currentDraggedMessageId);
-    }
-    return getMessageDropTarget(messageElement, messageId, clientY, currentDraggedMessageId);
-  }
-
-  function clearTouchDrag() {
-    touchDrag.current = null;
-    stopDragAutoScroll();
-    setDraggedMessageId(null);
-    setMessageDropTarget(null);
-    setDragPreview(null);
-  }
-
-  function handleMessagePointerDown(event: PointerEvent<HTMLElement>, messageId: string) {
-    if (activeMessages.length < 2) return;
-
-    const messageElement = event.currentTarget.closest<HTMLElement>('[data-message-id]');
-    const rect = messageElement?.getBoundingClientRect();
-    const width = rect?.width ?? 280;
-
-    touchDrag.current = {
-      messageId,
-      pointerId: event.pointerId
-    };
-    event.preventDefault();
-    event.currentTarget.setPointerCapture?.(event.pointerId);
-    setDraggedMessageId(messageId);
-    setDragPreview({
-      messageId,
-      x: event.clientX,
-      y: event.clientY,
-      width
-    });
-    updateDragAutoScroll(event.clientY);
-  }
-
-  function handleMessagePointerMove(event: PointerEvent<HTMLElement>) {
-    const currentDrag = touchDrag.current;
-    if (!currentDrag || currentDrag.pointerId !== event.pointerId) return;
-
-    event.preventDefault();
-
-    updateDragAutoScroll(event.clientY);
-    updateDragPreview(event.clientX, event.clientY);
-    setMessageDropTarget(findMessageDropTargetAtPoint(event.clientX, event.clientY, currentDrag.messageId));
-  }
-
-  function handleMessagePointerUp(event: PointerEvent<HTMLElement>) {
-    const currentDrag = touchDrag.current;
-    if (!currentDrag || currentDrag.pointerId !== event.pointerId) return;
-
-    const dropTarget = findMessageDropTargetAtPoint(event.clientX, event.clientY, currentDrag.messageId);
-    clearTouchDrag();
-    if (dropTarget) onReorderMessage(currentDrag.messageId, dropTarget.messageId, dropTarget.position);
-  }
-
-  function handleMessagePointerCancel(event: PointerEvent<HTMLElement>) {
-    if (event.pointerType !== 'mouse' && touchDrag.current?.pointerId === event.pointerId) clearTouchDrag();
   }
 
   async function mergeSelectedMessages() {
@@ -649,11 +362,8 @@ export function ConversationPane({
     }
     setIsSavingEdit(true);
     try {
-      await onSaveEdit(message, editText, editImagePreviews.map((preview) => preview.file), editReferences);
-      setEditImagePreviews((currentPreviews) => {
-        currentPreviews.forEach((preview) => URL.revokeObjectURL(preview.url));
-        return [];
-      });
+      await onSaveEdit(message, editText, getEditImageFiles(), editReferences);
+      clearEditImagePreviews();
     } finally {
       setIsSavingEdit(false);
     }
@@ -707,22 +417,7 @@ export function ConversationPane({
     if (imageFiles.length === 0) return;
 
     event.preventDefault();
-    setEditImagePreviews((currentPreviews) => [
-      ...currentPreviews,
-      ...imageFiles.map((file) => ({
-        id: createPreviewId(),
-        file,
-        url: URL.createObjectURL(file)
-      }))
-    ]);
-  }
-
-  function removeEditImage(previewId: string) {
-    setEditImagePreviews((currentPreviews) => {
-      const preview = currentPreviews.find((item) => item.id === previewId);
-      if (preview) URL.revokeObjectURL(preview.url);
-      return currentPreviews.filter((item) => item.id !== previewId);
-    });
+    addEditImageFiles(imageFiles);
   }
 
   async function openMessageEnglishPicker(message: Message) {
@@ -881,7 +576,7 @@ export function ConversationPane({
           >
             {activeMessages.map((message, messageIndex) => (
               <Fragment key={message.id}>
-                {messageDropTarget?.messageId === message.id && messageDropTarget.position === 'before' && (
+                {messageDropTarget?.itemId === message.id && messageDropTarget.position === 'before' && (
                   <div className="message-drop-indicator" aria-hidden="true" />
                 )}
                 <MessageBubble
@@ -936,7 +631,7 @@ export function ConversationPane({
                   onPointerUp={handleMessagePointerUp}
                   onPointerCancel={handleMessagePointerCancel}
                 />
-                {messageDropTarget?.messageId === message.id && messageDropTarget.position === 'after' && (
+                {messageDropTarget?.itemId === message.id && messageDropTarget.position === 'after' && (
                   <div className="message-drop-indicator" aria-hidden="true" />
                 )}
               </Fragment>

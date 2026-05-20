@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type ClipboardEvent } from 'react';
 import { ClipboardPaste, ImagePlus, Languages, Link2, Quote, Send, X } from 'lucide-react';
+import { useImagePreviews } from '../hooks/useImagePreviews';
 import type { MessageReference } from '../types';
+import { getImageExtension, getImageFilesFromClipboardData } from '../utils/imageFiles';
 import { truncateReferenceText } from '../utils/messageReferences';
 
 type MessageComposerProps = {
@@ -15,33 +17,6 @@ type MessageComposerProps = {
   onRemoveReference: (referenceId: string) => void;
 };
 
-type ImagePreview = {
-  id: string;
-  file: File;
-  url: string;
-};
-
-function createPreviewId() {
-  return crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
-function getImageFilesFromClipboardData(clipboardData: DataTransfer) {
-  const itemFiles = Array.from(clipboardData.items)
-    .filter((item) => item.kind === 'file' && item.type.startsWith('image/'))
-    .map((item) => item.getAsFile())
-    .filter((file): file is File => Boolean(file));
-
-  if (itemFiles.length > 0) return itemFiles;
-
-  return Array.from(clipboardData.files).filter((file) => file.type.startsWith('image/'));
-}
-
-function getImageExtension(contentType: string) {
-  if (contentType === 'image/jpeg') return 'jpg';
-  if (contentType === 'image/svg+xml') return 'svg';
-  return contentType.split('/')[1]?.replace(/[^a-z0-9]/gi, '').toLowerCase() || 'png';
-}
-
 export function MessageComposer({
   draft,
   pendingReferences,
@@ -53,54 +28,25 @@ export function MessageComposer({
   onAddQuoteReference,
   onRemoveReference
 }: MessageComposerProps) {
-  const [imagePreviews, setImagePreviews] = useState<ImagePreview[]>([]);
+  const { imagePreviews, getImageFiles, addImageFiles, removeImage, clearImagePreviews } = useImagePreviews();
   const [isSending, setIsSending] = useState(false);
   const [pasteStatus, setPasteStatus] = useState('');
   const [sendError, setSendError] = useState('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const imagePreviewsRef = useRef<ImagePreview[]>([]);
   const lastClearImagePreviewsSignal = useRef(clearImagePreviewsSignal);
   const canSend = Boolean(draft.trim() || imagePreviews.length > 0 || pendingReferences.length > 0);
-
-  useEffect(() => {
-    return () => {
-      imagePreviewsRef.current.forEach((preview) => URL.revokeObjectURL(preview.url));
-    };
-  }, []);
-
-  useEffect(() => {
-    imagePreviewsRef.current = imagePreviews;
-  }, [imagePreviews]);
 
   useEffect(() => {
     if (clearImagePreviewsSignal === lastClearImagePreviewsSignal.current) return;
     lastClearImagePreviewsSignal.current = clearImagePreviewsSignal;
     clearImagePreviews();
     if (fileInputRef.current) fileInputRef.current.value = '';
-  }, [clearImagePreviewsSignal]);
+  }, [clearImagePreviews, clearImagePreviewsSignal]);
 
-  function getImageFiles() {
-    return imagePreviewsRef.current.map((preview) => preview.file);
-  }
-
-  function clearImagePreviews() {
-    setImagePreviews((current) => {
-      current.forEach((preview) => URL.revokeObjectURL(preview.url));
-      return [];
-    });
-  }
-
-  function addImageFiles(files: FileList | File[] | null) {
+  function addComposerImageFiles(files: FileList | File[] | null) {
     if (!files) return;
     setSendError('');
-    const nextPreviews = Array.from(files)
-      .filter((file) => file.type.startsWith('image/'))
-      .map((file) => ({
-        id: createPreviewId(),
-        file,
-        url: URL.createObjectURL(file)
-      }));
-    setImagePreviews((current) => [...current, ...nextPreviews]);
+    addImageFiles(files);
   }
 
   function handlePaste(event: ClipboardEvent<HTMLFormElement>) {
@@ -108,7 +54,7 @@ export function MessageComposer({
     if (imageFiles.length === 0) return;
 
     event.preventDefault();
-    addImageFiles(imageFiles);
+    addComposerImageFiles(imageFiles);
     setPasteStatus(`${imageFiles.length} image${imageFiles.length === 1 ? '' : 's'} pasted`);
   }
 
@@ -134,20 +80,12 @@ export function MessageComposer({
         return;
       }
 
-      addImageFiles(imageFiles);
+      addComposerImageFiles(imageFiles);
       setPasteStatus(`${imageFiles.length} image${imageFiles.length === 1 ? '' : 's'} pasted`);
     } catch (error) {
       console.error('Unable to paste image from clipboard.', error);
       fileInputRef.current?.click();
     }
-  }
-
-  function removeImage(previewId: string) {
-    setImagePreviews((current) => {
-      const preview = current.find((item) => item.id === previewId);
-      if (preview) URL.revokeObjectURL(preview.url);
-      return current.filter((item) => item.id !== previewId);
-    });
   }
 
   async function submitMessage() {
@@ -243,7 +181,7 @@ export function MessageComposer({
           accept="image/*"
           multiple
           aria-label="Add images"
-          onChange={(event) => addImageFiles(event.target.files)}
+          onChange={(event) => addComposerImageFiles(event.target.files)}
         />
         <button
           className="icon-button"
