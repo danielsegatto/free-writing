@@ -31,7 +31,13 @@ import type { Message, MessageReference } from '../types';
 import { formatDate, formatFullDateTime } from '../utils/date';
 import { formatDateTimeLocalInput, parseDateTimeLocalInput } from '../utils/calendar';
 import { getReferenceNavigationTarget, truncateReferenceText, type MessageReferenceNavigationTarget } from '../utils/messageReferences';
-import { getTagKey, normalizeTags, type TagSummary } from '../utils/tags';
+import {
+  addTag as addTagToList,
+  getAvailableTagSuggestions,
+  normalizeTags,
+  removeTag as removeTagFromList,
+  type TagSummary
+} from '../utils/tags';
 
 export type CopyFeedbackStatus = 'copied' | 'failed';
 
@@ -206,19 +212,11 @@ export function MessageBubble({
   const hasAttachments = (message.attachments?.length ?? 0) > 0;
   const copyTitle = hasAttachments ? 'Copy block' : 'Copy text';
   const isConversationIndex = message.blockKind === 'conversation-index' && (message.indexEntries?.length ?? 0) > 0;
-  const tags = normalizeTags(message.tags ?? []);
-  const scheduledAt = message.scheduledAt ?? null;
+  const tags = useMemo(() => normalizeTags(message.tags ?? []), [message.tags]);
   const visibleTagSuggestions = useMemo(() => {
-    const currentTagKeys = new Set(tags.map(getTagKey));
-    const draftKey = getTagKey(tagDraft);
-
-    return tagSuggestions
-      .filter((tag) => {
-        const suggestionKey = getTagKey(tag.name);
-        return !currentTagKeys.has(suggestionKey) && (!draftKey || suggestionKey.includes(draftKey));
-      })
-      .slice(0, 8);
+    return getAvailableTagSuggestions(tags, tagDraft, tagSuggestions);
   }, [tagDraft, tagSuggestions, tags]);
+  const scheduledAt = message.scheduledAt ?? null;
 
   useEffect(() => {
     return () => {
@@ -353,7 +351,7 @@ export function MessageBubble({
   }
 
   function addDraftTag() {
-    const nextTags = normalizeTags([...tags, tagDraft]);
+    const nextTags = addTagToList(tags, tagDraft);
     if (nextTags.length === tags.length) {
       setTagDraft('');
       return;
@@ -367,14 +365,13 @@ export function MessageBubble({
   }
 
   function addExistingTag(tagName: string) {
-    const nextTags = normalizeTags([...tags, tagName]);
+    const nextTags = addTagToList(tags, tagName);
     if (nextTags.length === tags.length) return;
     void saveTags(nextTags);
   }
 
   function removeTag(tagToRemove: string) {
-    const removeKey = getTagKey(tagToRemove);
-    void saveTags(tags.filter((tag) => getTagKey(tag) !== removeKey));
+    void saveTags(removeTagFromList(tags, tagToRemove));
   }
 
   return (

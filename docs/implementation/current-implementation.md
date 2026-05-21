@@ -110,7 +110,7 @@ The current React implementation is organized by responsibility so future change
 
 ```text
 src/App.tsx
-  Coordinates app state, derived data, and user action handlers.
+  Coordinates app state, derived data, and user action handlers. Cross-component workflows remain here, while pure tag filtering/selection rules and conversation-index text formatting are delegated to `src/utils/tags.ts` and `src/services/synthesis.ts`.
 
 src/components/SignInScreen.tsx
   Logged-out Firebase sign-in screen.
@@ -134,7 +134,7 @@ src/components/MessageDragPreview.tsx
   Floating dragged-message preview rendering used by message drag reordering.
 
 src/components/MessageBubble.tsx
-  Per-message rendering and local action wiring. Owns message metadata display including scheduled date/time, clickable copied-origin conversation names, inert image attachment previews, structured reference cards, synthesized index rows, inline edit form markup, copy feedback label, reorder buttons and drag handle, transfer/delete/English action buttons, and drag/pointer event binding passed down from `ConversationPane`.
+  Per-message rendering and local action wiring. Owns message metadata display including scheduled date/time, clickable copied-origin conversation names, inert image attachment previews, structured reference cards, synthesized index rows, inline edit form markup, copy feedback label, tag editor UI state, reorder buttons and drag handle, transfer/delete/English action buttons, and drag/pointer event binding passed down from `ConversationPane`. Tag add/remove/suggestion rules are delegated to `src/utils/tags.ts`.
 
 src/components/MessageComposer.tsx
   Draft composer rendering, pending reference chips, scheduled date/time input, image selection/paste previews, and keyboard behavior. Owns the composer form markup, draft textarea, visible send action, and `Ctrl+Enter` / `Cmd+Enter` draft English conversion shortcut passed down from `ConversationPane`.
@@ -164,7 +164,7 @@ src/services/
   Firebase auth, conversation, message, image preparation, search, translation, and synthesis request operations.
   `messages.ts` keeps Firestore message write payload construction in small local helpers so create, transfer, merge, image attachment, English-result, and synthesized-index writes share the same field defaults.
   `storage.ts` is named for historical upload intent but currently performs free-plan client-side image compression and inline attachment construction; it does not call Firebase Storage.
-  `synthesis.ts` posts the active conversation title and all visible blocks to the AI proxy, validates one returned index entry per source block, and normalizes empty/image-only blocks to fallback descriptions.
+  `synthesis.ts` posts the active conversation title and all visible blocks to the AI proxy, validates one returned index entry per source block, normalizes empty/image-only blocks to fallback descriptions, and formats the plain-text fallback/search body for persisted index messages.
 
 workers/translation/index.ts
   Cloudflare Worker for authenticated AI requests. Verifies Firebase ID tokens through Google Identity Toolkit, calls Groq with the `GROQ_API_KEY` secret, validates the JSON shape, and returns either English segment/options data or conversation-index entries.
@@ -173,7 +173,7 @@ functions/src/index.ts
   Legacy Firebase Function version of the translation proxy. Firebase Functions require the Blaze plan and are not used by the default free hosted deployment.
 
 src/utils/
-  Shared formatting, calendar grouping, clipboard, error, ordering, image-file, and small pure text helpers. `calendar.ts` owns local date/time parsing, date ranges, scheduled-block filtering, and day grouping. `messageClipboard.ts` owns block copy formatting and rich/plain clipboard fallbacks. `englishConversion.ts` assembles selected English conversion segment options into the text used for saving or sending. `textSelection.ts` tokenizes transfer/source text into word and whitespace tokens, normalizes selected ranges, assembles selected parts, and removes selected ranges from source text for partial moves. `transferActions.ts` centralizes the forward/move transfer decision logic for single-message, selected-text, and multi-message transfers so `App.tsx` can stay focused on UI orchestration. `transferSelection.ts` keeps the transfer dialog's pure word-range updates, selected-message preview text, selected range counts, and per-message transfer payload construction testable outside React. `messageOrder.ts` computes behavior-preserving reorder arrays for message up/down controls, conversation drag targets, and message before/after insertion positions. `dropTargets.ts` resolves pointer positions to before/after drop slots from measured item rectangles. `imageFiles.ts` centralizes clipboard image extraction, preview IDs, and clipboard image filename extensions.
+  Shared formatting, calendar grouping, clipboard, error, ordering, image-file, tag, and small pure text helpers. `calendar.ts` owns local date/time parsing, date ranges, scheduled-block filtering, and day grouping. `messageClipboard.ts` owns block copy formatting and rich/plain clipboard fallbacks. `tags.ts` owns tag normalization, tag selection toggles, tag editor add/remove/suggestion filtering, tag summaries, and loaded-message tag result derivation. `englishConversion.ts` assembles selected English conversion segment options into the text used for saving or sending. `textSelection.ts` tokenizes transfer/source text into word and whitespace tokens, normalizes selected ranges, assembles selected parts, and removes selected ranges from source text for partial moves. `transferActions.ts` centralizes the forward/move transfer decision logic for single-message, selected-text, and multi-message transfers so `App.tsx` can stay focused on UI orchestration. `transferSelection.ts` keeps the transfer dialog's pure word-range updates, selected-message preview text, selected range counts, and per-message transfer payload construction testable outside React. `messageOrder.ts` computes behavior-preserving reorder arrays for message up/down controls, conversation drag targets, and message before/after insertion positions. `dropTargets.ts` resolves pointer positions to before/after drop slots from measured item rectangles. `imageFiles.ts` centralizes clipboard image extraction, preview IDs, and clipboard image filename extensions.
 
 src/styles.css
   Global dark theme, responsive layout, viewport-constrained conversation pane, component surfaces, input states, shared button/icon alignment, message bubbles, drag reorder states, modal styling, English picker styling, and hover states.
@@ -335,9 +335,10 @@ Local hosting on an idle machine is not the primary Version 1 deployment target.
 
 - Blocks store free-text tags/flags in a normalized `tags` array. `src/utils/tags.ts` trims values, removes empties, deduplicates case-insensitively, and preserves the first display casing.
 - `src/services/messages.ts` normalizes old records without `tags` to an empty array and exposes `updateMessageTags` for tag-only updates. Whole-block copy/move and English child blocks preserve tags, merged blocks get the union of source tags, and partial text transfers create untagged target blocks.
-- `src/components/MessageBubble.tsx` renders tag chips on each block and provides an inline add/remove tag editor. The add editor suggests previously created tags from all loaded blocks, filters suggestions as the user types, excludes tags already on the block, and supports click or Enter selection.
-- `src/components/Sidebar.tsx` shows a global tag browser across loaded blocks. Selecting one or more tags shows matching blocks across conversations; opening a result navigates to and highlights that block.
-- `src/components/ConversationPane.tsx` shows active-conversation tag filters below the header. Filters use OR matching and disable reorder controls while blocks are hidden.
+- `src/utils/tags.ts` is the single home for pure tag behavior: add/remove helpers, case-insensitive selection toggles, editor suggestion filtering, summary counts, OR matching, and global loaded-message result derivation. Keep new tag rules there before wiring them into components.
+- `src/components/MessageBubble.tsx` renders tag chips on each block and provides the inline add/remove tag editor, but delegates add/remove/suggestion calculations to `src/utils/tags.ts`.
+- `src/components/Sidebar.tsx` shows a global tag browser across loaded blocks. Selecting one or more tags shows matching blocks across conversations; `App.tsx` derives those results through `src/utils/tags.ts`, and opening a result navigates to and highlights that block.
+- `src/components/ConversationPane.tsx` shows active-conversation tag filters below the header. Filters use OR matching from `src/utils/tags.ts` and disable reorder controls while blocks are hidden.
 
 ### Cross-conversation references
 
@@ -351,7 +352,7 @@ Local hosting on an idle machine is not the primary Version 1 deployment target.
 
 - `src/services/synthesis.ts` posts `{ conversationTitle, blocks }` to `VITE_SYNTHESIS_API_URL`, a `/api/synthesize-index` path derived from `VITE_TRANSLATION_API_URL`, or same-origin `/api/synthesize-index`.
 - `src/components/ConversationPane.tsx` owns the header synthesis action, loading/error state, and calls `onSynthesizeIndex(activeMessages, activeConversation.title)` once for the current visible message list.
-- `src/App.tsx` routes synthesis through `requestConversationIndex`, formats a plain-text fallback/search representation, and persists the result with `createConversationIndexMessage`.
+- `src/App.tsx` routes synthesis through `requestConversationIndex`, asks `src/services/synthesis.ts` to format the plain-text fallback/search representation, and persists the result with `createConversationIndexMessage`.
 - `src/services/messages.ts` has `createConversationIndexMessage`, which appends a normal bottom message with `blockKind: 'conversation-index'` and `indexEntries`, then touches the receiving conversation with `moveToTop: true`.
 - `src/components/MessageBubble.tsx` renders index blocks from `indexEntries` as clickable rows. Each row navigates to the source message ID in the same conversation and reuses the existing scroll/highlight behavior. Rows for deleted/unloaded source blocks stay visible but disabled.
 - Synthesis includes previous index blocks because they are ordinary visible messages. The newly generated index cannot include itself because it is only written after the AI response returns.

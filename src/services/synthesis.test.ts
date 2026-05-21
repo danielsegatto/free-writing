@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Message } from '../types';
+import type { ConversationIndexEntry, Message } from '../types';
 
 const firebaseMocks = vi.hoisted(() => ({
   auth: {
@@ -11,7 +11,7 @@ const firebaseMocks = vi.hoisted(() => ({
 
 vi.mock('../firebase', () => firebaseMocks);
 
-import { requestConversationIndex } from './synthesis';
+import { formatConversationIndexText, requestConversationIndex } from './synthesis';
 
 const timestamp = {
   toMillis: () => 1
@@ -159,5 +159,28 @@ describe('synthesis service', () => {
     firebaseMocks.auth.currentUser = null;
 
     await expect(requestConversationIndex([message('first', 'First')], 'Inbox')).rejects.toThrow('Sign in again');
+  });
+});
+
+describe('formatConversationIndexText', () => {
+  it('formats synthesis entries as a numbered block body', () => {
+    const entries: ConversationIndexEntry[] = [
+      {
+        id: 'entry-1',
+        sourceMessageId: 'message-1',
+        title: 'Opening',
+        summary: 'Starts the thread.'
+      },
+      {
+        id: 'entry-2',
+        sourceMessageId: 'message-2',
+        title: 'Decision',
+        summary: 'Captures the next step.'
+      }
+    ];
+
+    expect(formatConversationIndexText(entries)).toBe(
+      '1. Opening\nStarts the thread.\n\n2. Decision\nCaptures the next step.'
+    );
   });
 });

@@ -7,6 +7,12 @@ type ConversationIndexResponse = {
   entries: ConversationIndexEntry[];
 };
 
+export function formatConversationIndexText(entries: readonly ConversationIndexEntry[]) {
+  return entries
+    .map((entry, index) => `${index + 1}. ${entry.title}\n${entry.summary}`)
+    .join('\n\n');
+}
+
 function createEntryId() {
   return crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }

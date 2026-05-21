@@ -27,12 +27,12 @@ import {
 import { searchLoadedMessages } from './services/search';
 import { uploadMessageImages } from './services/storage';
 import { requestEnglishVersions } from './services/translation';
-import { requestConversationIndex } from './services/synthesis';
-import type { Conversation, ConversationIndexEntry, Message, MessageReference } from './types';
+import { formatConversationIndexText, requestConversationIndex } from './services/synthesis';
+import type { Conversation, Message, MessageReference } from './types';
 import type { DropPosition } from './utils/dropTargets';
 import { moveItemToDropPosition, moveMessageByDirection, moveMessageToDropPosition } from './utils/messageOrder';
 import type { MessageReferenceNavigationTarget } from './utils/messageReferences';
-import { getTagKey, getTagSummaries, messageMatchesAnyTag, normalizeTags } from './utils/tags';
+import { getTaggedMessageResults, getTagSummaries, toggleTagSelection } from './utils/tags';
 import { executeTransferAction, type TransferAction, type MessageSelection } from './utils/transferActions';
 import type { TextSelectionRange } from './utils/textSelection';
 
@@ -40,12 +40,6 @@ type MoveNotice = {
   targetConversationId: string;
   targetConversationTitle: string;
 };
-
-function formatConversationIndexText(entries: ConversationIndexEntry[]) {
-  return entries
-    .map((entry, index) => `${index + 1}. ${entry.title}\n${entry.summary}`)
-    .join('\n\n');
-}
 
 export default function App() {
   const {
@@ -83,26 +77,12 @@ export default function App() {
   const globalTagSummaries = useMemo(() => getTagSummaries(allMessages), [allMessages]);
   const conversationTagSummaries = useMemo(() => getTagSummaries(activeMessages), [activeMessages]);
   const globalTagResults = useMemo(
-    () =>
-      selectedGlobalTags.length === 0
-        ? []
-        : conversations.flatMap((conversation) =>
-            (messagesByConversation[conversation.id] ?? [])
-              .filter((message) => messageMatchesAnyTag(message, selectedGlobalTags))
-              .map((message) => ({ conversation, message }))
-          ),
+    () => getTaggedMessageResults(conversations, messagesByConversation, selectedGlobalTags),
     [conversations, messagesByConversation, selectedGlobalTags]
   );
 
   function getConversationTitle(conversationId: string) {
     return conversations.find((conversation) => conversation.id === conversationId)?.title ?? null;
-  }
-
-  function toggleSelectedTag(tags: string[], tag: string) {
-    const key = getTagKey(tag);
-    return tags.some((currentTag) => getTagKey(currentTag) === key)
-      ? tags.filter((currentTag) => getTagKey(currentTag) !== key)
-      : normalizeTags([...tags, tag]);
   }
 
   function selectConversation(conversationId: string | null) {
@@ -358,7 +338,7 @@ export default function App() {
         renamingId={renamingId}
         renameDraft={renameDraft}
         onSearchTermChange={setSearchTerm}
-        onToggleTag={(tag) => setSelectedGlobalTags((current) => toggleSelectedTag(current, tag))}
+        onToggleTag={(tag) => setSelectedGlobalTags((current) => toggleTagSelection(current, tag))}
         onClearTags={() => setSelectedGlobalTags([])}
         onOpenTagResult={handleOpenTagResult}
         onOpenCalendar={openCalendar}
@@ -401,7 +381,7 @@ export default function App() {
           onDismissMoveNotice={() => setMoveNotice(null)}
           onBack={() => selectConversation(null)}
           onDraftChange={setDraft}
-          onToggleTag={(tag) => setSelectedConversationTags((current) => toggleSelectedTag(current, tag))}
+          onToggleTag={(tag) => setSelectedConversationTags((current) => toggleTagSelection(current, tag))}
           onClearTags={() => setSelectedConversationTags([])}
           onSubmitMessage={handleSubmitMessage}
           onCancelEdit={handleCancelEdit}

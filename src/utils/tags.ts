@@ -1,4 +1,4 @@
-import type { Message } from '../types';
+import type { Conversation, Message } from '../types';
 
 export type TagSummary = {
   name: string;
@@ -6,8 +6,13 @@ export type TagSummary = {
 };
 
 export type TaggedMessageResult = {
+  conversation: Conversation;
   message: Message;
-  tag: string;
+};
+
+export type TagSuggestion = {
+  name: string;
+  count: number;
 };
 
 export function normalizeTags(tags: readonly string[] = []) {
@@ -36,6 +41,53 @@ export function messageMatchesAnyTag(message: Message, selectedTags: readonly st
   if (selectedTags.length === 0) return true;
   const messageTagKeys = new Set((message.tags ?? []).map(getTagKey));
   return selectedTags.some((tag) => messageTagKeys.has(getTagKey(tag)));
+}
+
+export function toggleTagSelection(selectedTags: readonly string[], tag: string) {
+  const key = getTagKey(tag);
+  return selectedTags.some((currentTag) => getTagKey(currentTag) === key)
+    ? selectedTags.filter((currentTag) => getTagKey(currentTag) !== key)
+    : normalizeTags([...selectedTags, tag]);
+}
+
+export function addTag(tags: readonly string[], tag: string) {
+  return normalizeTags([...tags, tag]);
+}
+
+export function removeTag(tags: readonly string[], tagToRemove: string) {
+  const removeKey = getTagKey(tagToRemove);
+  return tags.filter((tag) => getTagKey(tag) !== removeKey);
+}
+
+export function getAvailableTagSuggestions(
+  currentTags: readonly string[],
+  draft: string,
+  suggestions: readonly TagSuggestion[],
+  limit = 8
+) {
+  const currentTagKeys = new Set(currentTags.map(getTagKey));
+  const draftKey = getTagKey(draft);
+
+  return suggestions
+    .filter((tag) => {
+      const suggestionKey = getTagKey(tag.name);
+      return !currentTagKeys.has(suggestionKey) && (!draftKey || suggestionKey.includes(draftKey));
+    })
+    .slice(0, limit);
+}
+
+export function getTaggedMessageResults(
+  conversations: readonly Conversation[],
+  messagesByConversation: Record<string, Message[]>,
+  selectedTags: readonly string[]
+): TaggedMessageResult[] {
+  if (selectedTags.length === 0) return [];
+
+  return conversations.flatMap((conversation) =>
+    (messagesByConversation[conversation.id] ?? [])
+      .filter((message) => messageMatchesAnyTag(message, selectedTags))
+      .map((message) => ({ conversation, message }))
+  );
 }
 
 export function getTagSummaries(messages: readonly Message[]): TagSummary[] {
