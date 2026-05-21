@@ -238,7 +238,7 @@ The user can add a date and time to a message block and browse dated blocks on a
 Version 1 behavior:
 
 - A block may be unscheduled or have one required date+time value.
-- The composer and inline edit form provide a date/time control.
+- The composer provides a visible `Date` action that opens the date/time control; the inline edit form provides the date/time control directly.
 - Clearing the date/time removes the block from calendar views.
 - Dated blocks show their scheduled date/time in block metadata.
 - The global Calendar screen shows dated blocks from all loaded conversations.

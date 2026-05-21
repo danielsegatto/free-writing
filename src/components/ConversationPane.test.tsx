@@ -223,7 +223,11 @@ describe('ConversationPane', () => {
     const onSubmitMessage = vi.fn(async () => undefined);
     renderPane({ draft: 'Scheduled block', onSubmitMessage });
 
-    fireEvent.click(screen.getByTitle('Add date and time'));
+    const dateButton = screen.getByRole('button', { name: 'Date' });
+    expect(dateButton).toHaveAttribute('aria-expanded', 'false');
+
+    fireEvent.click(dateButton);
+    expect(dateButton).toHaveAttribute('aria-expanded', 'true');
     fireEvent.change(screen.getByLabelText('Block date and time'), {
       target: { value: '2026-05-21T09:30' }
     });

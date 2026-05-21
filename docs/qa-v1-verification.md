@@ -74,7 +74,7 @@ Run against a configured Firebase project in Chrome or Safari after visiting the
 20. Add a tag to a block, add the same tag with different casing to another block, and confirm the tag is deduped/filterable case-insensitively.
 21. Open the tag editor on another block, type part of an existing tag, confirm suggestions filter as typed and exclude tags already on that block, then select a suggestion with Enter or click.
 22. Use the global tag browser and active conversation tag filter to confirm tagged blocks are shown, then remove a tag and confirm filters update.
-23. Add a date and time to a new block from the composer and confirm the saved block shows that scheduled metadata.
+23. Use the composer's `Date` action to add a date and time to a new block, then confirm the saved block shows that scheduled metadata.
 24. Edit an existing block, add a different date and time, save, then edit it again and clear the date/time. Confirm the block appears on the calendar only while the date/time is set.
 25. Open the Calendar screen from the sidebar and confirm Today shows a time-sorted agenda, This week groups blocks by day, and This month uses the month/date grouping appropriate to the device width.
 26. Click a calendar item and confirm it opens the source conversation and highlights the source block.
@@ -119,12 +119,12 @@ Expected result:
 - Saved image previews are inert when clicked.
 - Text-only block copy writes plain text. Blocks with attachments use best-effort rich clipboard data with text/html and image data where supported, and text fallback for text-bearing blocks.
 - Tag suggestions use previously created tags from loaded blocks, filter as the user types, exclude tags already on the block, and still allow new free-text tags.
-- Dated blocks appear in the global calendar by browser-local date/time, with unscheduled blocks hidden from calendar views. Whole-block copy/move preserves date/time, partial moves create unscheduled target blocks, and merging keeps the earliest selected date/time.
+- Dated blocks appear in the global calendar by browser-local date/time, with unscheduled blocks hidden from calendar views. The composer's `Date` action exposes its collapsed/expanded state to assistive technology. Whole-block copy/move preserves date/time, partial moves create unscheduled target blocks, and merging keeps the earliest selected date/time.
 - Copied/forwarded messages are labeled `Copied` or `Copied from [source conversation]`; only the source conversation name is clickable, and there is no lower copied-source card. Moved messages are labeled `Moved`.
 - Forward/move dialogs transfer the whole block when no words are selected, and transfer only selected words when one or more word selections exist.
 - Forward/move word selection supports tap toggling, click-to-deselect, separate non-adjacent selections, and pointer drag selection/unselection on mouse and touch.
 - Structured conversation and quote reference cards navigate to their source conversation or source text block when the source is still loaded; unavailable sources remain readable from their stored snapshot.
-- Icon-only controls, including composer toolbar actions, modal close buttons, row/message actions, and the mobile back button, show their icons centered within the button boundary.
+- Icon-only controls, including modal close buttons, row/message actions, and the mobile back button, show their icons centered within the button boundary. The composer's labeled `Date` action keeps its icon and text aligned without crowding the other toolbar actions.
 - Reordered conversations keep their order after reconnect and reload.
 - Releasing a reordered conversation keeps the user on the conversation list rather than opening the reordered row or the first row.
 - Conversations receiving newly created blocks move to the top of the list after direct creation, forwarding, moving, selected-text moving, and English block creation.

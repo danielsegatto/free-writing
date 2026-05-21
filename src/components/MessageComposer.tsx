@@ -6,6 +6,8 @@ import { formatDateTimeLocalInput, parseDateTimeLocalInput } from '../utils/cale
 import { getImageExtension, getImageFilesFromClipboardData } from '../utils/imageFiles';
 import { truncateReferenceText } from '../utils/messageReferences';
 
+const scheduleControlId = 'composer-schedule-control';
+
 type MessageComposerProps = {
   draft: string;
   pendingReferences: MessageReference[];
@@ -41,6 +43,7 @@ export function MessageComposer({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const lastClearImagePreviewsSignal = useRef(clearImagePreviewsSignal);
   const canSend = Boolean(draft.trim() || imagePreviews.length > 0 || pendingReferences.length > 0);
+  const isScheduleVisible = isScheduleOpen || Boolean(scheduledAt);
 
   useEffect(() => {
     if (clearImagePreviewsSignal === lastClearImagePreviewsSignal.current) return;
@@ -170,8 +173,8 @@ export function MessageComposer({
           placeholder="Write a message"
           rows={2}
         />
-        {(isScheduleOpen || scheduledAt) && (
-          <div className="composer-schedule">
+        {isScheduleVisible && (
+          <div id={scheduleControlId} className="composer-schedule">
             <CalendarClock size={16} />
             <input
               aria-label="Block date and time"
@@ -211,12 +214,15 @@ export function MessageComposer({
           onChange={(event) => addComposerImageFiles(event.target.files)}
         />
         <button
-          className="icon-button"
+          className="icon-button composer-date-button"
           type="button"
           title="Add date and time"
+          aria-controls={scheduleControlId}
+          aria-expanded={isScheduleVisible}
           onClick={() => setIsScheduleOpen((isOpen) => !isOpen)}
         >
           <CalendarClock size={17} />
+          <span>Date</span>
         </button>
         <button
           className="icon-button"

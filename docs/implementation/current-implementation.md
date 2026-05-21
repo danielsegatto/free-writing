@@ -11,7 +11,7 @@ The current app state is a working Firebase-backed React PWA named `Free Writing
 Implemented:
 
 - Vite + React frontend.
-- Focused Vitest coverage for app transfer navigation, forward/move transfer decision helpers, transfer word-selection helpers, conversation service writes, sidebar drag reordering, message service writes, inline image attachments and paste handling, loaded-message search, tag normalization/filtering and inline tag suggestions, composer keyboard conversion behavior, inline editing, text/rich block copy feedback and fallbacks, reorder controls, desktop and touch drag-handle reorder behavior including body-scroll protection, gap drop zones, insertion markers, and edge autoscroll, multi-block merge selection on desktop and touch, English conversion UI/service/helper behavior, conversation index synthesis service/UI/Worker behavior, and the shared forward/move modal.
+- Focused Vitest coverage for app transfer navigation, forward/move transfer decision helpers, transfer word-selection helpers, conversation service writes, sidebar drag reordering, message service writes, inline image attachments and paste handling, loaded-message search, tag normalization/filtering and inline tag suggestions, composer keyboard conversion behavior, composer date action expansion and submission, inline editing, text/rich block copy feedback and fallbacks, reorder controls, desktop and touch drag-handle reorder behavior including body-scroll protection, gap drop zones, insertion markers, and edge autoscroll, multi-block merge selection on desktop and touch, English conversion UI/service/helper behavior, conversation index synthesis service/UI/Worker behavior, and the shared forward/move modal.
 - React code organized into small components, subscription/shared UI hooks, Firebase services, and utility helpers.
 - Firebase Authentication with Google provider.
 - Firebase configuration guard that shows a setup notice when `.env` is missing or still contains placeholder values.
@@ -70,7 +70,7 @@ Current visual system:
 - `src/styles.css` is a single global stylesheet rather than a component-scoped CSS system.
 - The UI uses a dark base (`#101719`) with dark panel surfaces and bright teal action accents.
 - `:root` declares `color-scheme: dark` so native form controls and browser defaults align with the app theme.
-- Shared button styling lives in `src/styles.css`: use `.icon-button` for icon-only controls, including the mobile back button, and `.primary-button` or `.new-conversation` for text+icon actions. These shared styles center direct SVG children and prevent icon sizing/alignment drift when new lucide icons are added.
+- Shared button styling lives in `src/styles.css`: use `.icon-button` for icon-only controls, including the mobile back button, `.composer-date-button` for the composer's labeled date action, and `.primary-button` or `.new-conversation` for primary text+icon actions. The composer date width is centralized with `--composer-date-button-width` so desktop and mobile sizing stay aligned. These shared styles center direct SVG children and prevent icon sizing/alignment drift when new lucide icons are added.
 - Keep theme changes coordinated with `index.html` `theme-color` and `vite.config.ts` manifest `theme_color` / `background_color`.
 
 Firebase is configured through a local `.env` file using Vite environment variables:
@@ -137,7 +137,7 @@ src/components/MessageBubble.tsx
   Per-message rendering and local action wiring. Owns message metadata display including scheduled date/time, clickable copied-origin conversation names, inert image attachment previews, structured reference cards, synthesized index rows, inline edit form markup, copy feedback label, tag editor UI state, reorder buttons and drag handle, transfer/delete/English action buttons, and drag/pointer event binding passed down from `ConversationPane`. Tag add/remove/suggestion rules are delegated to `src/utils/tags.ts`.
 
 src/components/MessageComposer.tsx
-  Draft composer rendering, pending reference chips, scheduled date/time input, image selection/paste previews, and keyboard behavior. Owns the composer form markup, draft textarea, visible send action, and `Ctrl+Enter` / `Cmd+Enter` draft English conversion shortcut passed down from `ConversationPane`.
+  Draft composer rendering, pending reference chips, labeled `Date` action, scheduled date/time input, image selection/paste previews, and keyboard behavior. Owns the composer form markup, draft textarea, visible send action, date action `aria-expanded` / `aria-controls` wiring, and `Ctrl+Enter` / `Cmd+Enter` draft English conversion shortcut passed down from `ConversationPane`.
 
 src/components/EnglishPickerModal.tsx
   English conversion dialog rendering. Receives picker state and callbacks from `useEnglishConversionPicker` through `ConversationPane`, renders loading/error/ready/saving states, a scrollable segment option list, and saved-message or draft-specific actions. It intentionally does not render a separate assembled preview so large conversions keep the options readable.
