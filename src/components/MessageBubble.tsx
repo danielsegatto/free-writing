@@ -13,6 +13,7 @@ import {
 import {
   ArrowDown,
   ArrowUp,
+  CalendarClock,
   Copy,
   Edit3,
   Forward,
@@ -27,7 +28,8 @@ import {
   X
 } from 'lucide-react';
 import type { Message, MessageReference } from '../types';
-import { formatDate } from '../utils/date';
+import { formatDate, formatFullDateTime } from '../utils/date';
+import { formatDateTimeLocalInput, parseDateTimeLocalInput } from '../utils/calendar';
 import { getReferenceNavigationTarget, truncateReferenceText, type MessageReferenceNavigationTarget } from '../utils/messageReferences';
 import { getTagKey, normalizeTags, type TagSummary } from '../utils/tags';
 
@@ -48,6 +50,7 @@ type MessageBubbleProps = {
   isEditing: boolean;
   editText: string;
   editReferences: MessageReference[];
+  editScheduledAt: Date | null;
   editImagePreviews: Array<{ id: string; file: File; url: string }>;
   activeReferenceTarget: MessageReferenceNavigationTarget | null;
   isSavingEdit: boolean;
@@ -62,6 +65,7 @@ type MessageBubbleProps = {
   canNavigateToMessage: (messageId: string) => boolean;
   onCancelEdit: () => void;
   onEditTextChange: (value: string) => void;
+  onEditScheduledAtChange: (scheduledAt: Date | null) => void;
   onRemoveEditReference: (referenceId: string) => void;
   onEditImagePaste: (event: ClipboardEvent<HTMLTextAreaElement>) => void;
   onRemoveEditImage: (previewId: string) => void;
@@ -138,6 +142,7 @@ export function MessageBubble({
   isEditing,
   editText,
   editReferences,
+  editScheduledAt,
   editImagePreviews,
   activeReferenceTarget,
   isSavingEdit,
@@ -152,6 +157,7 @@ export function MessageBubble({
   canNavigateToMessage,
   onCancelEdit,
   onEditTextChange,
+  onEditScheduledAtChange,
   onRemoveEditReference,
   onEditImagePaste,
   onRemoveEditImage,
@@ -201,6 +207,7 @@ export function MessageBubble({
   const copyTitle = hasAttachments ? 'Copy block' : 'Copy text';
   const isConversationIndex = message.blockKind === 'conversation-index' && (message.indexEntries?.length ?? 0) > 0;
   const tags = normalizeTags(message.tags ?? []);
+  const scheduledAt = message.scheduledAt ?? null;
   const visibleTagSuggestions = useMemo(() => {
     const currentTagKeys = new Set(tags.map(getTagKey));
     const draftKey = getTagKey(tagDraft);
@@ -409,6 +416,12 @@ export function MessageBubble({
           </span>
         )}
         {message.updatedAt && <span>edited</span>}
+        {scheduledAt && (
+          <span className="message-scheduled-meta">
+            <CalendarClock size={13} />
+            {formatFullDateTime(scheduledAt)}
+          </span>
+        )}
         <time>{formatDate(message.createdAt)}</time>
       </div>
 
@@ -547,6 +560,25 @@ export function MessageBubble({
               }
             }}
           />
+          <div className="message-edit-schedule">
+            <CalendarClock size={16} />
+            <input
+              aria-label="Edit block date and time"
+              type="datetime-local"
+              value={formatDateTimeLocalInput(editScheduledAt)}
+              onChange={(event) => onEditScheduledAtChange(parseDateTimeLocalInput(event.target.value))}
+            />
+            {editScheduledAt && (
+              <button
+                className="icon-button bare"
+                type="button"
+                title="Clear date and time"
+                onClick={() => onEditScheduledAtChange(null)}
+              >
+                <X size={15} />
+              </button>
+            )}
+          </div>
           {editReferences.length > 0 && (
             <div className="message-reference-list" aria-label="Block references">
               {editReferences.map((reference) => (

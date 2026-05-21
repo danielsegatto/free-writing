@@ -42,6 +42,7 @@ const sourceMessage: Message = {
   references: [],
   createdAt: timestamp,
   updatedAt: null,
+  scheduledAt: timestamp,
   sortOrder: 1000,
   isForwarded: false,
   transferType: null,
@@ -73,7 +74,11 @@ vi.mock('./hooks/useMessagingData', async () => {
 });
 
 vi.mock('./components/Sidebar', () => ({
-  Sidebar: () => null
+  Sidebar: (props: { onOpenCalendar: () => void }) => (
+    <button type="button" onClick={props.onOpenCalendar}>
+      Calendar
+    </button>
+  )
 }));
 
 vi.mock('./components/ConversationPane', () => ({
@@ -185,5 +190,17 @@ describe('App transfer navigation', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open' }));
 
     expect(screen.getByRole('heading', { name: 'Target chat' })).toBeInTheDocument();
+  });
+
+  it('opens the global calendar and navigates from a dated block', async () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Calendar' }));
+    expect(screen.getByRole('heading', { name: 'Calendar' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'This month' }));
+    fireEvent.click(screen.getAllByRole('button', { name: /Transfer this/i })[0]);
+
+    expect(screen.getByRole('heading', { name: 'Source chat' })).toBeInTheDocument();
   });
 });

@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useRef, type MouseEvent } from 'react';
-import { Edit3, GripVertical, LogOut, Plus, Search, Tag, Trash2, X } from 'lucide-react';
+import { CalendarDays, Edit3, GripVertical, LogOut, Plus, Search, Tag, Trash2, X } from 'lucide-react';
 import { useListReorderDrag } from '../hooks/useListReorderDrag';
 import { signOutUser } from '../services/auth';
 import type { Conversation, Message } from '../types';
@@ -15,6 +15,7 @@ type SearchResult = {
 type SidebarProps = {
   activeConversation: Conversation | null;
   activeConversationId: string | null;
+  isCalendarOpen: boolean;
   conversations: Conversation[];
   searchTerm: string;
   searchResults: SearchResult[];
@@ -27,6 +28,7 @@ type SidebarProps = {
   onToggleTag: (tag: string) => void;
   onClearTags: () => void;
   onOpenTagResult: (conversationId: string, messageId: string) => void;
+  onOpenCalendar: () => void;
   onCreateConversation: () => void;
   onSelectConversation: (conversationId: string | null) => void;
   onStartRename: (conversation: Conversation) => void;
@@ -39,6 +41,7 @@ type SidebarProps = {
 export function Sidebar({
   activeConversation,
   activeConversationId,
+  isCalendarOpen,
   conversations,
   searchTerm,
   searchResults,
@@ -51,6 +54,7 @@ export function Sidebar({
   onToggleTag,
   onClearTags,
   onOpenTagResult,
+  onOpenCalendar,
   onCreateConversation,
   onSelectConversation,
   onStartRename,
@@ -121,15 +125,24 @@ export function Sidebar({
   }
 
   return (
-    <aside className={`sidebar ${activeConversation ? 'has-active' : ''}`}>
+    <aside className={`sidebar ${activeConversation || isCalendarOpen ? 'has-active' : ''}`}>
       <header className="app-header">
         <div>
           <p className="eyebrow">Private notebook</p>
           <h1>Free Writing</h1>
         </div>
-        <button className="icon-button" title="Sign out" onClick={() => void signOutUser()}>
-          <LogOut size={19} />
-        </button>
+        <div className="app-header-actions">
+          <button
+            className={isCalendarOpen ? 'icon-button active' : 'icon-button'}
+            title="Calendar"
+            onClick={onOpenCalendar}
+          >
+            <CalendarDays size={19} />
+          </button>
+          <button className="icon-button" title="Sign out" onClick={() => void signOutUser()}>
+            <LogOut size={19} />
+          </button>
+        </div>
       </header>
 
       <div className="search-box">

@@ -1,4 +1,4 @@
-import { act, createEvent, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, createEvent, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ComponentProps } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { ConversationPane } from './ConversationPane';
@@ -29,6 +29,7 @@ function message(id: string, text: string): Message {
     references: [],
     createdAt: timestamp,
     updatedAt: null,
+    scheduledAt: null,
     sortOrder: 1000,
     isForwarded: false,
     transferType: null,
@@ -147,7 +148,7 @@ describe('ConversationPane', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Send' }));
 
     await waitFor(() => {
-      expect(onSubmitMessage).toHaveBeenCalledWith(undefined, [image], []);
+      expect(onSubmitMessage).toHaveBeenCalledWith(undefined, [image], [], null);
     });
     expect(objectUrls.revokeObjectURL).toHaveBeenCalledWith('blob:image-preview');
 
@@ -177,7 +178,7 @@ describe('ConversationPane', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Send' }));
 
     await waitFor(() => {
-      expect(composer.onSubmitMessage).toHaveBeenCalledWith(undefined, [image], []);
+      expect(composer.onSubmitMessage).toHaveBeenCalledWith(undefined, [image], [], null);
     });
 
     objectUrls.restore();
@@ -204,15 +205,38 @@ describe('ConversationPane', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Send' }));
 
     await waitFor(() => {
-      expect(composer.onSubmitMessage).toHaveBeenCalledWith(undefined, [
-        expect.objectContaining({ name: 'pasted-image.png', type: 'image/png' })
-      ], []);
+      expect(composer.onSubmitMessage).toHaveBeenCalledWith(
+        undefined,
+        [expect.objectContaining({ name: 'pasted-image.png', type: 'image/png' })],
+        [],
+        null
+      );
     });
 
     Object.assign(navigator, {
       clipboard: originalClipboard
     });
     objectUrls.restore();
+  });
+
+  it('adds a required date and time to a composer block', async () => {
+    const onSubmitMessage = vi.fn(async () => undefined);
+    renderPane({ draft: 'Scheduled block', onSubmitMessage });
+
+    fireEvent.click(screen.getByTitle('Add date and time'));
+    fireEvent.change(screen.getByLabelText('Block date and time'), {
+      target: { value: '2026-05-21T09:30' }
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+
+    await waitFor(() => {
+      expect(onSubmitMessage).toHaveBeenCalledWith(
+        undefined,
+        [],
+        [],
+        new Date(2026, 4, 21, 9, 30)
+      );
+    });
   });
 
   it('copies message text with one click', async () => {
@@ -553,7 +577,7 @@ describe('ConversationPane', () => {
     fireEvent.change(editor, { target: { value: 'Edited first block' } });
     fireEvent.keyDown(editor, { key: 'Enter', ctrlKey: true });
 
-    expect(onSaveEdit).toHaveBeenCalledWith(expect.objectContaining({ id: 'first' }), 'Edited first block', [], []);
+    expect(onSaveEdit).toHaveBeenCalledWith(expect.objectContaining({ id: 'first' }), 'Edited first block', [], [], null);
     expect(props.onSubmitMessage).not.toHaveBeenCalled();
   });
 
@@ -583,10 +607,46 @@ describe('ConversationPane', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => {
-      expect(onSaveEdit).toHaveBeenCalledWith(expect.objectContaining({ id: 'first' }), 'First', [image], []);
+      expect(onSaveEdit).toHaveBeenCalledWith(expect.objectContaining({ id: 'first' }), 'First', [image], [], null);
     });
 
     objectUrls.restore();
+  });
+
+  it('edits and displays a block date and time', async () => {
+    const scheduledMessage = {
+      ...message('first', 'First'),
+      scheduledAt: timestamp
+    };
+    const onSaveEdit = vi.fn(async () => undefined);
+
+    renderPane({
+      activeMessages: [scheduledMessage],
+      messagesByConversation: { [conversation.id]: [scheduledMessage] }
+    });
+
+    expect(screen.getByText(/Tue, May 12/i)).toBeInTheDocument();
+
+    cleanup();
+    renderPane({
+      editingMessage: scheduledMessage,
+      activeMessages: [scheduledMessage],
+      messagesByConversation: { [conversation.id]: [scheduledMessage] },
+      onSaveEdit
+    });
+
+    fireEvent.change(screen.getByLabelText('Edit block date and time'), {
+      target: { value: '2026-05-21T14:45' }
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(onSaveEdit).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'first' }),
+      'First',
+      [],
+      [],
+      new Date(2026, 4, 21, 14, 45)
+    );
   });
 
   it('shows edit mode and allows canceling an edit', () => {
@@ -1260,13 +1320,18 @@ describe('ConversationPane', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Send' }));
 
     await waitFor(() => {
-      expect(onSubmitMessage).toHaveBeenCalledWith(undefined, [], [
-        expect.objectContaining({
-          type: 'conversation',
-          sourceConversationId: 'source-conversation',
-          sourceConversationTitle: 'Source chat'
-        })
-      ]);
+      expect(onSubmitMessage).toHaveBeenCalledWith(
+        undefined,
+        [],
+        [
+          expect.objectContaining({
+            type: 'conversation',
+            sourceConversationId: 'source-conversation',
+            sourceConversationTitle: 'Source chat'
+          })
+        ],
+        null
+      );
     });
   });
 
@@ -1296,16 +1361,21 @@ describe('ConversationPane', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Send' }));
 
     await waitFor(() => {
-      expect(onSubmitMessage).toHaveBeenCalledWith(undefined, [], [
-        expect.objectContaining({
-          type: 'quote',
-          sourceConversationId: 'source-conversation',
-          sourceMessageId: 'source-message',
-          quoteText: 'Quoted',
-          startOffset: 0,
-          endOffset: 6
-        })
-      ]);
+      expect(onSubmitMessage).toHaveBeenCalledWith(
+        undefined,
+        [],
+        [
+          expect.objectContaining({
+            type: 'quote',
+            sourceConversationId: 'source-conversation',
+            sourceMessageId: 'source-message',
+            quoteText: 'Quoted',
+            startOffset: 0,
+            endOffset: 6
+          })
+        ],
+        null
+      );
     });
   });
 
@@ -1427,7 +1497,7 @@ describe('ConversationPane', () => {
     fireEvent.click(screen.getByTitle('Remove reference'));
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
-    expect(onSaveEdit).toHaveBeenCalledWith(expect.objectContaining({ id: 'first' }), 'First', [], []);
+    expect(onSaveEdit).toHaveBeenCalledWith(expect.objectContaining({ id: 'first' }), 'First', [], [], null);
   });
 
   it('opens the English picker and defaults to the first option for each segment', async () => {
@@ -1531,7 +1601,7 @@ describe('ConversationPane', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Send English' }));
 
     expect(onConvertToEnglish).toHaveBeenCalledWith('Pronto para enviar');
-    expect(onSubmitMessage).toHaveBeenCalledWith('Ready to submit', [], []);
+    expect(onSubmitMessage).toHaveBeenCalledWith('Ready to submit', [], [], null);
     expect(onDraftChange).not.toHaveBeenCalled();
   });
 
@@ -1569,7 +1639,7 @@ describe('ConversationPane', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Send English' }));
 
     await waitFor(() => {
-      expect(onSubmitMessage).toHaveBeenCalledWith('Ready to submit', [image], []);
+      expect(onSubmitMessage).toHaveBeenCalledWith('Ready to submit', [image], [], null);
     });
     await waitFor(() => {
       expect(screen.queryByAltText('copied.png')).not.toBeInTheDocument();

@@ -28,6 +28,7 @@ function message(id: string, text: string, overrides: Partial<Message> = {}): Me
     references: [],
     createdAt: timestamp,
     updatedAt: null,
+    scheduledAt: null,
     sortOrder: 1000,
     isForwarded: false,
     transferType: null,

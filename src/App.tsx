@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { CalendarPane } from './components/CalendarPane';
 import { ConversationPane } from './components/ConversationPane';
 import { ForwardModal } from './components/ForwardModal';
 import { Sidebar } from './components/Sidebar';
@@ -67,6 +68,7 @@ export default function App() {
   const [moveNotice, setMoveNotice] = useState<MoveNotice | null>(null);
   const [selectedGlobalTags, setSelectedGlobalTags] = useState<string[]>([]);
   const [selectedConversationTags, setSelectedConversationTags] = useState<string[]>([]);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   const activeConversation = conversations.find((conversation) => conversation.id === activeConversationId) ?? null;
   const activeMessages = activeConversationId ? messagesByConversation[activeConversationId] ?? [] : [];
@@ -105,10 +107,18 @@ export default function App() {
 
   function selectConversation(conversationId: string | null) {
     setMoveNotice(null);
+    setIsCalendarOpen(false);
     if (conversationId !== activeConversationId) {
       setSelectedConversationTags([]);
     }
     setActiveConversationId(conversationId);
+  }
+
+  function openCalendar() {
+    setTransferAction(null);
+    setSearchTerm('');
+    setSelectedGlobalTags([]);
+    setIsCalendarOpen(true);
   }
 
   function startTransferAction(action: TransferAction) {
@@ -142,12 +152,17 @@ export default function App() {
     }
   }
 
-  async function handleSubmitMessage(textOverride?: string, imageFiles: File[] = [], references: MessageReference[] = []) {
+  async function handleSubmitMessage(
+    textOverride?: string,
+    imageFiles: File[] = [],
+    references: MessageReference[] = [],
+    scheduledAt: Date | null = null
+  ) {
     const messageText = textOverride ?? draft;
     if (!user || !activeConversationId || (!messageText.trim() && imageFiles.length === 0 && references.length === 0)) return;
     const attachments =
       imageFiles.length > 0 ? await uploadMessageImages(user.uid, activeConversationId, imageFiles) : [];
-    await createMessage(user.uid, activeConversationId, messageText, attachments, references);
+    await createMessage(user.uid, activeConversationId, messageText, attachments, references, scheduledAt);
     setDraft('');
   }
 
@@ -155,7 +170,8 @@ export default function App() {
     message: Message,
     text: string,
     imageFiles: File[] = [],
-    references: MessageReference[] = message.references ?? []
+    references: MessageReference[] = message.references ?? [],
+    scheduledAt?: Date | null
   ) {
     if (
       !user ||
@@ -171,7 +187,8 @@ export default function App() {
       message.id,
       text,
       [...(message.attachments ?? []), ...newAttachments],
-      references
+      references,
+      scheduledAt
     );
     setEditingMessage(null);
   }
@@ -311,6 +328,13 @@ export default function App() {
     selectConversation(conversationId);
   }
 
+  function handleOpenCalendarMessage(conversationId: string, messageId: string) {
+    setTransferAction(null);
+    setSelectedConversationTags([]);
+    setNavigationTarget({ conversationId, messageId });
+    selectConversation(conversationId);
+  }
+
   if (authLoading) {
     return <div className="loading">Loading Free Writing...</div>;
   }
@@ -324,6 +348,7 @@ export default function App() {
       <Sidebar
         activeConversation={activeConversation}
         activeConversationId={activeConversationId}
+        isCalendarOpen={isCalendarOpen}
         conversations={conversations}
         searchTerm={searchTerm}
         searchResults={searchResults}
@@ -336,6 +361,7 @@ export default function App() {
         onToggleTag={(tag) => setSelectedGlobalTags((current) => toggleSelectedTag(current, tag))}
         onClearTags={() => setSelectedGlobalTags([])}
         onOpenTagResult={handleOpenTagResult}
+        onOpenCalendar={openCalendar}
         onCreateConversation={() => void handleCreateConversation()}
         onSelectConversation={selectConversation}
         onStartRename={handleStartRename}
@@ -347,50 +373,60 @@ export default function App() {
         }
       />
 
-      <ConversationPane
-        activeConversation={activeConversation}
-        conversations={conversations}
-        activeMessages={activeMessages}
-        availableTags={conversationTagSummaries}
-        tagSuggestions={globalTagSummaries}
-        selectedTags={selectedConversationTags}
-        messagesByConversation={messagesByConversation}
-        navigationTarget={navigationTarget}
-        draft={draft}
-        editingMessage={editingMessage}
-        moveNotice={moveNotice}
-        onOpenMoveNotice={() => {
-          if (!moveNotice) return;
-          selectConversation(moveNotice.targetConversationId);
-        }}
-        onDismissMoveNotice={() => setMoveNotice(null)}
-        onBack={() => selectConversation(null)}
-        onDraftChange={setDraft}
-        onToggleTag={(tag) => setSelectedConversationTags((current) => toggleSelectedTag(current, tag))}
-        onClearTags={() => setSelectedConversationTags([])}
-        onSubmitMessage={handleSubmitMessage}
-        onCancelEdit={handleCancelEdit}
-        onEditMessage={handleEditMessage}
-        onSaveEdit={handleSaveEdit}
-        onForwardMessage={(message) => startTransferAction({ mode: 'forward', message })}
-        onMoveToConversation={(message) => startTransferAction({ mode: 'move', message })}
-        onForwardMessages={(messages) => startTransferAction({ mode: 'forward', messages })}
-        onMoveMessages={(messages) => startTransferAction({ mode: 'move', messages })}
-        onNavigateToReference={handleNavigateToReference}
-        onNavigationHandled={() => setNavigationTarget(null)}
-        onDeleteMessage={(message) => void handleDeleteMessage(message)}
-        onDeleteMessages={handleDeleteMessages}
-        onMoveMessage={(messageIndex, direction) => void handleMoveMessage(messageIndex, direction)}
-        onReorderMessage={(draggedMessageId, targetMessageId, position) =>
-          void handleReorderMessage(draggedMessageId, targetMessageId, position)
-        }
-        onMergeMessages={handleMergeMessages}
-        onSynthesizeIndex={handleSynthesizeConversationIndex}
-        onConvertToEnglish={requestEnglishVersions}
-        onCreateEnglishBlock={handleCreateEnglishBlock}
-        onReplaceWithEnglish={handleReplaceWithEnglish}
-        onUpdateMessageTags={(message, tags) => void handleUpdateMessageTags(message, tags)}
-      />
+      {isCalendarOpen ? (
+        <CalendarPane
+          isOpen={isCalendarOpen}
+          conversations={conversations}
+          messagesByConversation={messagesByConversation}
+          onBack={() => selectConversation(null)}
+          onOpenMessage={handleOpenCalendarMessage}
+        />
+      ) : (
+        <ConversationPane
+          activeConversation={activeConversation}
+          conversations={conversations}
+          activeMessages={activeMessages}
+          availableTags={conversationTagSummaries}
+          tagSuggestions={globalTagSummaries}
+          selectedTags={selectedConversationTags}
+          messagesByConversation={messagesByConversation}
+          navigationTarget={navigationTarget}
+          draft={draft}
+          editingMessage={editingMessage}
+          moveNotice={moveNotice}
+          onOpenMoveNotice={() => {
+            if (!moveNotice) return;
+            selectConversation(moveNotice.targetConversationId);
+          }}
+          onDismissMoveNotice={() => setMoveNotice(null)}
+          onBack={() => selectConversation(null)}
+          onDraftChange={setDraft}
+          onToggleTag={(tag) => setSelectedConversationTags((current) => toggleSelectedTag(current, tag))}
+          onClearTags={() => setSelectedConversationTags([])}
+          onSubmitMessage={handleSubmitMessage}
+          onCancelEdit={handleCancelEdit}
+          onEditMessage={handleEditMessage}
+          onSaveEdit={handleSaveEdit}
+          onForwardMessage={(message) => startTransferAction({ mode: 'forward', message })}
+          onMoveToConversation={(message) => startTransferAction({ mode: 'move', message })}
+          onForwardMessages={(messages) => startTransferAction({ mode: 'forward', messages })}
+          onMoveMessages={(messages) => startTransferAction({ mode: 'move', messages })}
+          onNavigateToReference={handleNavigateToReference}
+          onNavigationHandled={() => setNavigationTarget(null)}
+          onDeleteMessage={(message) => void handleDeleteMessage(message)}
+          onDeleteMessages={handleDeleteMessages}
+          onMoveMessage={(messageIndex, direction) => void handleMoveMessage(messageIndex, direction)}
+          onReorderMessage={(draggedMessageId, targetMessageId, position) =>
+            void handleReorderMessage(draggedMessageId, targetMessageId, position)
+          }
+          onMergeMessages={handleMergeMessages}
+          onSynthesizeIndex={handleSynthesizeConversationIndex}
+          onConvertToEnglish={requestEnglishVersions}
+          onCreateEnglishBlock={handleCreateEnglishBlock}
+          onReplaceWithEnglish={handleReplaceWithEnglish}
+          onUpdateMessageTags={(message, tags) => void handleUpdateMessageTags(message, tags)}
+        />
+      )}
 
       {transferAction && (
         <ForwardModal

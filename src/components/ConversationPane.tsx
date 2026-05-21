@@ -42,10 +42,21 @@ type ConversationPaneProps = {
   onDraftChange: (value: string) => void;
   onToggleTag: (tag: string) => void;
   onClearTags: () => void;
-  onSubmitMessage: (textOverride?: string, imageFiles?: File[], references?: MessageReference[]) => void | Promise<void>;
+  onSubmitMessage: (
+    textOverride?: string,
+    imageFiles?: File[],
+    references?: MessageReference[],
+    scheduledAt?: Date | null
+  ) => void | Promise<void>;
   onCancelEdit: () => void;
   onEditMessage: (message: Message) => void;
-  onSaveEdit: (message: Message, text: string, imageFiles?: File[], references?: MessageReference[]) => void | Promise<void>;
+  onSaveEdit: (
+    message: Message,
+    text: string,
+    imageFiles?: File[],
+    references?: MessageReference[],
+    scheduledAt?: Date | null
+  ) => void | Promise<void>;
   onForwardMessage: (message: Message) => void;
   onMoveToConversation: (message: Message) => void;
   onForwardMessages: (messages: Message[]) => void;
@@ -132,6 +143,8 @@ export function ConversationPane({
   const [synthesisError, setSynthesisError] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
   const [editReferences, setEditReferences] = useState<MessageReference[]>([]);
+  const [editScheduledAt, setEditScheduledAt] = useState<Date | null>(null);
+  const [draftScheduledAt, setDraftScheduledAt] = useState<Date | null>(null);
   const {
     imagePreviews: editImagePreviews,
     getImageFiles: getEditImageFiles,
@@ -181,12 +194,14 @@ export function ConversationPane({
   } = useEnglishConversionPicker({
     draft,
     pendingReferences,
+    draftScheduledAt,
     onConvertToEnglish,
     onSubmitMessage,
     onCreateEnglishBlock,
     onReplaceWithEnglish,
     onDraftEnglishSent: () => {
       setPendingReferences([]);
+      setDraftScheduledAt(null);
       setClearComposerImagePreviewsSignal((signal) => signal + 1);
     }
   });
@@ -231,9 +246,10 @@ export function ConversationPane({
   useEffect(() => {
     setEditText(editingMessage?.text ?? '');
     setEditReferences(editingMessage?.references ?? []);
+    setEditScheduledAt(editingMessage?.scheduledAt?.toDate?.() ?? null);
     clearEditImagePreviews();
     setIsSavingEdit(false);
-  }, [clearEditImagePreviews, editingMessage?.id, editingMessage?.text]);
+  }, [clearEditImagePreviews, editingMessage?.id, editingMessage?.scheduledAt, editingMessage?.text]);
 
   useLayoutEffect(() => {
     const textarea = editTextareaRef.current;
@@ -400,16 +416,17 @@ export function ConversationPane({
     }
     setIsSavingEdit(true);
     try {
-      await onSaveEdit(message, editText, getEditImageFiles(), editReferences);
+      await onSaveEdit(message, editText, getEditImageFiles(), editReferences, editScheduledAt);
       clearEditImagePreviews();
     } finally {
       setIsSavingEdit(false);
     }
   }
 
-  async function submitComposerMessage(imageFiles: File[]) {
-    await onSubmitMessage(undefined, imageFiles, pendingReferences);
+  async function submitComposerMessage(imageFiles: File[], scheduledAt: Date | null) {
+    await onSubmitMessage(undefined, imageFiles, pendingReferences, scheduledAt);
     setPendingReferences([]);
+    setDraftScheduledAt(null);
   }
 
   function openReferencePicker(mode: ReferencePickerMode) {
@@ -547,6 +564,7 @@ export function ConversationPane({
                   isEditing={editingMessage?.id === message.id}
                   editText={editText}
                   editReferences={editReferences}
+                  editScheduledAt={editScheduledAt}
                   editImagePreviews={editImagePreviews}
                   activeReferenceTarget={activeReferenceTarget}
                   isSavingEdit={isSavingEdit}
@@ -565,6 +583,7 @@ export function ConversationPane({
                   canNavigateToMessage={canNavigateToMessage}
                   onCancelEdit={onCancelEdit}
                   onEditTextChange={setEditText}
+                  onEditScheduledAtChange={setEditScheduledAt}
                   onRemoveEditReference={(referenceId) =>
                     setEditReferences((current) => current.filter((reference) => reference.id !== referenceId))
                   }
@@ -628,8 +647,10 @@ export function ConversationPane({
             <MessageComposer
               draft={draft}
               pendingReferences={pendingReferences}
+              scheduledAt={draftScheduledAt}
               onDraftChange={onDraftChange}
-              onSubmitMessage={(imageFiles) => void submitComposerMessage(imageFiles)}
+              onScheduledAtChange={setDraftScheduledAt}
+              onSubmitMessage={(imageFiles, scheduledAt) => void submitComposerMessage(imageFiles, scheduledAt)}
               onConvertDraftToEnglish={(imageFiles) => void openDraftEnglishPicker(imageFiles)}
               clearImagePreviewsSignal={clearComposerImagePreviewsSignal}
               onAddConversationReference={() => openReferencePicker('conversation')}

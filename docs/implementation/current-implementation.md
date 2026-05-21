@@ -20,6 +20,7 @@ Implemented:
 - Conversation create, rename, open, delete, and drag-handle reorder with floating preview, insertion marker, gap-tolerant drops, and edge autoscroll.
 - Conversation list rows show conversation title and updated time only; they intentionally do not render stored message previews.
 - Message create, edit, copy-to-clipboard for text-only, text/image, and image-only blocks, delete, copy/forward to another conversation with clickable source-conversation metadata, move to another conversation with a post-move open-target notice, partial text copying/moving from the transfer dialog, structured conversation links and quote citations, search, manual up/down reorder, drag-handle reorder on desktop and touch/pointer devices with message-list edge autoscroll, selected-block merge, and synthesized clickable conversation index blocks.
+- Optional block date/time scheduling with a top-level global Calendar screen. Dated blocks from all loaded conversations appear in Today, This week, and This month views; calendar items open and highlight the source block.
 - Small image attachments on new and edited blocks. Images can be selected, pasted into the composer, pasted through a touch-friendly clipboard action where the browser permits it, or pasted while editing an existing block.
 - Image attachments are compressed in the browser and stored inline in Firestore message documents. Firebase Storage is intentionally not used so the app stays on the free Spark plan.
 - English conversion for saved messages and composer draft text. It segments text, presents three English options per segment, and can create a new message below a saved source, replace a saved source, or send selected draft English text directly as a new message.
@@ -34,6 +35,7 @@ Implemented:
 - Firestore persistent local cache is enabled for cached data and offline writes.
 - Conversation order and message order are persisted with numeric `sortOrder` values and sync across devices. New blocks move the receiving conversation to the top by assigning a top `sortOrder`; manual reorder remains stable until a later new block arrives in a conversation.
 - Search runs across messages loaded by Firestore subscriptions; the current hook subscribes to every conversation's messages after the conversation list loads.
+- Calendar browsing runs across the same loaded message set as global search and tag browsing; it does not require a separate Firestore query or external index for v1.
 - Cloudflare Worker backend proxy for hosted English conversion and conversation index synthesis.
 - Local Vite development middleware for `/api/to-english` and `/api/synthesize-index` so Codespaces/Vite testing works without Firebase Hosting rewrites.
 
@@ -119,6 +121,9 @@ src/components/Sidebar.tsx
 src/components/ConversationPane.tsx
   Active conversation view and orchestration for selected-message state, copy/edit/transfer/reorder/drag-and-drop/merge flows, English conversion hook wiring, index synthesis, insertion marker state, reference picker open mode, and inline edit/image-paste state.
 
+src/components/CalendarPane.tsx
+  Global dated-block calendar. Owns Today/This week/This month view selection, groups loaded blocks by local date, and opens source messages through the same navigation/highlight path as references.
+
 src/components/SelectionToolbar.tsx
   Multi-block selection toolbar rendering for merge, copy-to-conversation, move-to-conversation, copy text, delete, cancel, selected count, busy states, and inline selection errors.
 
@@ -129,10 +134,10 @@ src/components/MessageDragPreview.tsx
   Floating dragged-message preview rendering used by message drag reordering.
 
 src/components/MessageBubble.tsx
-  Per-message rendering and local action wiring. Owns message metadata display including clickable copied-origin conversation names, inert image attachment previews, structured reference cards, synthesized index rows, inline edit form markup, copy feedback label, reorder buttons and drag handle, transfer/delete/English action buttons, and drag/pointer event binding passed down from `ConversationPane`.
+  Per-message rendering and local action wiring. Owns message metadata display including scheduled date/time, clickable copied-origin conversation names, inert image attachment previews, structured reference cards, synthesized index rows, inline edit form markup, copy feedback label, reorder buttons and drag handle, transfer/delete/English action buttons, and drag/pointer event binding passed down from `ConversationPane`.
 
 src/components/MessageComposer.tsx
-  Draft composer rendering, pending reference chips, image selection/paste previews, and keyboard behavior. Owns the composer form markup, draft textarea, visible send action, and `Ctrl+Enter` / `Cmd+Enter` draft English conversion shortcut passed down from `ConversationPane`.
+  Draft composer rendering, pending reference chips, scheduled date/time input, image selection/paste previews, and keyboard behavior. Owns the composer form markup, draft textarea, visible send action, and `Ctrl+Enter` / `Cmd+Enter` draft English conversion shortcut passed down from `ConversationPane`.
 
 src/components/EnglishPickerModal.tsx
   English conversion dialog rendering. Receives picker state and callbacks from `useEnglishConversionPicker` through `ConversationPane`, renders loading/error/ready/saving states, a scrollable segment option list, and saved-message or draft-specific actions. It intentionally does not render a separate assembled preview so large conversions keep the options readable.
@@ -168,7 +173,7 @@ functions/src/index.ts
   Legacy Firebase Function version of the translation proxy. Firebase Functions require the Blaze plan and are not used by the default free hosted deployment.
 
 src/utils/
-  Shared formatting, clipboard, error, ordering, image-file, and small pure text helpers. `messageClipboard.ts` owns block copy formatting and rich/plain clipboard fallbacks. `englishConversion.ts` assembles selected English conversion segment options into the text used for saving or sending. `textSelection.ts` tokenizes transfer/source text into word and whitespace tokens, normalizes selected ranges, assembles selected parts, and removes selected ranges from source text for partial moves. `transferActions.ts` centralizes the forward/move transfer decision logic for single-message, selected-text, and multi-message transfers so `App.tsx` can stay focused on UI orchestration. `transferSelection.ts` keeps the transfer dialog's pure word-range updates, selected-message preview text, selected range counts, and per-message transfer payload construction testable outside React. `messageOrder.ts` computes behavior-preserving reorder arrays for message up/down controls, conversation drag targets, and message before/after insertion positions. `dropTargets.ts` resolves pointer positions to before/after drop slots from measured item rectangles. `imageFiles.ts` centralizes clipboard image extraction, preview IDs, and clipboard image filename extensions.
+  Shared formatting, calendar grouping, clipboard, error, ordering, image-file, and small pure text helpers. `calendar.ts` owns local date/time parsing, date ranges, scheduled-block filtering, and day grouping. `messageClipboard.ts` owns block copy formatting and rich/plain clipboard fallbacks. `englishConversion.ts` assembles selected English conversion segment options into the text used for saving or sending. `textSelection.ts` tokenizes transfer/source text into word and whitespace tokens, normalizes selected ranges, assembles selected parts, and removes selected ranges from source text for partial moves. `transferActions.ts` centralizes the forward/move transfer decision logic for single-message, selected-text, and multi-message transfers so `App.tsx` can stay focused on UI orchestration. `transferSelection.ts` keeps the transfer dialog's pure word-range updates, selected-message preview text, selected range counts, and per-message transfer payload construction testable outside React. `messageOrder.ts` computes behavior-preserving reorder arrays for message up/down controls, conversation drag targets, and message before/after insertion positions. `dropTargets.ts` resolves pointer positions to before/after drop slots from measured item rectangles. `imageFiles.ts` centralizes clipboard image extraction, preview IDs, and clipboard image filename extensions.
 
 src/styles.css
   Global dark theme, responsive layout, viewport-constrained conversation pane, component surfaces, input states, shared button/icon alignment, message bubbles, drag reorder states, modal styling, English picker styling, and hover states.

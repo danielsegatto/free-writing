@@ -231,6 +231,35 @@ Requirements:
 
 ---
 
+### 7.3.8 Date/time and calendar
+
+The user can add a date and time to a message block and browse dated blocks on a global calendar.
+
+Version 1 behavior:
+
+- A block may be unscheduled or have one required date+time value.
+- The composer and inline edit form provide a date/time control.
+- Clearing the date/time removes the block from calendar views.
+- Dated blocks show their scheduled date/time in block metadata.
+- The global Calendar screen shows dated blocks from all loaded conversations.
+- Calendar views are `Today`, `This week`, and `This month`.
+- Today is an agenda list sorted by time.
+- This week groups blocks by day, using seven columns on desktop and stacked day sections on mobile.
+- This month uses a month grid on desktop and a date-grouped list on mobile.
+- Selecting a calendar item opens its source conversation and highlights the source block.
+
+Requirements:
+
+- Calendar date grouping uses the browser's local time.
+- This week starts on Sunday.
+- Blocks without a scheduled date/time do not appear on the calendar.
+- Whole-block copy and move preserve scheduled date/time.
+- Partial text moves create unscheduled target blocks.
+- New English blocks and synthesized conversation index blocks are unscheduled; replacing a source block with English keeps the source block's existing date/time.
+- Merged blocks use the earliest scheduled date/time from the selected blocks.
+
+---
+
 ### 7.4 Message editing
 
 The user can edit a message after creating it.
@@ -442,6 +471,7 @@ Shows all conversations.
 Content:
 
 - Header with app name
+- Calendar action
 - Search button or search input
 - New conversation button
 - List of conversations
@@ -488,6 +518,7 @@ Content:
 - Reorder controls for moving text blocks, plus drag-handle reordering between blocks on desktop and touch/pointer devices
 - Selection controls and a merge action for combining multiple selected blocks
 - English conversion picker modal with scrollable segment options
+- Date/time metadata and edit controls when a block is scheduled or being edited
 
 Scrolling behavior:
 
@@ -506,6 +537,26 @@ Content:
 - Matching messages
 - Conversation name for each result
 - Tap result to open message/conversation
+
+---
+
+### 8.5 Calendar screen
+
+Shows dated blocks across all loaded conversations.
+
+Content:
+
+- Back button on mobile
+- Calendar title and current date range
+- View switcher for `Today`, `This week`, and `This month`
+- Dated block items with scheduled time, conversation title, and block preview
+
+Layout:
+
+- Today uses a time-sorted agenda list.
+- This week uses seven day columns on desktop and stacked day sections on mobile.
+- This month uses a month grid on desktop and a date-grouped list on mobile.
+- Clicking a calendar item opens the source conversation and highlights the source block.
 
 ---
 
@@ -536,6 +587,9 @@ Content:
 - User can copy text-only, text/image, and image-only blocks to the system clipboard where browser support allows.
 - User can add, remove, and reuse tags/flags on message blocks.
 - User can filter loaded blocks by tags globally and within the active conversation.
+- User can add, edit, clear, and view a scheduled date/time on a block.
+- User can open a global calendar and browse dated blocks for today, this week, or this month.
+- User can click a calendar item to open and highlight the source block.
 - User can delete a message.
 - User can copy/forward a whole message or selected text parts to another conversation.
 - User can move a whole message or selected text parts to another conversation.
@@ -613,6 +667,8 @@ Version 1 is complete when:
 - I can copy an image-only block and paste the image into a compatible target where supported.
 - I can delete a message.
 - I can tag or flag a block, reuse an existing tag from suggestions while typing, remove the tag, and filter loaded blocks by tag.
+- I can add, edit, clear, and view a date/time on a block.
+- I can open the global calendar, browse dated blocks by today, this week, or this month, and open a source block from a calendar item.
 - I can add a conversation or quote reference to a message and open it when the source is loaded.
 - I can open draft English conversion with `Ctrl+Enter` / `Cmd+Enter`.
 - I can search messages.

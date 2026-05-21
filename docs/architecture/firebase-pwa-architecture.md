@@ -142,6 +142,7 @@ Useful user fields:
   ],
   "createdAt": "2026-05-11T12:00:00.000Z",
   "updatedAt": null,
+  "scheduledAt": "2026-05-21T09:30:00.000Z",
   "sortOrder": 1000,
   "isForwarded": false,
   "transferType": null,
@@ -192,6 +193,9 @@ Useful user fields:
 `updatedAt`
 : When message was edited. Null if never edited.
 
+`scheduledAt`
+: Optional user-assigned date/time used by the global calendar. Null or absent means the block is unscheduled. Older messages without this field are treated as unscheduled.
+
 `sortOrder`
 : Numeric display order within a conversation. Messages should be displayed by `sortOrder` ascending, with `createdAt` as a fallback.
 
@@ -218,13 +222,13 @@ Useful user fields:
 
 Forwarded and moved source metadata is kept for transfer labeling and compatibility. Copied/forwarded blocks can expose conversation-level source navigation through `forwardedFromConversationId` plus `forwardedFromConversationTitle`; quote-level navigation is rendered from structured `references` instead of text markers.
 
-Whole-block copy and move operations preserve tags. Partial text transfers intentionally create untagged target blocks because the tag may describe the full source block rather than the selected fragment.
+Whole-block copy and move operations preserve tags and `scheduledAt`. Partial text transfers intentionally create untagged, unscheduled target blocks because the metadata may describe the full source block rather than the selected fragment.
 
-English conversion results are also stored as normal messages. Creating an English block links the new block back to its source through `forwardedFromConversationId` and `forwardedFromMessageId`, while leaving `transferType` as `null` so it does not display as a forwarded or moved message. The created English block preserves the source block's tags. Replacing a source block with English text updates the same message through the normal edit path. Converting draft text sends the selected assembled English text directly as a new normal message instead of writing it back into the composer draft, and it preserves current composer image attachments and structured references on that new message.
+English conversion results are also stored as normal messages. Creating an English block links the new block back to its source through `forwardedFromConversationId` and `forwardedFromMessageId`, while leaving `transferType` as `null` so it does not display as a forwarded or moved message. The created English block preserves the source block's tags but is unscheduled. Replacing a source block with English text updates the same message through the normal edit path and preserves its existing `scheduledAt`. Converting draft text sends the selected assembled English text directly as a new normal message instead of writing it back into the composer draft, and it preserves current composer image attachments, structured references, and draft date/time on that new message.
 
 Synthesized conversation indexes are stored as ordinary message documents with `blockKind: "conversation-index"` and `indexEntries`. The `text` field stores a plain fallback/search representation of the generated index, while `indexEntries` drives the clickable rows. Creating an index appends a new bottom message and moves the receiving conversation to the top like other new blocks. Previous index blocks remain normal source blocks and are included in later synthesis requests.
 
-Merged text/image blocks are stored as normal messages. The app creates a replacement message with unified text plus selected attachments in display order, assigns the union of source tags, and deletes the selected original messages in the same batch.
+Merged text/image blocks are stored as normal messages. The app creates a replacement message with unified text plus selected attachments in display order, assigns the union of source tags and the earliest selected `scheduledAt`, and deletes the selected original messages in the same batch.
 
 ---
 

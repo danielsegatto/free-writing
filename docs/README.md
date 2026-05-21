@@ -6,7 +6,7 @@ This is the entry point for the Free Writing PWA documentation. The detailed bas
 
 ## App summary
 
-Free Writing is a private, Google-login messaging-style PWA for one user. It supports conversations, conversation list drag reordering, saved text/image blocks, image paste and selection, search, tags/flags on blocks with quick reuse suggestions plus global and conversation filtering, copying text/image blocks to the browser clipboard, editing, deletion, copying or moving whole blocks or selected parts between conversations with source metadata for copied blocks, manual up/down and drag-handle block reordering on desktop and touch/pointer devices, multi-block merging, per-block English conversion, conversation index synthesis, multi-device access, and offline support for the app shell plus cached Firestore data.
+Free Writing is a private, Google-login messaging-style PWA for one user. It supports conversations, conversation list drag reordering, saved text/image blocks, optional block date/time scheduling with a global calendar, image paste and selection, search, tags/flags on blocks with quick reuse suggestions plus global and conversation filtering, copying text/image blocks to the browser clipboard, editing, deletion, copying or moving whole blocks or selected parts between conversations with source metadata for copied blocks, manual up/down and drag-handle block reordering on desktop and touch/pointer devices, multi-block merging, per-block English conversion, conversation index synthesis, multi-device access, and offline support for the app shell plus cached Firestore data.
 
 Target devices:
 
@@ -62,9 +62,9 @@ Use the product docs when changing what the app should do or checking whether a 
 
 - Google/Gmail login behavior
 - Conversation behavior, including manual conversation ordering
-- Message creation, image attachments, editing, deletion, copying or moving whole/partial blocks between conversations, reordering, merging, English conversion, and conversation index synthesis
+- Message creation, date/time scheduling and calendar browsing, image attachments, editing, deletion, copying or moving whole/partial blocks between conversations, reordering, merging, English conversion, and conversation index synthesis
 - Message search
-- Sign-in, conversation list, conversation, and search screens
+- Sign-in, conversation list, conversation, calendar, and search screens
 - Functional requirements
 - Non-functional requirements
 - Acceptance criteria
@@ -113,7 +113,7 @@ Use [QA verification checklist](qa-v1-verification.md) before treating Firebase,
 
 The first useful version should be:
 
-> A private Google-login PWA where I can create and organize conversations, save text/image blocks, tag or flag blocks with quick reuse suggestions for filtering, copy text and attached images where the browser clipboard allows, convert text to English, synthesize a clickable conversation index, quickly convert draft text with keyboard shortcuts, edit/delete/search/reorder/merge blocks, forward or move whole blocks or selected parts between conversations, and access everything across iPhone, desktop, and tablet, with offline support for cached data.
+> A private Google-login PWA where I can create and organize conversations, save text/image blocks, add date/time to blocks and view them on a calendar, tag or flag blocks with quick reuse suggestions for filtering, copy text and attached images where the browser clipboard allows, convert text to English, synthesize a clickable conversation index, quickly convert draft text with keyboard shortcuts, edit/delete/search/reorder/merge blocks, forward or move whole blocks or selected parts between conversations, and access everything across iPhone, desktop, and tablet, with offline support for cached data.
 
 ## Maintenance guidance
 

@@ -19,8 +19,14 @@ export type EnglishPickerAction = 'create' | 'replace' | 'draft';
 type UseEnglishConversionPickerOptions = {
   draft: string;
   pendingReferences: MessageReference[];
+  draftScheduledAt: Date | null;
   onConvertToEnglish: (text: string) => Promise<EnglishConversion>;
-  onSubmitMessage: (textOverride?: string, imageFiles?: File[], references?: MessageReference[]) => void | Promise<void>;
+  onSubmitMessage: (
+    textOverride?: string,
+    imageFiles?: File[],
+    references?: MessageReference[],
+    scheduledAt?: Date | null
+  ) => void | Promise<void>;
   onCreateEnglishBlock: (message: Message, text: string) => Promise<void>;
   onReplaceWithEnglish: (message: Message, text: string) => Promise<void>;
   onDraftEnglishSent: () => void;
@@ -69,6 +75,7 @@ function createErrorState(source: EnglishPickerSource, error: unknown): EnglishP
 export function useEnglishConversionPicker({
   draft,
   pendingReferences,
+  draftScheduledAt,
   onConvertToEnglish,
   onSubmitMessage,
   onCreateEnglishBlock,
@@ -124,7 +131,7 @@ export function useEnglishConversionPicker({
     try {
       if (action === 'draft') {
         const draftImageFiles = englishPicker.source.type === 'draft' ? englishPicker.source.imageFiles : [];
-        await onSubmitMessage(englishText, draftImageFiles, pendingReferences);
+        await onSubmitMessage(englishText, draftImageFiles, pendingReferences, draftScheduledAt);
         onDraftEnglishSent();
       } else if (englishPicker.source.type === 'message') {
         if (action === 'create') {

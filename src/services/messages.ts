@@ -25,6 +25,8 @@ const messagePath = (userId: string, conversationId: string, messageId: string) 
 
 const sortStep = 1000;
 
+type ScheduledAtWriteValue = Date | Message['scheduledAt'] | null;
+
 type MessageWriteInput = {
   userId: string;
   conversationId: string;
@@ -33,6 +35,7 @@ type MessageWriteInput = {
   tags?: string[];
   attachments?: MessageAttachment[];
   references?: MessageReference[];
+  scheduledAt?: ScheduledAtWriteValue;
   sortOrder: number;
   isForwarded?: boolean;
   transferType?: Message['transferType'];
@@ -55,6 +58,7 @@ function buildMessageWrite({
   tags = [],
   attachments = [],
   references = [],
+  scheduledAt = null,
   sortOrder,
   isForwarded = false,
   transferType = null,
@@ -73,6 +77,7 @@ function buildMessageWrite({
     references,
     createdAt: serverTimestamp(),
     updatedAt: null,
+    scheduledAt,
     sortOrder,
     isForwarded,
     transferType,
@@ -106,6 +111,7 @@ function buildTransferredMessageWrite(
     tags: source.tags ?? [],
     attachments: source.attachments ?? [],
     references: source.references ?? [],
+    scheduledAt: source.scheduledAt ?? null,
     sortOrder,
     isForwarded: true,
     transferType,
@@ -122,6 +128,7 @@ function normalizeMessages(messages: Message[]) {
       attachments: message.attachments ?? [],
       references: message.references ?? [],
       tags: normalizeTags(message.tags ?? []),
+      scheduledAt: message.scheduledAt ?? null,
       indexEntries: message.indexEntries ?? [],
       sortOrder: typeof message.sortOrder === 'number' ? message.sortOrder : (index + 1) * sortStep,
       transferType: message.transferType ?? (message.isForwarded ? 'forwarded' : null),
@@ -162,7 +169,8 @@ export async function createMessage(
   conversationId: string,
   text: string,
   attachments: MessageAttachment[] = [],
-  references: MessageReference[] = []
+  references: MessageReference[] = [],
+  scheduledAt: Date | null = null
 ) {
   const cleanText = text.trim();
   if (!cleanText && attachments.length === 0 && references.length === 0) return null;
@@ -173,6 +181,7 @@ export async function createMessage(
     text: cleanText,
     attachments,
     references,
+    scheduledAt,
     sortOrder
   }));
   await touchConversation(userId, conversationId, getMessagePreview(cleanText, attachments, references), {
@@ -275,7 +284,8 @@ export async function editMessage(
   messageId: string,
   text: string,
   attachments?: MessageAttachment[],
-  references?: MessageReference[]
+  references?: MessageReference[],
+  scheduledAt?: Date | null
 ) {
   const cleanText = text.trim();
   const updates: {
@@ -284,6 +294,7 @@ export async function editMessage(
     updatedAt: ReturnType<typeof serverTimestamp>;
     attachments?: MessageAttachment[];
     references?: MessageReference[];
+    scheduledAt?: Date | null;
   } = {
     text: cleanText,
     searchText: cleanText.toLowerCase(),
@@ -291,6 +302,7 @@ export async function editMessage(
   };
   if (attachments) updates.attachments = attachments;
   if (references) updates.references = references;
+  if (scheduledAt !== undefined) updates.scheduledAt = scheduledAt;
   await updateDoc(messagePath(userId, conversationId, messageId), updates);
   await touchConversation(userId, conversationId, getMessagePreview(cleanText, attachments ?? [], references ?? []));
 }
@@ -390,6 +402,11 @@ export async function mergeMessages(userId: string, conversationId: string, mess
   const mergedText = selectedMessages.map((message) => message.text.trim()).filter(Boolean).join('\n\n').trim();
   const mergedAttachments = selectedMessages.flatMap((message) => message.attachments ?? []);
   const mergedTags = normalizeTags(selectedMessages.flatMap((message) => message.tags ?? []));
+  const earliestScheduledAt =
+    selectedMessages
+      .map((message) => message.scheduledAt)
+      .filter((scheduledAt): scheduledAt is NonNullable<Message['scheduledAt']> => Boolean(scheduledAt))
+      .sort((first, second) => first.toMillis() - second.toMillis())[0] ?? null;
   if (selectedMessages.length < 2 || (!mergedText && mergedAttachments.length === 0)) return null;
 
   const targetMessage = doc(messagesPath(userId, conversationId));
@@ -400,6 +417,7 @@ export async function mergeMessages(userId: string, conversationId: string, mess
     text: mergedText,
     attachments: mergedAttachments,
     tags: mergedTags,
+    scheduledAt: earliestScheduledAt,
     sortOrder: selectedMessages[0].sortOrder
   }));
   selectedMessages.forEach((message) => {

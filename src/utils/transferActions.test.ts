@@ -14,6 +14,7 @@ describe('executeTransferAction', () => {
     references: [],
     createdAt: { toMillis: () => 1, toDate: () => new Date() } as Message['createdAt'],
     updatedAt: null,
+    scheduledAt: null,
     sortOrder: 1000,
     isForwarded: false,
     transferType: null,

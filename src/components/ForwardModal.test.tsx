@@ -34,6 +34,7 @@ const sourceMessage: Message = {
   references: [],
   createdAt: timestamp,
   updatedAt: null,
+    scheduledAt: null,
   sortOrder: 1000,
   isForwarded: false,
   transferType: null,

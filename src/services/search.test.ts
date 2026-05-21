@@ -34,6 +34,7 @@ function message(id: string, conversationId: string, text: string): Message {
     references: [],
     createdAt: timestamp,
     updatedAt: null,
+    scheduledAt: null,
     sortOrder: 1000,
     isForwarded: false,
     transferType: null,

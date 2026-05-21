@@ -1,15 +1,18 @@
 import { useEffect, useRef, useState, type ClipboardEvent } from 'react';
-import { ClipboardPaste, ImagePlus, Languages, Link2, Quote, Send, X } from 'lucide-react';
+import { CalendarClock, ClipboardPaste, ImagePlus, Languages, Link2, Quote, Send, X } from 'lucide-react';
 import { useImagePreviews } from '../hooks/useImagePreviews';
 import type { MessageReference } from '../types';
+import { formatDateTimeLocalInput, parseDateTimeLocalInput } from '../utils/calendar';
 import { getImageExtension, getImageFilesFromClipboardData } from '../utils/imageFiles';
 import { truncateReferenceText } from '../utils/messageReferences';
 
 type MessageComposerProps = {
   draft: string;
   pendingReferences: MessageReference[];
+  scheduledAt: Date | null;
   onDraftChange: (value: string) => void;
-  onSubmitMessage: (imageFiles: File[]) => void | Promise<void>;
+  onScheduledAtChange: (scheduledAt: Date | null) => void;
+  onSubmitMessage: (imageFiles: File[], scheduledAt: Date | null) => void | Promise<void>;
   onConvertDraftToEnglish: (imageFiles: File[]) => void;
   clearImagePreviewsSignal: number;
   onAddConversationReference: () => void;
@@ -20,7 +23,9 @@ type MessageComposerProps = {
 export function MessageComposer({
   draft,
   pendingReferences,
+  scheduledAt,
   onDraftChange,
+  onScheduledAtChange,
   onSubmitMessage,
   onConvertDraftToEnglish,
   clearImagePreviewsSignal,
@@ -30,6 +35,7 @@ export function MessageComposer({
 }: MessageComposerProps) {
   const { imagePreviews, getImageFiles, addImageFiles, removeImage, clearImagePreviews } = useImagePreviews();
   const [isSending, setIsSending] = useState(false);
+  const [isScheduleOpen, setIsScheduleOpen] = useState(false);
   const [pasteStatus, setPasteStatus] = useState('');
   const [sendError, setSendError] = useState('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -93,7 +99,7 @@ export function MessageComposer({
     setIsSending(true);
     setSendError('');
     try {
-      await onSubmitMessage(getImageFiles());
+      await onSubmitMessage(getImageFiles(), scheduledAt);
       clearImagePreviews();
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (error) {
@@ -164,6 +170,27 @@ export function MessageComposer({
           placeholder="Write a message"
           rows={2}
         />
+        {(isScheduleOpen || scheduledAt) && (
+          <div className="composer-schedule">
+            <CalendarClock size={16} />
+            <input
+              aria-label="Block date and time"
+              type="datetime-local"
+              value={formatDateTimeLocalInput(scheduledAt)}
+              onChange={(event) => onScheduledAtChange(parseDateTimeLocalInput(event.target.value))}
+            />
+            {scheduledAt && (
+              <button
+                className="icon-button bare"
+                type="button"
+                title="Clear date and time"
+                onClick={() => onScheduledAtChange(null)}
+              >
+                <X size={15} />
+              </button>
+            )}
+          </div>
+        )}
         {sendError && (
           <p className="composer-error" role="alert">
             {sendError}
@@ -183,6 +210,14 @@ export function MessageComposer({
           aria-label="Add images"
           onChange={(event) => addComposerImageFiles(event.target.files)}
         />
+        <button
+          className="icon-button"
+          type="button"
+          title="Add date and time"
+          onClick={() => setIsScheduleOpen((isOpen) => !isOpen)}
+        >
+          <CalendarClock size={17} />
+        </button>
         <button
           className="icon-button"
           type="button"

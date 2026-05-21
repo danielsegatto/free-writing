@@ -11,7 +11,7 @@ Use this prompt when asking an AI builder to create the first version:
 ```text
 Build a simple multi-device offline-capable PWA called "Free Writing".
 
-The app is for one private user. It should feel like a minimal WhatsApp-style app, but it is for writing, organizing, tagging/filtering, searching, editing, deleting, merging, converting to English, synthesizing clickable conversation indexes, attaching small images, and copying or moving my own message blocks between private conversations.
+The app is for one private user. It should feel like a minimal WhatsApp-style app, but it is for writing, organizing, scheduling dated blocks on a calendar, tagging/filtering, searching, editing, deleting, merging, converting to English, synthesizing clickable conversation indexes, attaching small images, and copying or moving my own message blocks between private conversations.
 
 Target devices:
 - iPhone 8
@@ -52,6 +52,10 @@ Messages:
 - Cmd+Enter should open draft English conversion on macOS and iPad hardware keyboards.
 - User can edit messages inline inside the message block, without moving the text into the composer.
 - User can paste images while editing a message, preview them, and save them onto that block.
+- User can add, edit, clear, and view one scheduled date/time on a block.
+- User can open a global Calendar screen from the sidebar and browse dated blocks from all loaded conversations in Today, This week, and This month views.
+- Today should use a time-sorted agenda list. This week should group blocks by day. This month should use a month grid on desktop and a date-grouped list on mobile.
+- Clicking a calendar item should open the source conversation and highlight the source block.
 - User can copy saved blocks to the system clipboard. Text-only blocks copy plain text; blocks with images use best-effort rich clipboard data containing text and attached images, with plain-text fallback when possible.
 - User can delete messages with confirmation.
 - User can add and remove tags/flags on message blocks. The tag editor should suggest previously created tags from loaded blocks as the user types, exclude tags already on the current block, and support click or Enter selection.
@@ -76,6 +80,7 @@ Messages:
 - Moving leaves the user in the current conversation after completion and shows a non-blocking action to open the target conversation.
 - Merging creates one normal replacement message from the selected blocks in display order and removes the selected originals.
 - Merging preserves selected image attachments in display order.
+- Whole-block copy/move preserves scheduled date/time. Partial text moves create unscheduled target blocks. Merging keeps the earliest scheduled date/time from the selected blocks.
 - English conversion breaks the source text into sentence-level segments, offers three selectable English versions for each segment, and can create the selected English result as a new message below the original.
 - For saved messages, English conversion can also replace the source block with the selected English text.
 - For draft text, English conversion sends the selected English text directly as a new message.
@@ -111,6 +116,7 @@ Message fields:
 - tags
 - createdAt
 - updatedAt
+- scheduledAt
 - sortOrder
 - isForwarded
 - transferType
@@ -161,17 +167,18 @@ Build in this order:
 15. Move message to another conversation
 16. Reorder text blocks
 17. Add tags/flags and tag filtering
-18. Merge selected text blocks
-19. Add English conversion through a server-side proxy
-20. Add conversation index synthesis through the server-side proxy
-21. Search messages
-22. Add PWA manifest
-23. Add service worker
-24. Enable Firestore offline persistence
-25. Test on iPhone 8
-26. Test on desktop
-27. Test on tablet
-28. Test offline behavior
-29. Test authenticated English conversion and index synthesis
+18. Add date/time scheduling and the global calendar
+19. Merge selected text blocks
+20. Add English conversion through a server-side proxy
+21. Add conversation index synthesis through the server-side proxy
+22. Search messages
+23. Add PWA manifest
+24. Add service worker
+25. Enable Firestore offline persistence
+26. Test on iPhone 8
+27. Test on desktop
+28. Test on tablet
+29. Test offline behavior
+30. Test authenticated English conversion and index synthesis
 
 ---

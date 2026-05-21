@@ -37,6 +37,7 @@ function message(id: string, conversationId: string, text: string, tags: string[
     references: [],
     createdAt: timestamp(1),
     updatedAt: null,
+    scheduledAt: null,
     sortOrder: 1000,
     isForwarded: false,
     transferType: null,
@@ -51,6 +52,7 @@ function renderSidebar(overrides: Partial<ComponentProps<typeof Sidebar>> = {}) 
   const props: ComponentProps<typeof Sidebar> = {
     activeConversation: conversations[0],
     activeConversationId: 'first',
+    isCalendarOpen: false,
     conversations,
     searchTerm: '',
     searchResults: [],
@@ -63,6 +65,7 @@ function renderSidebar(overrides: Partial<ComponentProps<typeof Sidebar>> = {}) 
     onToggleTag: vi.fn(),
     onClearTags: vi.fn(),
     onOpenTagResult: vi.fn(),
+    onOpenCalendar: vi.fn(),
     onCreateConversation: vi.fn(),
     onSelectConversation: vi.fn(),
     onStartRename: vi.fn(),

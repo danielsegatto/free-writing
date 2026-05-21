@@ -67,6 +67,7 @@ export type Message = {
   references: MessageReference[];
   createdAt: Timestamp;
   updatedAt: Timestamp | null;
+  scheduledAt: Timestamp | null;
   sortOrder: number;
   isForwarded: boolean;
   transferType?: MessageTransferType;

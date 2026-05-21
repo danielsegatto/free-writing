@@ -66,6 +66,7 @@ function sourceMessage(overrides: Partial<Message> = {}): Message {
     references: [],
     createdAt: timestamp(1),
     updatedAt: null,
+    scheduledAt: null,
     sortOrder: 1000,
     isForwarded: false,
     transferType: null,
@@ -112,6 +113,7 @@ describe('message service writes', () => {
       references: [],
       createdAt: 'SERVER_TIMESTAMP',
       updatedAt: null,
+    scheduledAt: null,
       sortOrder: 4000,
       isForwarded: false,
       transferType: null,
@@ -145,6 +147,7 @@ describe('message service writes', () => {
       references: [],
       createdAt: 'SERVER_TIMESTAMP',
       updatedAt: null,
+    scheduledAt: null,
       sortOrder: 1000,
       isForwarded: false,
       transferType: null,
@@ -155,6 +158,20 @@ describe('message service writes', () => {
     expect(conversationMocks.touchConversation).toHaveBeenCalledWith('user-1', 'conversation-1', 'Image', {
       moveToTop: true
     });
+  });
+
+  it('stores a scheduled date when creating a message', async () => {
+    const scheduledAt = new Date('2026-05-21T16:30:00');
+
+    await createMessage('user-1', 'conversation-1', ' Scheduled note ', [], [], scheduledAt);
+
+    expect(firestoreMocks.addDoc).toHaveBeenCalledWith(
+      expect.objectContaining({ path: 'users/user-1/conversations/conversation-1/messages' }),
+      expect.objectContaining({
+        text: 'Scheduled note',
+        scheduledAt
+      })
+    );
   });
 
   it('creates reference-only messages with structured metadata', async () => {
@@ -182,6 +199,7 @@ describe('message service writes', () => {
       ],
       createdAt: 'SERVER_TIMESTAMP',
       updatedAt: null,
+    scheduledAt: null,
       sortOrder: 1000,
       isForwarded: false,
       transferType: null,
@@ -226,6 +244,7 @@ describe('message service writes', () => {
       references: [],
       createdAt: 'SERVER_TIMESTAMP',
       updatedAt: null,
+    scheduledAt: null,
       sortOrder: 4000,
       isForwarded: false,
       transferType: null,
@@ -264,9 +283,27 @@ describe('message service writes', () => {
     });
   });
 
+  it('updates or clears a scheduled date while editing a message', async () => {
+    const scheduledAt = new Date('2026-05-22T09:15:00');
+
+    await editMessage('user-1', 'conversation-1', 'message-1', 'Edited text', undefined, undefined, scheduledAt);
+
+    expect(firestoreMocks.updateDoc).toHaveBeenCalledWith(
+      expect.objectContaining({ path: 'users/user-1/conversations/conversation-1/messages/message-1' }),
+      expect.objectContaining({ scheduledAt })
+    );
+
+    await editMessage('user-1', 'conversation-1', 'message-1', 'Edited text', undefined, undefined, null);
+
+    expect(firestoreMocks.updateDoc).toHaveBeenLastCalledWith(
+      expect.objectContaining({ path: 'users/user-1/conversations/conversation-1/messages/message-1' }),
+      expect.objectContaining({ scheduledAt: null })
+    );
+  });
+
   it('normalizes older message records without references or tags', () => {
     const oldMessage = sourceMessage();
-    const { references: _references, tags: _tags, ...legacyMessage } = oldMessage;
+    const { references: _references, tags: _tags, scheduledAt: _scheduledAt, ...legacyMessage } = oldMessage;
     const onChange = vi.fn();
     firestoreMocks.onSnapshot.mockImplementation((_query, callback) => {
       callback(docsWithMessages([legacyMessage as Message]));
@@ -279,7 +316,8 @@ describe('message service writes', () => {
       expect.objectContaining({
         id: 'source-message',
         references: [],
-        tags: []
+        tags: [],
+        scheduledAt: null
       })
     ]);
   });
@@ -307,6 +345,7 @@ describe('message service writes', () => {
       references: [],
       createdAt: 'SERVER_TIMESTAMP',
       updatedAt: null,
+    scheduledAt: null,
       sortOrder: 1000,
       isForwarded: true,
       transferType: 'forwarded',
@@ -328,6 +367,19 @@ describe('message service writes', () => {
     }));
   });
 
+  it('preserves scheduled dates when forwarding whole blocks', async () => {
+    const scheduledAt = timestamp(5000);
+
+    await forwardMessage('user-1', sourceMessage({ scheduledAt }), 'target-conversation', 'Source chat');
+
+    expect(firestoreMocks.addDoc).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        scheduledAt
+      })
+    );
+  });
+
   it('creates an English block directly after the source message with a midpoint sort order', async () => {
     const first = sourceMessage({ id: 'first', conversationId: 'conversation-1', sortOrder: 1000 });
     const second = sourceMessage({ id: 'second', conversationId: 'conversation-1', sortOrder: 3000 });
@@ -342,6 +394,7 @@ describe('message service writes', () => {
       references: [],
       createdAt: 'SERVER_TIMESTAMP',
       updatedAt: null,
+    scheduledAt: null,
       sortOrder: 2000,
       isForwarded: false,
       transferType: null,
@@ -395,6 +448,7 @@ describe('message service writes', () => {
       references: [],
       createdAt: 'SERVER_TIMESTAMP',
       updatedAt: null,
+    scheduledAt: null,
       sortOrder: 1000,
       isForwarded: true,
       transferType: 'moved',
@@ -415,6 +469,19 @@ describe('message service writes', () => {
     expect(firestoreMocks.batch.set).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
       tags: ['Later']
     }));
+  });
+
+  it('preserves scheduled dates when moving whole blocks', async () => {
+    const scheduledAt = timestamp(5000);
+
+    await moveMessage('user-1', sourceMessage({ scheduledAt }), 'target-conversation');
+
+    expect(firestoreMocks.batch.set).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        scheduledAt
+      })
+    );
   });
 
   it('moves selected text to the top of the target conversation without moving the source conversation', async () => {
@@ -445,6 +512,7 @@ describe('message service writes', () => {
       references: [],
       createdAt: 'SERVER_TIMESTAMP',
       updatedAt: null,
+    scheduledAt: null,
       tags: ['Urgent', 'idea'],
       sortOrder: 1000,
       isForwarded: false,
@@ -457,6 +525,20 @@ describe('message service writes', () => {
     expect(firestoreMocks.batch.delete).toHaveBeenNthCalledWith(2, expect.objectContaining({ path: 'users/user-1/conversations/conversation-1/messages/first' }));
     expect(firestoreMocks.batch.commit).toHaveBeenCalled();
     expect(conversationMocks.touchConversation).toHaveBeenCalledWith('user-1', 'conversation-1', 'Second block\n\nFirst block');
+  });
+
+  it('keeps the earliest scheduled date when merging selected messages', async () => {
+    const later = sourceMessage({ id: 'later', conversationId: 'conversation-1', scheduledAt: timestamp(3000) });
+    const earlier = sourceMessage({ id: 'earlier', conversationId: 'conversation-1', scheduledAt: timestamp(2000) });
+
+    await mergeMessages('user-1', 'conversation-1', [later, earlier]);
+
+    expect(firestoreMocks.batch.set).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        scheduledAt: earlier.scheduledAt
+      })
+    );
   });
 
   it('persists reorder positions with stable numeric sort steps', async () => {

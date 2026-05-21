@@ -125,7 +125,7 @@ This version is still for one private user.
 
 ## 6. Core user story
 
-As the only user of the app, I want to sign in with Gmail, create and organize private conversations, write and organize text/image message blocks, tag or flag blocks for filtering, copy saved blocks out to other apps when needed, merge related blocks, move or copy full blocks and selected parts between conversations while keeping copied-block origins visible, convert text blocks to English when needed, synthesize clickable conversation maps, search them, edit them, delete them, and access them from my iPhone, desktop, and tablet, even with limited offline support.
+As the only user of the app, I want to sign in with Gmail, create and organize private conversations, write and organize text/image message blocks, add date/time to blocks and browse them on a calendar, tag or flag blocks for filtering, copy saved blocks out to other apps when needed, merge related blocks, move or copy full blocks and selected parts between conversations while keeping copied-block origins visible, convert text blocks to English when needed, synthesize clickable conversation maps, search them, edit them, delete them, and access them from my iPhone, desktop, and tablet, even with limited offline support.
 
 ---
 
@@ -133,4 +133,4 @@ As the only user of the app, I want to sign in with Gmail, create and organize p
 
 The first useful version should be:
 
-> A private Google-login PWA where I can create and organize conversations, save text/image blocks, tag or flag blocks with quick reuse suggestions, convert text to English, synthesize clickable conversation indexes, quickly convert draft text with keyboard shortcuts, edit/delete/search/reorder/merge blocks, copy or move whole blocks or selected parts between conversations while copied blocks show their source conversation, and access everything across iPhone, desktop, and tablet, with offline support for cached data.
+> A private Google-login PWA where I can create and organize conversations, save text/image blocks, add date/time to blocks and view them on a calendar, tag or flag blocks with quick reuse suggestions, convert text to English, synthesize clickable conversation indexes, quickly convert draft text with keyboard shortcuts, edit/delete/search/reorder/merge blocks, copy or move whole blocks or selected parts between conversations while copied blocks show their source conversation, and access everything across iPhone, desktop, and tablet, with offline support for cached data.

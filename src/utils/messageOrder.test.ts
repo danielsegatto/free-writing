@@ -13,6 +13,7 @@ function message(id: string): Message {
     references: [],
     createdAt: { toDate: () => new Date('2026-05-12T12:00:00Z'), toMillis: () => 1 } as Message['createdAt'],
     updatedAt: null,
+    scheduledAt: null,
     sortOrder: 1000,
     isForwarded: false,
     transferType: null,
