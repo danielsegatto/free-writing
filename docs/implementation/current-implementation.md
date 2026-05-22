@@ -130,7 +130,7 @@ src/components/SelectionToolbar.tsx
   Multi-block selection toolbar rendering for merge, copy-to-conversation, move-to-conversation, copy text, delete, cancel, selected count, busy states, and inline selection errors.
 
 src/components/ReferencePickerModal.tsx
-  Composer-side conversation link and quote citation picker plus saved-block connection picker. Owns picker-local conversation/message/word-range selection state, creates structured references, and returns the chosen reference or quote-fragment references to `ConversationPane`.
+  Composer-side conversation link and quote citation picker plus saved-block connection picker. Owns picker-local conversation/message state, delegates quote word selection gestures to `src/hooks/useWordRangeSelection.ts`, creates structured references, and returns the chosen reference or quote-fragment references to `ConversationPane`.
 
 src/components/MessageDragPreview.tsx
   Floating dragged-message preview rendering used by message drag reordering.
@@ -157,7 +157,7 @@ src/components/EnglishPickerModal.tsx
   English conversion dialog rendering. Receives picker state and callbacks from `useEnglishConversionPicker` through `ConversationPane`, renders loading/error/ready/saving states, a scrollable segment option list, and saved-message or draft-specific actions. It intentionally does not render a separate assembled preview so large conversions keep the options readable.
 
 src/components/ForwardModal.tsx
-  Transfer dialog used when forwarding or moving a message. It excludes the source conversation, renders the source text as selectable word tokens, supports tap toggling plus pointer drag select/unselect on mouse/touch/pen, previews the whole block or selected parts, and returns selected text ranges or per-message selection ranges with the target conversation. It owns modal UI state and rendering while delegating pure range updates, selected-message previews, and transfer payload construction to `src/utils/transferSelection.ts`.
+  Transfer dialog used when forwarding or moving a message. It excludes the source conversation, renders the source text as selectable word tokens, supports tap toggling plus pointer drag select/unselect on mouse/touch/pen, previews the whole block or selected parts, and returns selected text ranges or per-message selection ranges with the target conversation. It owns modal UI state and rendering while delegating shared click/drag word-selection gestures to `src/hooks/useWordRangeSelection.ts` and pure selected-message previews/payload construction to `src/utils/transferSelection.ts`.
 
 src/hooks/useMessagingData.ts
   Authentication, conversation, and message subscription lifecycle.
@@ -167,6 +167,9 @@ src/hooks/useMessagingData.ts
 
 src/hooks/useListReorderDrag.ts
   Shared native drag, touch/pointer drag, insertion target, floating preview, and edge-autoscroll state for reorderable lists.
+
+src/hooks/useWordRangeSelection.ts
+  Shared word-token click/tap toggling and pointer drag select/unselect state for transfer and quote-selection modals. It keeps pointer capture, drag direction, single-message ranges, and per-message range maps out of modal components while reusing the pure range helpers in `src/utils/transferSelection.ts`.
 
 src/hooks/useImagePreviews.ts
   Shared object-URL image preview lifecycle for composer and inline edit image files.
@@ -283,7 +286,7 @@ Local hosting on an idle machine is not the primary Version 1 deployment target.
 - `src/utils/messageClipboard.ts` handles block clipboard writes. Text-only blocks use `navigator.clipboard.writeText`; blocks with attachments use `navigator.clipboard.write` with `text/plain`, `text/html` containing escaped text plus inline image tags in attachment order, and the first data-URL image as a binary image clipboard item when supported. If rich clipboard writing fails for a block that has text, it falls back to plain-text copy. Image-only rich-copy failures show `Copy failed` through `ConversationPane` copy feedback state.
 - Clipboard copy is browser API UI only and does not touch Firestore. Paste fidelity depends on the destination app; plain text fields may receive only text even when rich clipboard data was written.
 - `src/App.tsx` models the pending transfer as `{ mode: 'forward' | 'move', message? | messages? }`, uses `src/utils/transferActions.ts` to centralize transfer decision logic, passes source conversation titles into forwarded writes, navigates to the target after copy/forward, and keeps the current conversation active after moves while showing a dismissible `Moved to [target]` notice with an `Open` action.
-- `src/components/ForwardModal.tsx` receives `mode`, `sourceMessage`, and optional `sourceMessages`, changes its heading between `Forward to` and `Move to`, excludes the source conversation from target choices, and returns optional selected source text ranges or per-message selections. It keeps pointer/click UI state local and uses `src/utils/transferSelection.ts` for pure range mutation, preview text, selected count, and payload assembly.
+- `src/components/ForwardModal.tsx` receives `mode`, `sourceMessage`, and optional `sourceMessages`, changes its heading between `Forward to` and `Move to`, excludes the source conversation from target choices, and returns optional selected source text ranges or per-message selections. It uses `src/hooks/useWordRangeSelection.ts` for shared pointer/click word selection and `src/utils/transferSelection.ts` for selected-message preview text, selected count, and payload assembly.
 - Transfer word selection is scoped to the forward/move dialog. Normal message bubbles remain plain readable text and do not expose per-word selection.
 - The transfer dialog supports separate selections: tapping a word toggles it, tapping a selected word deselects it, and pressing/holding then dragging with mouse, finger, or pen selects or unselects words depending on the first word's state. Hover is outline-only; selected words use the filled teal state.
 - Forwarding with selected ranges creates a normal forwarded target message whose text is assembled from the selected parts. Adjacent selected words remain one phrase; non-adjacent selected parts are joined as separate paragraphs.
@@ -361,7 +364,7 @@ Local hosting on an idle machine is not the primary Version 1 deployment target.
 
 - Messages can store structured `references` separately from body text. Conversation references point to another conversation by ID with a title snapshot. Block references point to a source message and store a target preview. Quote references also store selected text offsets and quote text.
 - `src/components/ConversationPane.tsx` opens composer-side pickers for conversation links and quote citations, and saved-message connection pickers for whole-block or quote connections. It receives derived backlink groups from `src/utils/messageReferences.ts`.
-- `src/components/ReferencePickerModal.tsx` owns the picker-local conversation/message/word-range selection state. Saved-block connection mode can target any loaded block, including same-conversation blocks and self-links. Quote mode reuses the forward/move word-range selection behavior so click and drag can create separate quote fragments, which save as separate quote references in one update.
+- `src/components/ReferencePickerModal.tsx` owns the picker-local conversation/message state and uses `src/hooks/useWordRangeSelection.ts` for quote word selection. Saved-block connection mode can target any loaded block, including same-conversation blocks and self-links. Quote mode reuses the forward/move word-range selection behavior so click and drag can create separate quote fragments, which save as separate quote references in one update.
 - `src/components/MessageConnections.tsx` renders outbound reference cards below message text and collapsed backlink rows for incoming loaded references. Conversation references navigate to the source conversation; block references navigate to the source message; quote references navigate to the source message and temporarily highlight the cited text range when the source is still loaded.
 - Inline editing can remove existing references from a saved message. Adding saved block connections uses the per-block `Connect block` action.
 - Old messages without `references` are normalized to an empty reference list by the message subscription path.

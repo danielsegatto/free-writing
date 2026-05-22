@@ -1,14 +1,16 @@
-import { useRef, useState, type PointerEvent } from 'react';
 import { X } from 'lucide-react';
 import type { Conversation, Message } from '../types';
-import { getSelectedTextFromRanges, getTextTokens, type TextSelectionRange } from '../utils/textSelection';
+import {
+  getSelectedTextFromRanges,
+  getTextTokens,
+  type TextSelectionRange,
+} from '../utils/textSelection';
+import { useWordRangeSelection } from '../hooks/useWordRangeSelection';
 import type { MessageSelection } from '../utils/transferActions';
 import {
   buildMessageSelections,
   getMessageSelectionRangeCount,
   getSelectedMessageText,
-  isTextRangeSelected,
-  updateTextSelectionRanges
 } from '../utils/transferSelection';
 
 type ForwardModalProps = {
@@ -20,121 +22,59 @@ type ForwardModalProps = {
   onForward: (
     targetConversationId: string,
     ranges?: TextSelectionRange[],
-    messageSelections?: MessageSelection[]
+    messageSelections?: MessageSelection[],
   ) => void;
 };
 
-export function ForwardModal({ conversations, mode, sourceMessage, sourceMessages = [], onClose, onForward }: ForwardModalProps) {
+export function ForwardModal({
+  conversations,
+  mode,
+  sourceMessage,
+  sourceMessages = [],
+  onClose,
+  onForward,
+}: ForwardModalProps) {
   const actionLabel = mode === 'move' ? 'Move' : 'Forward';
-  const selectedMessages = sourceMessages.length > 0 ? sourceMessages : sourceMessage ? [sourceMessage] : [];
+  const selectedMessages =
+    sourceMessages.length > 0
+      ? sourceMessages
+      : sourceMessage
+        ? [sourceMessage]
+        : [];
   const primarySourceMessage = selectedMessages[0];
   const isSelectedBlockTransfer = sourceMessages.length > 0;
-  const [selectionRanges, setSelectionRanges] = useState<TextSelectionRange[]>([]);
-  const [messageSelectionRanges, setMessageSelectionRanges] = useState<Record<string, TextSelectionRange[]>>({});
-  const dragSelection = useRef<{
-    pointerId: number;
-    mode: 'select' | 'unselect';
-  } | null>(null);
-  const handledPointerClick = useRef(false);
-  const selectedText = sourceMessage ? getSelectedTextFromRanges(sourceMessage.text, selectionRanges) : '';
-  const selectedMessageText = getSelectedMessageText(selectedMessages, messageSelectionRanges);
+  const {
+    selectionRanges,
+    messageSelectionRanges,
+    clearSelection,
+    isSelected,
+    handleWordPointerDown,
+    handlePointerMove,
+    endDragSelection,
+    handleWordClick,
+  } = useWordRangeSelection({
+    wordSelector: '[data-transfer-word="true"]',
+    captureSelector: '.transfer-source-text',
+  });
+  const selectedText = sourceMessage
+    ? getSelectedTextFromRanges(sourceMessage.text, selectionRanges)
+    : '';
+  const selectedMessageText = getSelectedMessageText(
+    selectedMessages,
+    messageSelectionRanges,
+  );
   const transferText = isSelectedBlockTransfer
-    ? selectedMessageText || selectedMessages.map((message) => message.text.trim()).filter(Boolean).join('\n\n')
+    ? selectedMessageText ||
+      selectedMessages
+        .map((message) => message.text.trim())
+        .filter(Boolean)
+        .join('\n\n')
     : selectedText || (sourceMessage?.text ?? '');
   const selectedWordCount = isSelectedBlockTransfer
     ? getMessageSelectionRangeCount(messageSelectionRanges)
     : selectionRanges.length;
 
   if (!primarySourceMessage) return null;
-
-  function updateWordSelection(startOffset: number, endOffset: number, mode: 'toggle' | 'select' | 'unselect') {
-    setSelectionRanges((currentSelectionRanges) => {
-      return updateTextSelectionRanges(currentSelectionRanges, startOffset, endOffset, mode);
-    });
-  }
-
-  function updateMessageWordSelection(
-    messageId: string,
-    startOffset: number,
-    endOffset: number,
-    mode: 'toggle' | 'select' | 'unselect'
-  ) {
-    setMessageSelectionRanges((currentSelectionRanges) => {
-      const nextRanges = updateTextSelectionRanges(
-        currentSelectionRanges[messageId] ?? [],
-        startOffset,
-        endOffset,
-        mode
-      );
-      return {
-        ...currentSelectionRanges,
-        [messageId]: nextRanges
-      };
-    });
-  }
-
-  function isWordSelected(startOffset: number, endOffset: number) {
-    return isTextRangeSelected(selectionRanges, startOffset, endOffset);
-  }
-
-  function isMessageWordSelected(messageId: string, startOffset: number, endOffset: number) {
-    return isTextRangeSelected(messageSelectionRanges[messageId] ?? [], startOffset, endOffset);
-  }
-
-  function getWordRangeFromElement(element: Element | null) {
-    const wordElement = element?.closest<HTMLElement>('[data-transfer-word="true"]');
-    if (!wordElement) return null;
-    const messageId = wordElement.dataset.messageId;
-    const startOffset = Number(wordElement.dataset.startOffset);
-    const endOffset = Number(wordElement.dataset.endOffset);
-    if (!Number.isFinite(startOffset) || !Number.isFinite(endOffset)) return null;
-    return { messageId, startOffset, endOffset };
-  }
-
-  function handleWordPointerDown(
-    event: PointerEvent<HTMLButtonElement>,
-    startOffset: number,
-    endOffset: number,
-    messageId?: string
-  ) {
-    const mode = messageId
-      ? isMessageWordSelected(messageId, startOffset, endOffset) ? 'unselect' : 'select'
-      : isWordSelected(startOffset, endOffset) ? 'unselect' : 'select';
-    dragSelection.current = { pointerId: event.pointerId, mode };
-    handledPointerClick.current = true;
-    event.preventDefault();
-    event.currentTarget.closest<HTMLElement>('.transfer-source-text')?.setPointerCapture?.(event.pointerId);
-    if (messageId) {
-      updateMessageWordSelection(messageId, startOffset, endOffset, mode);
-    } else {
-      updateWordSelection(startOffset, endOffset, mode);
-    }
-  }
-
-  function handleSourcePointerMove(event: PointerEvent<HTMLDivElement>) {
-    const currentDragSelection = dragSelection.current;
-    if (!currentDragSelection || currentDragSelection.pointerId !== event.pointerId) return;
-
-    event.preventDefault();
-    const wordRange = getWordRangeFromElement(document.elementFromPoint(event.clientX, event.clientY));
-    if (!wordRange) return;
-    if (wordRange.messageId) {
-      updateMessageWordSelection(
-        wordRange.messageId,
-        wordRange.startOffset,
-        wordRange.endOffset,
-        currentDragSelection.mode
-      );
-    } else {
-      updateWordSelection(wordRange.startOffset, wordRange.endOffset, currentDragSelection.mode);
-    }
-  }
-
-  function endDragSelection(event: PointerEvent<HTMLDivElement>) {
-    if (dragSelection.current?.pointerId === event.pointerId) {
-      dragSelection.current = null;
-    }
-  }
 
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true">
@@ -150,7 +90,7 @@ export function ForwardModal({ conversations, mode, sourceMessage, sourceMessage
             <div
               className="transfer-source-text"
               aria-label="Choose text to transfer"
-              onPointerMove={handleSourcePointerMove}
+              onPointerMove={handlePointerMove}
               onPointerUp={endDragSelection}
               onPointerCancel={endDragSelection}
               onLostPointerCapture={endDragSelection}
@@ -163,30 +103,50 @@ export function ForwardModal({ conversations, mode, sourceMessage, sourceMessage
                           <button
                             key={`${message.id}-${token.startOffset}-${token.endOffset}`}
                             className={`word-token ${
-                              isMessageWordSelected(message.id, token.startOffset, token.endOffset) ? 'selected' : ''
+                              isSelected(
+                                token.startOffset,
+                                token.endOffset,
+                                message.id,
+                              )
+                                ? 'selected'
+                                : ''
                             }`}
                             type="button"
-                            aria-pressed={isMessageWordSelected(message.id, token.startOffset, token.endOffset)}
+                            aria-pressed={isSelected(
+                              token.startOffset,
+                              token.endOffset,
+                              message.id,
+                            )}
                             data-transfer-word="true"
                             data-message-id={message.id}
                             data-start-offset={token.startOffset}
                             data-end-offset={token.endOffset}
                             onPointerDown={(event) =>
-                              handleWordPointerDown(event, token.startOffset, token.endOffset, message.id)
+                              handleWordPointerDown(
+                                event,
+                                token.startOffset,
+                                token.endOffset,
+                                message.id,
+                              )
                             }
-                            onClick={(event) => {
-                              if (handledPointerClick.current && event.detail !== 0) {
-                                handledPointerClick.current = false;
-                                return;
-                              }
-                              updateMessageWordSelection(message.id, token.startOffset, token.endOffset, 'toggle');
-                            }}
+                            onClick={(event) =>
+                              handleWordClick(
+                                token.startOffset,
+                                token.endOffset,
+                                event.detail,
+                                message.id,
+                              )
+                            }
                           >
                             {token.text}
                           </button>
                         ) : (
-                          <span key={`${message.id}-${token.startOffset}-${token.endOffset}`}>{token.text}</span>
-                        )
+                          <span
+                            key={`${message.id}-${token.startOffset}-${token.endOffset}`}
+                          >
+                            {token.text}
+                          </span>
+                        ),
                       )}
                     </div>
                   ))
@@ -194,26 +154,37 @@ export function ForwardModal({ conversations, mode, sourceMessage, sourceMessage
                     token.isWord ? (
                       <button
                         key={`${token.startOffset}-${token.endOffset}`}
-                        className={`word-token ${isWordSelected(token.startOffset, token.endOffset) ? 'selected' : ''}`}
+                        className={`word-token ${isSelected(token.startOffset, token.endOffset) ? 'selected' : ''}`}
                         type="button"
-                        aria-pressed={isWordSelected(token.startOffset, token.endOffset)}
+                        aria-pressed={isSelected(
+                          token.startOffset,
+                          token.endOffset,
+                        )}
                         data-transfer-word="true"
                         data-start-offset={token.startOffset}
                         data-end-offset={token.endOffset}
-                        onPointerDown={(event) => handleWordPointerDown(event, token.startOffset, token.endOffset)}
-                        onClick={(event) => {
-                          if (handledPointerClick.current && event.detail !== 0) {
-                            handledPointerClick.current = false;
-                            return;
-                          }
-                          updateWordSelection(token.startOffset, token.endOffset, 'toggle');
-                        }}
+                        onPointerDown={(event) =>
+                          handleWordPointerDown(
+                            event,
+                            token.startOffset,
+                            token.endOffset,
+                          )
+                        }
+                        onClick={(event) =>
+                          handleWordClick(
+                            token.startOffset,
+                            token.endOffset,
+                            event.detail,
+                          )
+                        }
                       >
                         {token.text}
                       </button>
                     ) : (
-                      <span key={`${token.startOffset}-${token.endOffset}`}>{token.text}</span>
-                    )
+                      <span key={`${token.startOffset}-${token.endOffset}`}>
+                        {token.text}
+                      </span>
+                    ),
                   )}
             </div>
             <div className="transfer-selection-summary">
@@ -230,10 +201,7 @@ export function ForwardModal({ conversations, mode, sourceMessage, sourceMessage
                 <button
                   className="text-button"
                   type="button"
-                  onClick={() => {
-                    setSelectionRanges([]);
-                    setMessageSelectionRanges({});
-                  }}
+                  onClick={clearSelection}
                 >
                   Use whole block
                 </button>
@@ -243,7 +211,10 @@ export function ForwardModal({ conversations, mode, sourceMessage, sourceMessage
           </div>
           <div className="transfer-target-list">
             {conversations
-              .filter((conversation) => conversation.id !== primarySourceMessage.conversationId)
+              .filter(
+                (conversation) =>
+                  conversation.id !== primarySourceMessage.conversationId,
+              )
               .map((conversation) => (
                 <button
                   key={conversation.id}
@@ -253,13 +224,18 @@ export function ForwardModal({ conversations, mode, sourceMessage, sourceMessage
                       onForward(
                         conversation.id,
                         undefined,
-                        buildMessageSelections(selectedMessages, messageSelectionRanges)
+                        buildMessageSelections(
+                          selectedMessages,
+                          messageSelectionRanges,
+                        ),
                       );
                       return;
                     }
                     onForward(
                       conversation.id,
-                      !isSelectedBlockTransfer && selectionRanges.length > 0 ? selectionRanges : undefined
+                      !isSelectedBlockTransfer && selectionRanges.length > 0
+                        ? selectionRanges
+                        : undefined,
                     );
                   }}
                 >
