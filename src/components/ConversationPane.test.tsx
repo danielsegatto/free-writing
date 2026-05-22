@@ -1647,6 +1647,88 @@ describe('ConversationPane', () => {
     });
   });
 
+  it('creates quote connections from separate clicked text fragments', async () => {
+    const onUpdateMessageReferences = vi.fn(async () => undefined);
+    const source = message('source', 'Source block');
+    const target = message('target', 'Alpha beta Gamma');
+    renderPane({
+      activeMessages: [source, target],
+      messagesByConversation: { [conversation.id]: [source, target] },
+      onUpdateMessageReferences
+    });
+
+    fireEvent.click(screen.getAllByTitle('Connect block')[0]);
+    const dialog = screen.getByRole('dialog', { name: 'Connect block' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Quote' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Alpha beta Gamma' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Alpha' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Gamma' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Connect quote' }));
+
+    await waitFor(() => {
+      expect(onUpdateMessageReferences).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'source' }),
+        [
+          expect.objectContaining({
+            type: 'quote',
+            sourceMessageId: 'target',
+            quoteText: 'Alpha',
+            startOffset: 0,
+            endOffset: 5
+          }),
+          expect.objectContaining({
+            type: 'quote',
+            sourceMessageId: 'target',
+            quoteText: 'Gamma',
+            startOffset: 11,
+            endOffset: 16
+          })
+        ]
+      );
+    });
+  });
+
+  it('creates quote connections by dragging across text fragments', async () => {
+    const onUpdateMessageReferences = vi.fn(async () => undefined);
+    const source = message('source', 'Source block');
+    const target = message('target', 'Alpha beta Gamma');
+    const originalElementFromPoint = document.elementFromPoint;
+    renderPane({
+      activeMessages: [source, target],
+      messagesByConversation: { [conversation.id]: [source, target] },
+      onUpdateMessageReferences
+    });
+
+    fireEvent.click(screen.getAllByTitle('Connect block')[0]);
+    const dialog = screen.getByRole('dialog', { name: 'Connect block' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Quote' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Alpha beta Gamma' }));
+
+    const alphaWord = within(dialog).getByRole('button', { name: 'Alpha' });
+    const gammaWord = within(dialog).getByRole('button', { name: 'Gamma' });
+    const sourceText = within(dialog).getByLabelText('Source message text');
+    document.elementFromPoint = vi.fn(() => gammaWord);
+
+    try {
+      fireEvent.pointerDown(alphaWord, { pointerId: 1, clientX: 4, clientY: 4 });
+      fireEvent.pointerMove(sourceText, { pointerId: 1, clientX: 60, clientY: 4 });
+      fireEvent.pointerUp(sourceText, { pointerId: 1 });
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Connect quote' }));
+
+      await waitFor(() => {
+        expect(onUpdateMessageReferences).toHaveBeenCalledWith(
+          expect.objectContaining({ id: 'source' }),
+          [
+            expect.objectContaining({ type: 'quote', quoteText: 'Alpha', startOffset: 0, endOffset: 5 }),
+            expect.objectContaining({ type: 'quote', quoteText: 'Gamma', startOffset: 11, endOffset: 16 })
+          ]
+        );
+      });
+    } finally {
+      document.elementFromPoint = originalElementFromPoint;
+    }
+  });
+
   it('allows connecting a saved block to itself', async () => {
     const onUpdateMessageReferences = vi.fn(async () => undefined);
     renderPane({ onUpdateMessageReferences });

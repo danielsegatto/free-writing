@@ -200,7 +200,8 @@ Version 1 behavior:
 
 - The composer can add a reference to another conversation or a selected quote from an existing message.
 - A saved block can connect to any loaded block, including a block in the same conversation or itself.
-- Saved-block connections can point to the whole target block or a selected quote inside the target block.
+- Saved-block connections can point to the whole target block or selected quote fragments inside the target block.
+- Quote fragment selection uses the same word-selection behavior as forwarding: click toggles words, dragging selects or unselects multiple words, and separate non-adjacent fragments stay separate.
 - Blocks with incoming saved-block connections show a collapsed backlink row such as `Connected from 2 blocks`; expanding it shows clickable source-block cards.
 - The composer supports `[[Conversation title]]` inline links through typeahead suggestions from unique conversation titles.
 - Saved inline conversation links render as the conversation title with a visual linked/quoted cue; the `[[` and `]]` markers do not show in the message body.

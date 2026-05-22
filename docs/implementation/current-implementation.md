@@ -130,7 +130,7 @@ src/components/SelectionToolbar.tsx
   Multi-block selection toolbar rendering for merge, copy-to-conversation, move-to-conversation, copy text, delete, cancel, selected count, busy states, and inline selection errors.
 
 src/components/ReferencePickerModal.tsx
-  Composer-side conversation link and quote citation picker plus saved-block connection picker. Owns picker-local conversation/message/word-range selection state, creates structured references, and returns the chosen reference to `ConversationPane`.
+  Composer-side conversation link and quote citation picker plus saved-block connection picker. Owns picker-local conversation/message/word-range selection state, creates structured references, and returns the chosen reference or quote-fragment references to `ConversationPane`.
 
 src/components/MessageDragPreview.tsx
   Floating dragged-message preview rendering used by message drag reordering.
@@ -360,9 +360,9 @@ Local hosting on an idle machine is not the primary Version 1 deployment target.
 ### Structured references and block connections
 
 - Messages can store structured `references` separately from body text. Conversation references point to another conversation by ID with a title snapshot. Block references point to a source message and store a target preview. Quote references also store selected text offsets and quote text.
-- `src/components/ConversationPane.tsx` opens composer-side pickers for conversation links and quote citations, and saved-message connection pickers for whole-block or quote connections. It also derives backlinks by scanning loaded messages for block/quote references that point at each visible block.
-- `src/components/ReferencePickerModal.tsx` owns the picker-local conversation/message/word-range selection state. Saved-block connection mode can target any loaded block, including same-conversation blocks and self-links.
-- `src/components/MessageBubble.tsx` renders outbound reference cards below message text and collapsed backlink rows for incoming loaded references. Conversation references navigate to the source conversation; block references navigate to the source message; quote references navigate to the source message and temporarily highlight the cited text range when the source is still loaded.
+- `src/components/ConversationPane.tsx` opens composer-side pickers for conversation links and quote citations, and saved-message connection pickers for whole-block or quote connections. It receives derived backlink groups from `src/utils/messageReferences.ts`.
+- `src/components/ReferencePickerModal.tsx` owns the picker-local conversation/message/word-range selection state. Saved-block connection mode can target any loaded block, including same-conversation blocks and self-links. Quote mode reuses the forward/move word-range selection behavior so click and drag can create separate quote fragments, which save as separate quote references in one update.
+- `src/components/MessageConnections.tsx` renders outbound reference cards below message text and collapsed backlink rows for incoming loaded references. Conversation references navigate to the source conversation; block references navigate to the source message; quote references navigate to the source message and temporarily highlight the cited text range when the source is still loaded.
 - Inline editing can remove existing references from a saved message. Adding saved block connections uses the per-block `Connect block` action.
 - Old messages without `references` are normalized to an empty reference list by the message subscription path.
 

@@ -62,11 +62,10 @@ export function normalizeSelectionRanges(ranges: TextSelectionRange[]) {
     }, []);
 }
 
-export function getSelectedTextFromRanges(text: string, ranges: TextSelectionRange[]) {
+export function getSelectionRangeChunks(text: string, ranges: TextSelectionRange[]) {
   const normalizedRanges = normalizeSelectionRanges(ranges);
-  if (normalizedRanges.length === 0) return '';
 
-  const chunks = normalizedRanges.reduce<TextSelectionRange[]>((currentChunks, range) => {
+  return normalizedRanges.reduce<TextSelectionRange[]>((currentChunks, range) => {
     const previousChunk = currentChunks.at(-1);
     const gap = previousChunk ? text.slice(previousChunk.endOffset, range.startOffset) : '';
 
@@ -78,6 +77,11 @@ export function getSelectedTextFromRanges(text: string, ranges: TextSelectionRan
 
     return currentChunks;
   }, []);
+}
+
+export function getSelectedTextFromRanges(text: string, ranges: TextSelectionRange[]) {
+  const chunks = getSelectionRangeChunks(text, ranges);
+  if (chunks.length === 0) return '';
 
   return chunks
     .map((chunk) => text.slice(chunk.startOffset, chunk.endOffset).trim())

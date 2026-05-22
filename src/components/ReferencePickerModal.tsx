@@ -1,5 +1,5 @@
 import { Link2, Quote, X } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState, type PointerEvent } from 'react';
 import type { Conversation, Message, MessageReference } from '../types';
 import {
   createBlockReference,
@@ -7,7 +7,8 @@ import {
   createQuoteReference,
   getMessageReferencePreview
 } from '../utils/messageReferences';
-import { getTextTokens } from '../utils/textSelection';
+import { getSelectionRangeChunks, getSelectedTextFromRanges, getTextTokens, type TextSelectionRange } from '../utils/textSelection';
+import { isTextRangeSelected, updateTextSelectionRanges } from '../utils/transferSelection';
 
 export type ReferencePickerMode = 'conversation' | 'quote' | 'connection';
 type ConnectionKind = 'block' | 'quote';
@@ -18,7 +19,7 @@ type ReferencePickerModalProps = {
   sourceMessage?: Message | null;
   conversations: Conversation[];
   messagesByConversation: Record<string, Message[]>;
-  onAddReference: (reference: MessageReference) => void;
+  onAddReferences: (references: MessageReference[]) => void;
   onClose: () => void;
 };
 
@@ -43,15 +44,20 @@ export function ReferencePickerModal({
   sourceMessage,
   conversations,
   messagesByConversation,
-  onAddReference,
+  onAddReferences,
   onClose
 }: ReferencePickerModalProps) {
   const [referenceConversationId, setReferenceConversationId] = useState<string | null>(() =>
     getDefaultConversationId(mode, activeConversation, conversations)
   );
   const [referenceMessageId, setReferenceMessageId] = useState<string | null>(null);
-  const [referenceSelection, setReferenceSelection] = useState({ start: 0, end: 0 });
+  const [referenceSelectionRanges, setReferenceSelectionRanges] = useState<TextSelectionRange[]>([]);
   const [connectionKind, setConnectionKind] = useState<ConnectionKind>('block');
+  const dragSelection = useRef<{
+    pointerId: number;
+    mode: 'select' | 'unselect';
+  } | null>(null);
+  const handledPointerClick = useRef(false);
 
   const referenceConversation =
     conversations.find((conversation) => conversation.id === referenceConversationId) ?? null;
@@ -60,45 +66,78 @@ export function ReferencePickerModal({
   const isConnectionMode = mode === 'connection';
   const isQuoteMode = mode === 'quote' || (isConnectionMode && connectionKind === 'quote');
   const dialogTitle = isConnectionMode ? 'Connect block' : mode === 'quote' ? 'Cite text' : 'Add conversation link';
+  const selectedQuoteText = referenceMessage ? getSelectedTextFromRanges(referenceMessage.text, referenceSelectionRanges) : '';
 
   function selectConversation(conversationId: string) {
     setReferenceConversationId(conversationId);
     setReferenceMessageId(null);
-    setReferenceSelection({ start: 0, end: 0 });
+    setReferenceSelectionRanges([]);
   }
 
   function addConversationReference() {
     if (!referenceConversation) return;
-    onAddReference(createConversationReference(referenceConversation));
+    onAddReferences([createConversationReference(referenceConversation)]);
   }
 
-  function addQuoteReference() {
+  function addQuoteReferences() {
     if (!referenceConversation || !referenceMessage) return;
-    const reference = createQuoteReference(
-      referenceConversation,
-      referenceMessage,
-      referenceSelection.start,
-      referenceSelection.end
-    );
-    if (reference) onAddReference(reference);
+    const references = getSelectionRangeChunks(referenceMessage.text, referenceSelectionRanges)
+      .map((range) => createQuoteReference(referenceConversation, referenceMessage, range.startOffset, range.endOffset))
+      .filter((reference): reference is MessageReference => Boolean(reference));
+    if (references.length > 0) onAddReferences(references);
   }
 
   function addBlockReference() {
     if (!referenceConversation || !referenceMessage) return;
-    onAddReference(createBlockReference(referenceConversation, referenceMessage));
+    onAddReferences([createBlockReference(referenceConversation, referenceMessage)]);
   }
 
-  function selectReferenceWord(startOffset: number, endOffset: number) {
-    setReferenceSelection((currentSelection) => {
-      if (currentSelection.start === currentSelection.end) {
-        return { start: startOffset, end: endOffset };
-      }
+  function updateReferenceWordSelection(
+    startOffset: number,
+    endOffset: number,
+    selectionMode: 'toggle' | 'select' | 'unselect'
+  ) {
+    setReferenceSelectionRanges((currentRanges) =>
+      updateTextSelectionRanges(currentRanges, startOffset, endOffset, selectionMode)
+    );
+  }
 
-      return {
-        start: Math.min(currentSelection.start, startOffset),
-        end: Math.max(currentSelection.end, endOffset)
-      };
-    });
+  function isReferenceWordSelected(startOffset: number, endOffset: number) {
+    return isTextRangeSelected(referenceSelectionRanges, startOffset, endOffset);
+  }
+
+  function getWordRangeFromElement(element: Element | null) {
+    const wordElement = element?.closest<HTMLElement>('[data-reference-word="true"]');
+    if (!wordElement) return null;
+    const startOffset = Number(wordElement.dataset.startOffset);
+    const endOffset = Number(wordElement.dataset.endOffset);
+    if (!Number.isFinite(startOffset) || !Number.isFinite(endOffset)) return null;
+    return { startOffset, endOffset };
+  }
+
+  function handleWordPointerDown(event: PointerEvent<HTMLButtonElement>, startOffset: number, endOffset: number) {
+    const selectionMode = isReferenceWordSelected(startOffset, endOffset) ? 'unselect' : 'select';
+    dragSelection.current = { pointerId: event.pointerId, mode: selectionMode };
+    handledPointerClick.current = true;
+    event.preventDefault();
+    event.currentTarget.closest<HTMLElement>('.reference-word-picker')?.setPointerCapture?.(event.pointerId);
+    updateReferenceWordSelection(startOffset, endOffset, selectionMode);
+  }
+
+  function handleReferencePointerMove(event: PointerEvent<HTMLDivElement>) {
+    const currentDragSelection = dragSelection.current;
+    if (!currentDragSelection || currentDragSelection.pointerId !== event.pointerId) return;
+
+    event.preventDefault();
+    const wordRange = getWordRangeFromElement(document.elementFromPoint(event.clientX, event.clientY));
+    if (!wordRange) return;
+    updateReferenceWordSelection(wordRange.startOffset, wordRange.endOffset, currentDragSelection.mode);
+  }
+
+  function endDragSelection(event: PointerEvent<HTMLDivElement>) {
+    if (dragSelection.current?.pointerId === event.pointerId) {
+      dragSelection.current = null;
+    }
   }
 
   return (
@@ -145,7 +184,7 @@ export function ReferencePickerModal({
                 type="button"
                 onClick={() => {
                   setConnectionKind('block');
-                  setReferenceSelection({ start: 0, end: 0 });
+                  setReferenceSelectionRanges([]);
                 }}
               >
                 Whole block
@@ -172,7 +211,7 @@ export function ReferencePickerModal({
                       type="button"
                       onClick={() => {
                         setReferenceMessageId(message.id);
-                        setReferenceSelection({ start: 0, end: 0 });
+                        setReferenceSelectionRanges([]);
                       }}
                     >
                       {message.text}
@@ -180,18 +219,32 @@ export function ReferencePickerModal({
                   ))}
               </div>
               {referenceMessage ? (
-                <div className="reference-word-picker" aria-label="Source message text">
+                <div
+                  className="reference-word-picker"
+                  aria-label="Source message text"
+                  onPointerMove={handleReferencePointerMove}
+                  onPointerUp={endDragSelection}
+                  onPointerCancel={endDragSelection}
+                  onLostPointerCapture={endDragSelection}
+                >
                   {getTextTokens(referenceMessage.text).map((token) =>
                     token.isWord ? (
                       <button
                         key={`${token.startOffset}-${token.endOffset}`}
-                        className={`word-token ${
-                          token.startOffset >= referenceSelection.start && token.endOffset <= referenceSelection.end
-                            ? 'selected'
-                            : ''
-                        }`}
+                        className={`word-token ${isReferenceWordSelected(token.startOffset, token.endOffset) ? 'selected' : ''}`}
                         type="button"
-                        onClick={() => selectReferenceWord(token.startOffset, token.endOffset)}
+                        aria-pressed={isReferenceWordSelected(token.startOffset, token.endOffset)}
+                        data-reference-word="true"
+                        data-start-offset={token.startOffset}
+                        data-end-offset={token.endOffset}
+                        onPointerDown={(event) => handleWordPointerDown(event, token.startOffset, token.endOffset)}
+                        onClick={(event) => {
+                          if (handledPointerClick.current && event.detail !== 0) {
+                            handledPointerClick.current = false;
+                            return;
+                          }
+                          updateReferenceWordSelection(token.startOffset, token.endOffset, 'toggle');
+                        }}
                       >
                         {token.text}
                       </button>
@@ -203,11 +256,20 @@ export function ReferencePickerModal({
               ) : (
                 <p className="empty-state">Choose a text block.</p>
               )}
+              {referenceSelectionRanges.length > 0 && (
+                <div className="transfer-selection-summary">
+                  <span>{referenceSelectionRanges.length} selected</span>
+                  <button className="text-button" type="button" onClick={() => setReferenceSelectionRanges([])}>
+                    Clear selection
+                  </button>
+                </div>
+              )}
+              {selectedQuoteText && <p className="transfer-preview">{selectedQuoteText}</p>}
               <button
                 className="primary-button"
                 type="button"
-                disabled={!referenceMessage || referenceSelection.end <= referenceSelection.start}
-                onClick={addQuoteReference}
+                disabled={!referenceMessage || referenceSelectionRanges.length === 0}
+                onClick={addQuoteReferences}
               >
                 <Quote size={16} />
                 {isConnectionMode ? 'Connect quote' : 'Insert citation'}

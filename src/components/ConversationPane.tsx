@@ -487,17 +487,18 @@ export function ConversationPane({
     setConnectionSourceMessage(null);
   }
 
-  function addPendingReference(reference: MessageReference) {
-    setPendingReferences((current) => [...current, reference]);
+  function addPendingReferences(references: MessageReference[]) {
+    setPendingReferences((current) => [...current, ...references]);
     closeReferencePicker();
   }
 
-  async function addSavedConnection(reference: MessageReference) {
+  async function addSavedConnections(references: MessageReference[]) {
     if (!connectionSourceMessage) return;
-    await onUpdateMessageReferences(
-      connectionSourceMessage,
-      appendUniqueReference(connectionSourceMessage.references ?? [], reference)
+    const nextReferences = references.reduce(
+      (currentReferences, reference) => appendUniqueReference(currentReferences, reference),
+      connectionSourceMessage.references ?? []
     );
+    await onUpdateMessageReferences(connectionSourceMessage, nextReferences);
     closeReferencePicker();
   }
 
@@ -742,8 +743,10 @@ export function ConversationPane({
               sourceMessage={connectionSourceMessage}
               conversations={conversations}
               messagesByConversation={messagesByConversation}
-              onAddReference={(reference) =>
-                referencePickerMode === 'connection' ? void addSavedConnection(reference) : addPendingReference(reference)
+              onAddReferences={(references) =>
+                referencePickerMode === 'connection'
+                  ? void addSavedConnections(references)
+                  : addPendingReferences(references)
               }
               onClose={closeReferencePicker}
             />
