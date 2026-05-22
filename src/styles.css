@@ -829,6 +829,31 @@ button {
   margin: 8px 0 10px;
 }
 
+.message-backlinks {
+  display: grid;
+  margin: 8px 0 10px;
+  gap: 8px;
+}
+
+.message-backlink-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  min-height: 30px;
+  padding: 5px 9px;
+  gap: 6px;
+  border: 1px solid #315047;
+  border-radius: 999px;
+  color: #9fd7cc;
+  background: #0d211f;
+  font-size: 0.78rem;
+}
+
+.message-backlink-toggle:hover {
+  color: #dff4ef;
+  border-color: #54d6bf;
+}
+
 .message-reference-card,
 .pending-reference {
   display: flex;
@@ -1542,6 +1567,14 @@ button {
   grid-template-columns: minmax(180px, 260px) minmax(0, 1fr);
 }
 
+.reference-picker-context {
+  margin: 0;
+  padding: 10px 16px;
+  border-bottom: 1px solid #263337;
+  color: #a1c2bb;
+  font-size: 0.82rem;
+}
+
 .reference-picker-list,
 .reference-picker-message-list,
 .reference-picker-detail {
@@ -1552,7 +1585,34 @@ button {
 }
 
 .reference-picker-list {
+  grid-row: 1 / span 2;
   border-right: 1px solid #263337;
+}
+
+.reference-picker-segments {
+  display: inline-flex;
+  align-self: start;
+  margin: 12px 12px 0;
+  padding: 3px;
+  gap: 3px;
+  border: 1px solid #315047;
+  border-radius: 8px;
+  background: #101719;
+}
+
+.reference-picker-segments button {
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 6px;
+  color: #a1c2bb;
+  background: transparent;
+  font-size: 0.82rem;
+}
+
+.reference-picker-segments button.active {
+  color: #06201d;
+  background: #54d6bf;
 }
 
 .reference-picker-detail {
@@ -1762,14 +1822,19 @@ button {
   .reference-picker-grid {
     min-height: 0;
     grid-template-columns: 1fr;
-    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr);
     overflow: hidden;
   }
 
   .reference-picker-list {
+    grid-row: auto;
     max-height: 148px;
     border-right: 0;
     border-bottom: 1px solid #263337;
+  }
+
+  .reference-picker-segments {
+    margin: 10px 12px 0;
   }
 
   .reference-picker-detail {

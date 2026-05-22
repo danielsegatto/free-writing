@@ -41,6 +41,12 @@ export function MessageEditForm({
   const hasEditableContent =
     editText.trim() || hasExistingAttachments || editImagePreviews.length > 0 || editReferences.length > 0;
 
+  function getReferenceLabel(reference: MessageReference) {
+    if (reference.type === 'quote') return `"${truncateReferenceText(reference.quoteText, 88)}"`;
+    if (reference.type === 'block') return truncateReferenceText(reference.sourceMessagePreview, 88);
+    return reference.sourceConversationTitle;
+  }
+
   return (
     <form
       className="message-edit-form"
@@ -87,11 +93,7 @@ export function MessageEditForm({
           {editReferences.map((reference) => (
             <div key={reference.id} className="message-reference-card">
               {reference.type === 'quote' ? <Quote size={15} /> : <Link2 size={15} />}
-              <span>
-                {reference.type === 'quote'
-                  ? `"${truncateReferenceText(reference.quoteText, 88)}"`
-                  : reference.sourceConversationTitle}
-              </span>
+              <span>{getReferenceLabel(reference)}</span>
               <button
                 className="icon-button bare"
                 type="button"

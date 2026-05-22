@@ -314,6 +314,18 @@ export async function updateMessageTags(userId: string, conversationId: string, 
   });
 }
 
+export async function updateMessageReferences(
+  userId: string,
+  conversationId: string,
+  messageId: string,
+  references: MessageReference[]
+) {
+  await updateDoc(messagePath(userId, conversationId, messageId), {
+    references,
+    updatedAt: serverTimestamp()
+  });
+}
+
 export function deleteMessage(userId: string, conversationId: string, messageId: string) {
   return deleteDoc(messagePath(userId, conversationId, messageId));
 }

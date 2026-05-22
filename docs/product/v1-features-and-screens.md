@@ -192,13 +192,16 @@ Requirements:
 
 ---
 
-### 7.3.6 Message references
+### 7.3.6 Message references and block connections
 
-The user can attach structured references to another conversation or a quoted message block. The user can also write inline conversation links in the message text with `[[Conversation title]]`.
+The user can attach structured references to another conversation or a quoted message block, and can connect saved blocks to other saved blocks. The user can also write inline conversation links in the message text with `[[Conversation title]]`.
 
 Version 1 behavior:
 
 - The composer can add a reference to another conversation or a selected quote from an existing message.
+- A saved block can connect to any loaded block, including a block in the same conversation or itself.
+- Saved-block connections can point to the whole target block or a selected quote inside the target block.
+- Blocks with incoming saved-block connections show a collapsed backlink row such as `Connected from 2 blocks`; expanding it shows clickable source-block cards.
 - The composer supports `[[Conversation title]]` inline links through typeahead suggestions from unique conversation titles.
 - Saved inline conversation links render as the conversation title with a visual linked/quoted cue; the `[[` and `]]` markers do not show in the message body.
 - Inline conversation links open the matching conversation when exactly one loaded conversation has that title.
@@ -206,13 +209,14 @@ Version 1 behavior:
 - Renaming a conversation should update matching inline `[[Old title]]` markers to the new title in saved messages.
 - Reference cards render below the message text once saved.
 - Conversation references open the source conversation when the source is loaded.
-- Quote references open the source message and highlight the quoted text range when the source is loaded.
+- Whole-block and quote references open the source message, with quote references highlighting the quoted text range when the source is loaded.
 - References are stored separately from message body text and remain visible even if the source is not currently loaded.
+- Duplicate exact connections from the same source block are ignored.
 
 Requirements:
 
-- Reference creation is available in the composer and while editing a message.
-- Reference cards should clearly show the source conversation or quoted text.
+- Conversation/quote reference creation is available in the composer, and saved-block connection creation is available from each saved block.
+- Reference cards should clearly show the source conversation, target block preview, or quoted text.
 - Users can remove references while editing an existing message.
 - References do not require additional external search infrastructure.
 - Inline conversation links are stored in normal message text and do not add a separate schema field.
@@ -324,7 +328,7 @@ Version 1 behavior:
 - App creates a new message in the target conversation using the whole text or selected text parts.
 - After copying, the app opens the target conversation.
 - The copied message shows a small `Copied from [conversation name]` metadata line. The conversation name is clickable and opens the source conversation.
-- Copied-message origin navigation is conversation-level; quote-level navigation is provided by structured quote references.
+- Copied-message origin navigation is conversation-level; whole-block and quote-level navigation are provided by structured references.
 
 The copied/forwarded message should store optional metadata:
 
@@ -607,6 +611,7 @@ Layout:
 - User can copy/forward a whole message or selected text parts to another conversation.
 - User can move a whole message or selected text parts to another conversation.
 - User can add a conversation or quote reference to a message.
+- User can connect a saved block to another loaded saved block and expand backlinks from connected source blocks.
 - User can create an inline conversation link by typing `[[`, filtering conversation suggestions, selecting one, and sending the completed link.
 - User can open an inline conversation link from a saved message when its title uniquely matches a conversation.
 - User can reorder conversations in the conversation list with a drag handle and see the same order after refresh.
@@ -686,6 +691,7 @@ Version 1 is complete when:
 - I can add, edit, clear, and view a date/time on a block.
 - I can open the global calendar, browse dated blocks by today, this week, or this month, and open a source block from a calendar item.
 - I can add a conversation or quote reference to a message and open it when the source is loaded.
+- I can connect a saved block to another loaded saved block, including itself, and use backlinks to navigate back to connected source blocks.
 - I can type `[[`, choose a conversation suggestion by click or keyboard, send the block, and see the saved inline link render without bracket markers while still opening the target conversation.
 - I can open draft English conversion with `Ctrl+Enter` / `Cmd+Enter`.
 - I can send the current draft directly with `Ctrl+Shift+Enter` / `Cmd+Shift+Enter`.

@@ -1,4 +1,4 @@
-import { act, cleanup, createEvent, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, createEvent, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { useState, type ComponentProps } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { ConversationPane } from './ConversationPane';
@@ -102,6 +102,7 @@ function getPaneProps(overrides: Partial<ComponentProps<typeof ConversationPane>
     onCreateEnglishBlock: vi.fn(async () => undefined),
     onReplaceWithEnglish: vi.fn(async () => undefined),
     onUpdateMessageTags: vi.fn(async () => undefined),
+    onUpdateMessageReferences: vi.fn(async () => undefined),
     ...overrides
   };
 }
@@ -1591,6 +1592,155 @@ describe('ConversationPane', () => {
       conversationId: conversation.id,
       messageId: 'second',
       range: { startOffset: 0, endOffset: 6 }
+    });
+  });
+
+  it('creates a whole-block connection from one saved block to another', async () => {
+    const onUpdateMessageReferences = vi.fn(async () => undefined);
+    renderPane({ onUpdateMessageReferences });
+
+    fireEvent.click(screen.getAllByTitle('Connect block')[0]);
+    const dialog = screen.getByRole('dialog', { name: 'Connect block' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Second' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Connect block' }));
+
+    await waitFor(() => {
+      expect(onUpdateMessageReferences).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'first' }),
+        [
+          expect.objectContaining({
+            type: 'block',
+            sourceConversationId: conversation.id,
+            sourceMessageId: 'second',
+            sourceMessagePreview: 'Second'
+          })
+        ]
+      );
+    });
+  });
+
+  it('creates a quote connection to a same-conversation block', async () => {
+    const onUpdateMessageReferences = vi.fn(async () => undefined);
+    renderPane({ onUpdateMessageReferences });
+
+    fireEvent.click(screen.getAllByTitle('Connect block')[0]);
+    const dialog = screen.getByRole('dialog', { name: 'Connect block' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Quote' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Second' }));
+    fireEvent.click(within(dialog).getAllByRole('button', { name: 'Second' }).at(-1)!);
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Connect quote' }));
+
+    await waitFor(() => {
+      expect(onUpdateMessageReferences).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'first' }),
+        [
+          expect.objectContaining({
+            type: 'quote',
+            sourceConversationId: conversation.id,
+            sourceMessageId: 'second',
+            quoteText: 'Second',
+            startOffset: 0,
+            endOffset: 6
+          })
+        ]
+      );
+    });
+  });
+
+  it('allows connecting a saved block to itself', async () => {
+    const onUpdateMessageReferences = vi.fn(async () => undefined);
+    renderPane({ onUpdateMessageReferences });
+
+    fireEvent.click(screen.getAllByTitle('Connect block')[0]);
+    const dialog = screen.getByRole('dialog', { name: 'Connect block' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'First' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Connect block' }));
+
+    await waitFor(() => {
+      expect(onUpdateMessageReferences).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'first' }),
+        [
+          expect.objectContaining({
+            type: 'block',
+            sourceConversationId: conversation.id,
+            sourceMessageId: 'first'
+          })
+        ]
+      );
+    });
+  });
+
+  it('renders collapsed backlinks and expands connected source cards', () => {
+    const props = renderPane({
+      activeMessages: [
+        {
+          ...message('source', 'Source block'),
+          references: [
+            {
+              id: 'reference-1',
+              type: 'block',
+              sourceConversationId: conversation.id,
+              sourceConversationTitle: 'Inbox',
+              sourceMessageId: 'target',
+              sourceMessagePreview: 'Target block'
+            }
+          ]
+        },
+        message('target', 'Target block')
+      ],
+      messagesByConversation: {
+        [conversation.id]: [
+          {
+            ...message('source', 'Source block'),
+            references: [
+              {
+                id: 'reference-1',
+                type: 'block',
+                sourceConversationId: conversation.id,
+                sourceConversationTitle: 'Inbox',
+                sourceMessageId: 'target',
+                sourceMessagePreview: 'Target block'
+              }
+            ]
+          },
+          message('target', 'Target block')
+        ]
+      }
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Connected from 1 block' }));
+    fireEvent.click(screen.getByRole('button', { name: /Inbox: "Source block"/ }));
+
+    expect(props.onNavigateToReference).toHaveBeenCalledWith({
+      conversationId: conversation.id,
+      messageId: 'source'
+    });
+  });
+
+  it('navigates outbound whole-block reference cards to the target block', () => {
+    const holder = {
+      ...message('holder', 'Holder'),
+      references: [
+        {
+          id: 'reference-1',
+          type: 'block' as const,
+          sourceConversationId: conversation.id,
+          sourceConversationTitle: 'Inbox',
+          sourceMessageId: 'target',
+          sourceMessagePreview: 'Target block'
+        }
+      ]
+    };
+    const props = renderPane({
+      activeMessages: [holder, message('target', 'Target block')],
+      messagesByConversation: { [conversation.id]: [holder, message('target', 'Target block')] }
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Inbox: "Target block"/ }));
+
+    expect(props.onNavigateToReference).toHaveBeenCalledWith({
+      conversationId: conversation.id,
+      messageId: 'target'
     });
   });
 

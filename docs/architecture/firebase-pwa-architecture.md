@@ -130,6 +130,14 @@ Useful user fields:
   ],
   "references": [
     {
+      "id": "block-reference-id",
+      "type": "block",
+      "sourceConversationId": "source-conversation-id",
+      "sourceConversationTitle": "Source title",
+      "sourceMessageId": "source-message-id",
+      "sourceMessagePreview": "Target block preview"
+    },
+    {
       "id": "reference-id",
       "type": "quote",
       "sourceConversationId": "source-conversation-id",
@@ -185,7 +193,7 @@ Useful user fields:
 : Optional array of message attachments. Current supported attachment type is `image`. Images are compressed client-side and stored as inline data URLs in Firestore message documents, so they must stay small enough for Firestore document limits.
 
 `references`
-: Structured cross-conversation references attached to the message separately from `text`. A `conversation` reference stores the source conversation ID and title snapshot. A `quote` reference also stores the source message ID, selected quote text, and start/end offsets in the source message. Older messages without this field are treated as having no references.
+: Structured references attached to the message separately from `text`. A `conversation` reference stores the source conversation ID and title snapshot. A `block` reference stores a source conversation/message ID plus a message preview for whole-block connections. A `quote` reference also stores selected quote text and start/end offsets in the source message. Older messages without this field are treated as having no references. Incoming backlinks are derived client-side from loaded messages that contain `block` or `quote` references; they are not stored as separate reverse-link records.
 
 `createdAt`
 : When message was created.
@@ -220,7 +228,7 @@ Useful user fields:
 `indexEntries`
 : Optional structured entries for synthesized conversation-index blocks. Each entry points to a source message ID in the same conversation and stores display text for the clickable index row. Old or normal messages without this field are treated as having no index entries.
 
-Forwarded and moved source metadata is kept for transfer labeling and compatibility. Copied/forwarded blocks can expose conversation-level source navigation through `forwardedFromConversationId` plus `forwardedFromConversationTitle`; quote-level navigation is rendered from structured `references` instead of text markers.
+Forwarded and moved source metadata is kept for transfer labeling and compatibility. Copied/forwarded blocks can expose conversation-level source navigation through `forwardedFromConversationId` plus `forwardedFromConversationTitle`; whole-block and quote-level navigation is rendered from structured `references` instead of text markers.
 
 Inline conversation links are deliberately schema-free: they use the existing `text` and `searchText` fields, not the structured `references` array. Missing or duplicate title matches remain plain text. Conversation rename writes update matching inline title markers in saved message text and `searchText`, while structured reference title snapshots remain unchanged.
 

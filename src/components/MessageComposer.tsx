@@ -64,6 +64,12 @@ export function MessageComposer({
     return getInlineConversationLinkSuggestions(conversations, activeInlineLinkDraft.query);
   }, [activeInlineLinkDraft, conversations]);
 
+  function getPendingReferenceLabel(reference: MessageReference) {
+    if (reference.type === 'quote') return `"${truncateReferenceText(reference.quoteText, 72)}"`;
+    if (reference.type === 'block') return truncateReferenceText(reference.sourceMessagePreview, 72);
+    return reference.sourceConversationTitle;
+  }
+
   useEffect(() => {
     if (clearImagePreviewsSignal === lastClearImagePreviewsSignal.current) return;
     lastClearImagePreviewsSignal.current = clearImagePreviewsSignal;
@@ -177,11 +183,7 @@ export function MessageComposer({
           <div className="pending-references" aria-label="Pending references">
             {pendingReferences.map((reference) => (
               <div key={reference.id} className="pending-reference">
-                <span>
-                  {reference.type === 'quote'
-                    ? `"${truncateReferenceText(reference.quoteText, 72)}"`
-                    : reference.sourceConversationTitle}
-                </span>
+                <span>{getPendingReferenceLabel(reference)}</span>
                 <button
                   className="icon-button bare"
                   type="button"

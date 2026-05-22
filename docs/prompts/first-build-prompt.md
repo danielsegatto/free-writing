@@ -78,6 +78,8 @@ Messages:
 - User can convert draft composer text to English and send the selected English result directly.
 - User can synthesize a clickable conversation index from the active conversation header.
 - Index synthesis should send all visible blocks in display order in one contextual AI request, include previous index blocks, append the new index block to the bottom, and render each generated row as a link to its source block.
+- User can connect a saved block to any loaded saved block, including same-conversation blocks and self-links, as either a whole-block connection or a selected quote connection.
+- Blocks with incoming saved-block connections should show collapsed backlink rows that expand to clickable source-block cards.
 - Copying/forwarding creates a new message in the target conversation with the same text, or with the selected text parts, opens the target conversation, and shows `Copied from [conversation name]` in the copied block metadata with the conversation name clickable.
 - Moving creates a message in the target conversation and removes the original from the source conversation, or removes only the selected text parts from the source block when partial text is selected.
 - Moving leaves the user in the current conversation after completion and shows a non-blocking action to open the target conversation.

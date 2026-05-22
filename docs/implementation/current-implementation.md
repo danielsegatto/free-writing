@@ -11,7 +11,7 @@ The current app state is a working Firebase-backed React PWA named `Free Writing
 Implemented:
 
 - Vite + React frontend.
-- Focused Vitest coverage for app transfer navigation, forward/move transfer decision helpers, transfer word-selection helpers, conversation service writes including inline wiki-link rename rewrites, sidebar drag reordering, message service writes, inline conversation-link parsing/typeahead/rendering, inline image attachments and paste handling, loaded-message search, tag normalization/filtering and inline tag suggestions, composer keyboard conversion and direct-send behavior, composer date action expansion and submission, inline editing, text/rich block copy feedback and fallbacks, reorder controls, desktop and touch drag-handle reorder behavior including body-scroll protection, gap drop zones, insertion markers, and edge autoscroll, multi-block merge selection on desktop and touch, English conversion UI/service/helper behavior, conversation index synthesis service/UI/Worker behavior, and the shared forward/move modal.
+- Focused Vitest coverage for app transfer navigation, forward/move transfer decision helpers, transfer word-selection helpers, conversation service writes including inline wiki-link rename rewrites, sidebar drag reordering, message service writes, block connection/backlink helpers and UI, inline conversation-link parsing/typeahead/rendering, inline image attachments and paste handling, loaded-message search, tag normalization/filtering and inline tag suggestions, composer keyboard conversion and direct-send behavior, composer date action expansion and submission, inline editing, text/rich block copy feedback and fallbacks, reorder controls, desktop and touch drag-handle reorder behavior including body-scroll protection, gap drop zones, insertion markers, and edge autoscroll, multi-block merge selection on desktop and touch, English conversion UI/service/helper behavior, conversation index synthesis service/UI/Worker behavior, and the shared forward/move modal.
 - React code organized into small components, subscription/shared UI hooks, Firebase services, and utility helpers.
 - Firebase Authentication with Google provider.
 - Firebase configuration guard that shows a setup notice when `.env` is missing or still contains placeholder values.
@@ -19,7 +19,7 @@ Implemented:
 - Firestore security rules scoped to the signed-in user's UID.
 - Conversation create, rename, open, delete, and drag-handle reorder with floating preview, insertion marker, gap-tolerant drops, and edge autoscroll.
 - Conversation list rows show conversation title and updated time only; they intentionally do not render stored message previews.
-- Message create, edit, copy-to-clipboard for text-only, text/image, and image-only blocks, delete, copy/forward to another conversation with clickable source-conversation metadata, move to another conversation with a post-move open-target notice, partial text copying/moving from the transfer dialog, structured conversation links and quote citations, inline `[[Conversation title]]` links with composer suggestions, search, manual up/down reorder, drag-handle reorder on desktop and touch/pointer devices with message-list edge autoscroll, selected-block merge, and synthesized clickable conversation index blocks.
+- Message create, edit, copy-to-clipboard for text-only, text/image, and image-only blocks, delete, copy/forward to another conversation with clickable source-conversation metadata, move to another conversation with a post-move open-target notice, partial text copying/moving from the transfer dialog, structured conversation links, quote citations, saved block-to-block connections with derived backlinks, inline `[[Conversation title]]` links with composer suggestions, search, manual up/down reorder, drag-handle reorder on desktop and touch/pointer devices with message-list edge autoscroll, selected-block merge, and synthesized clickable conversation index blocks.
 - Optional block date/time scheduling with a top-level global Calendar screen. Dated blocks from all loaded conversations appear in Today, This week, and This month views; calendar items open and highlight the source block.
 - Small image attachments on new and edited blocks. Images can be selected, pasted into the composer, pasted through a touch-friendly clipboard action where the browser permits it, or pasted while editing an existing block.
 - Image attachments are compressed in the browser and stored inline in Firestore message documents. Firebase Storage is intentionally not used so the app stays on the free Spark plan.
@@ -130,13 +130,13 @@ src/components/SelectionToolbar.tsx
   Multi-block selection toolbar rendering for merge, copy-to-conversation, move-to-conversation, copy text, delete, cancel, selected count, busy states, and inline selection errors.
 
 src/components/ReferencePickerModal.tsx
-  Composer-side conversation link and quote citation picker. Owns picker-local conversation/message/word-range selection state, creates structured references, and returns the chosen reference to `ConversationPane`.
+  Composer-side conversation link and quote citation picker plus saved-block connection picker. Owns picker-local conversation/message/word-range selection state, creates structured references, and returns the chosen reference to `ConversationPane`.
 
 src/components/MessageDragPreview.tsx
   Floating dragged-message preview rendering used by message drag reordering.
 
 src/components/MessageBubble.tsx
-  Per-message rendering and local action wiring. Owns message metadata display including scheduled date/time, clickable copied-origin conversation names, inert image attachment previews, structured reference cards, synthesized index rows, copy feedback label, reorder buttons and drag handle, transfer/delete/English action buttons, and drag/pointer event binding passed down from `ConversationPane`. Text rendering, inline edit form markup, and block tag rendering/editing are delegated to smaller message components.
+  Per-message rendering and local action wiring. Owns message metadata display including scheduled date/time, clickable copied-origin conversation names, inert image attachment previews, structured reference cards, collapsed backlink rows, synthesized index rows, copy feedback label, reorder buttons and drag handle, connect/transfer/delete/English action buttons, and drag/pointer event binding passed down from `ConversationPane`. Text rendering, inline edit form markup, and block tag rendering/editing are delegated to smaller message components.
 
 src/components/MessageText.tsx
   Message body text rendering. Owns inline conversation-link rendering and reference-range highlighting while delegating marker parsing to `src/utils/inlineConversationLinks.ts`.
@@ -275,7 +275,7 @@ Local hosting on an idle machine is not the primary Version 1 deployment target.
 - Copied/forwarded messages use `isForwarded: true`, `transferType: 'forwarded'`, `forwardedFromConversationId`, `forwardedFromConversationTitle`, and `forwardedFromMessageId`. `src/components/MessageBubble.tsx` renders these as `Copied from [conversation title]`, where the title is an inline `.source-link` button that navigates to the source conversation.
 - Moved messages use `isForwarded: true`, `transferType: 'moved'`, `forwardedFromConversationId`, `forwardedFromMessageId`, and `forwardedFromConversationTitle: null`. They render only the small `Moved` label and do not show copied-origin navigation.
 - `src/components/MessageBubble.tsx` includes a `Move to conversation` message action and displays transfer labels through `getTransferLabel`.
-- Structured conversation and quote reference cards remain the UI for explicit user-added references; copied-origin metadata is shown only in the top message metadata line.
+- Structured conversation, whole-block, and quote reference cards remain the UI for explicit user-added references and saved block connections; copied-origin metadata is shown only in the top message metadata line.
 - `src/components/MessageBubble.tsx` includes a copy action with short-lived success/failure feedback. Text-only messages show `Copy text`; messages with attachments show `Copy block`, and image-only blocks can be copied.
 - `src/utils/messageClipboard.ts` handles block clipboard writes. Text-only blocks use `navigator.clipboard.writeText`; blocks with attachments use `navigator.clipboard.write` with `text/plain`, `text/html` containing escaped text plus inline image tags in attachment order, and the first data-URL image as a binary image clipboard item when supported. If rich clipboard writing fails for a block that has text, it falls back to plain-text copy. Image-only rich-copy failures show `Copy failed` through `ConversationPane` copy feedback state.
 - Clipboard copy is browser API UI only and does not touch Firestore. Paste fidelity depends on the destination app; plain text fields may receive only text even when rich clipboard data was written.
@@ -354,12 +354,13 @@ Local hosting on an idle machine is not the primary Version 1 deployment target.
 - `src/components/Sidebar.tsx` shows a global tag browser across loaded blocks. Selecting one or more tags shows matching blocks across conversations; `App.tsx` derives those results through `src/utils/tags.ts`, and opening a result navigates to and highlights that block.
 - `src/components/ConversationPane.tsx` shows active-conversation tag filters below the header. Filters use OR matching from `src/utils/tags.ts` and disable reorder controls while blocks are hidden.
 
-### Cross-conversation references
+### Structured references and block connections
 
-- Messages can store structured `references` separately from body text. Conversation references point to another conversation by ID with a title snapshot; quote references also point to a source message and selected text offsets.
-- `src/components/ConversationPane.tsx` opens composer-side pickers for conversation links and quote citations. `src/components/ReferencePickerModal.tsx` owns the picker-local conversation/message/word-range selection state, and quote selection happens inside the modal without leaving the active conversation.
-- `src/components/MessageBubble.tsx` renders reference cards below message text. Conversation references navigate to the source conversation; quote references navigate to the source message and temporarily highlight the cited text range when the source is still loaded.
-- Inline editing can remove existing references from a saved message. Adding new references is composer-only.
+- Messages can store structured `references` separately from body text. Conversation references point to another conversation by ID with a title snapshot. Block references point to a source message and store a target preview. Quote references also store selected text offsets and quote text.
+- `src/components/ConversationPane.tsx` opens composer-side pickers for conversation links and quote citations, and saved-message connection pickers for whole-block or quote connections. It also derives backlinks by scanning loaded messages for block/quote references that point at each visible block.
+- `src/components/ReferencePickerModal.tsx` owns the picker-local conversation/message/word-range selection state. Saved-block connection mode can target any loaded block, including same-conversation blocks and self-links.
+- `src/components/MessageBubble.tsx` renders outbound reference cards below message text and collapsed backlink rows for incoming loaded references. Conversation references navigate to the source conversation; block references navigate to the source message; quote references navigate to the source message and temporarily highlight the cited text range when the source is still loaded.
+- Inline editing can remove existing references from a saved message. Adding saved block connections uses the per-block `Connect block` action.
 - Old messages without `references` are normalized to an empty reference list by the message subscription path.
 
 ### Inline conversation links

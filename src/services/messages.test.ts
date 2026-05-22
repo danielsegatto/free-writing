@@ -50,6 +50,7 @@ import {
   moveMessage,
   moveMessageTextSelection,
   reorderMessages,
+  updateMessageReferences,
   updateMessageTags
 } from './messages';
 
@@ -329,6 +330,29 @@ describe('message service writes', () => {
       expect.objectContaining({ path: 'users/user-1/conversations/conversation-1/messages/message-1' }),
       {
         tags: ['Urgent', 'Idea'],
+        updatedAt: 'SERVER_TIMESTAMP'
+      }
+    );
+  });
+
+  it('updates references without changing message text or attachments', async () => {
+    const references = [
+      {
+        id: 'reference-1',
+        type: 'block' as const,
+        sourceConversationId: 'conversation-1',
+        sourceConversationTitle: 'Inbox',
+        sourceMessageId: 'message-2',
+        sourceMessagePreview: 'Target block'
+      }
+    ];
+
+    await updateMessageReferences('user-1', 'conversation-1', 'message-1', references);
+
+    expect(firestoreMocks.updateDoc).toHaveBeenCalledWith(
+      expect.objectContaining({ path: 'users/user-1/conversations/conversation-1/messages/message-1' }),
+      {
+        references,
         updatedAt: 'SERVER_TIMESTAMP'
       }
     );

@@ -39,6 +39,12 @@ export type ConversationMessageReference = MessageReferenceBase & {
   type: 'conversation';
 };
 
+export type BlockMessageReference = MessageReferenceBase & {
+  type: 'block';
+  sourceMessageId: string;
+  sourceMessagePreview: string;
+};
+
 export type QuoteMessageReference = MessageReferenceBase & {
   type: 'quote';
   sourceMessageId: string;
@@ -47,7 +53,7 @@ export type QuoteMessageReference = MessageReferenceBase & {
   endOffset: number;
 };
 
-export type MessageReference = ConversationMessageReference | QuoteMessageReference;
+export type MessageReference = ConversationMessageReference | BlockMessageReference | QuoteMessageReference;
 
 export type ConversationIndexEntry = {
   id: string;

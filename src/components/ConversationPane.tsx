@@ -21,7 +21,12 @@ import type { Conversation, EnglishConversion, Message, MessageReference } from 
 import type { DropPosition } from '../utils/dropTargets';
 import { getImageFilesFromClipboardData } from '../utils/imageFiles';
 import { copyMessageToClipboard } from '../utils/messageClipboard';
-import type { MessageReferenceNavigationTarget } from '../utils/messageReferences';
+import {
+  appendUniqueReference,
+  getMessageReferencePreview,
+  type MessageBacklink,
+  type MessageReferenceNavigationTarget
+} from '../utils/messageReferences';
 import { messageMatchesAnyTag, type TagSummary } from '../utils/tags';
 
 type ConversationPaneProps = {
@@ -73,6 +78,7 @@ type ConversationPaneProps = {
   onCreateEnglishBlock: (message: Message, text: string) => Promise<void>;
   onReplaceWithEnglish: (message: Message, text: string) => Promise<void>;
   onUpdateMessageTags: (message: Message, tags: string[]) => void | Promise<void>;
+  onUpdateMessageReferences: (message: Message, references: MessageReference[]) => void | Promise<void>;
 };
 
 const COPY_FEEDBACK_TIMEOUT_MS = 1600;
@@ -127,7 +133,8 @@ export function ConversationPane({
   onConvertToEnglish,
   onCreateEnglishBlock,
   onReplaceWithEnglish,
-  onUpdateMessageTags
+  onUpdateMessageTags,
+  onUpdateMessageReferences
 }: ConversationPaneProps) {
   const [copyFeedback, setCopyFeedback] = useState<CopyFeedback | null>(null);
   const [clearComposerImagePreviewsSignal, setClearComposerImagePreviewsSignal] = useState(0);
@@ -135,6 +142,7 @@ export function ConversationPane({
   const [selectedMessageIds, setSelectedMessageIds] = useState<string[]>([]);
   const [pendingReferences, setPendingReferences] = useState<MessageReference[]>([]);
   const [referencePickerMode, setReferencePickerMode] = useState<ReferencePickerMode | null>(null);
+  const [connectionSourceMessage, setConnectionSourceMessage] = useState<Message | null>(null);
   const [activeReferenceTarget, setActiveReferenceTarget] = useState<MessageReferenceNavigationTarget | null>(null);
   const [isMerging, setIsMerging] = useState(false);
   const [isSynthesizingIndex, setIsSynthesizingIndex] = useState(false);
@@ -215,6 +223,33 @@ export function ConversationPane({
   const draggedMessage = dragPreview
     ? visibleMessages.find((message) => message.id === dragPreview.itemId) ?? null
     : null;
+  const backlinksByMessageKey = useMemo(() => {
+    const backlinks: Record<string, MessageBacklink[]> = {};
+
+    conversations.forEach((conversation) => {
+      (messagesByConversation[conversation.id] ?? []).forEach((sourceMessage) => {
+        sourceMessage.references.forEach((reference) => {
+          if (reference.type !== 'block' && reference.type !== 'quote') return;
+          const key = `${reference.sourceConversationId}:${reference.sourceMessageId}`;
+          const sourceConversationTitle =
+            conversations.find((item) => item.id === sourceMessage.conversationId)?.title ?? conversation.title;
+          backlinks[key] = [
+            ...(backlinks[key] ?? []),
+            {
+              id: `${sourceMessage.conversationId}:${sourceMessage.id}:${reference.id}`,
+              sourceConversationId: sourceMessage.conversationId,
+              sourceConversationTitle,
+              sourceMessageId: sourceMessage.id,
+              sourceMessagePreview: getMessageReferencePreview(sourceMessage),
+              reference
+            }
+          ];
+        });
+      });
+    });
+
+    return backlinks;
+  }, [conversations, messagesByConversation]);
 
   function getConversationTitle(conversationId: string | null) {
     if (!conversationId) return null;
@@ -246,6 +281,8 @@ export function ConversationPane({
     setSelectedMessageIds([]);
     setMergeError(null);
     setSynthesisError(null);
+    setConnectionSourceMessage(null);
+    setReferencePickerMode(null);
   }, [activeConversation?.id]);
 
   useEffect(() => {
@@ -254,7 +291,7 @@ export function ConversationPane({
     setEditScheduledAt(editingMessage?.scheduledAt?.toDate?.() ?? null);
     clearEditImagePreviews();
     setIsSavingEdit(false);
-  }, [clearEditImagePreviews, editingMessage?.id, editingMessage?.scheduledAt, editingMessage?.text]);
+  }, [clearEditImagePreviews, editingMessage?.id, editingMessage?.references, editingMessage?.scheduledAt, editingMessage?.text]);
 
   useLayoutEffect(() => {
     const textarea = editTextareaRef.current;
@@ -459,15 +496,31 @@ export function ConversationPane({
   }
 
   function openReferencePicker(mode: ReferencePickerMode) {
+    setConnectionSourceMessage(null);
     setReferencePickerMode(mode);
+  }
+
+  function openConnectionPicker(message: Message) {
+    setConnectionSourceMessage(message);
+    setReferencePickerMode('connection');
   }
 
   function closeReferencePicker() {
     setReferencePickerMode(null);
+    setConnectionSourceMessage(null);
   }
 
   function addPendingReference(reference: MessageReference) {
     setPendingReferences((current) => [...current, reference]);
+    closeReferencePicker();
+  }
+
+  async function addSavedConnection(reference: MessageReference) {
+    if (!connectionSourceMessage) return;
+    await onUpdateMessageReferences(
+      connectionSourceMessage,
+      appendUniqueReference(connectionSourceMessage.references ?? [], reference)
+    );
     closeReferencePicker();
   }
 
@@ -603,6 +656,7 @@ export function ConversationPane({
                   sourceConversationTitle={
                     message.forwardedFromConversationTitle ?? getConversationTitle(message.forwardedFromConversationId)
                   }
+                  backlinks={backlinksByMessageKey[`${message.conversationId}:${message.id}`] ?? []}
                   onSelect={toggleMessageSelection}
                   onStartSelection={startMergeSelection}
                   onNavigateToReference={onNavigateToReference}
@@ -623,6 +677,7 @@ export function ConversationPane({
                   onSaveEdit={(messageToSave) => void saveInlineEdit(messageToSave)}
                   onEditMessage={onEditMessage}
                   onCopyMessage={(messageToCopy) => void copyMessageText(messageToCopy)}
+                  onConnectMessage={openConnectionPicker}
                   onConvertToEnglish={(messageToConvert) => void openMessageEnglishPicker(messageToConvert)}
                   onForwardMessage={onForwardMessage}
                   onMoveToConversation={onMoveToConversation}
@@ -707,9 +762,12 @@ export function ConversationPane({
             <ReferencePickerModal
               mode={referencePickerMode}
               activeConversation={activeConversation}
+              sourceMessage={connectionSourceMessage}
               conversations={conversations}
               messagesByConversation={messagesByConversation}
-              onAddReference={addPendingReference}
+              onAddReference={(reference) =>
+                referencePickerMode === 'connection' ? void addSavedConnection(reference) : addPendingReference(reference)
+              }
               onClose={closeReferencePicker}
             />
           )}

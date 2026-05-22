@@ -22,6 +22,7 @@ import {
   moveMessage,
   moveMessageTextSelection,
   reorderMessages,
+  updateMessageReferences,
   updateMessageTags
 } from './services/messages';
 import { searchLoadedMessages } from './services/search';
@@ -280,6 +281,11 @@ export default function App() {
     await updateMessageTags(user.uid, message.conversationId, message.id, tags);
   }
 
+  async function handleUpdateMessageReferences(message: Message, references: MessageReference[]) {
+    if (!user) return;
+    await updateMessageReferences(user.uid, message.conversationId, message.id, references);
+  }
+
   function handleStartRename(conversation: Conversation) {
     setRenamingId(conversation.id);
     setRenameDraft(conversation.title);
@@ -405,6 +411,7 @@ export default function App() {
           onCreateEnglishBlock={handleCreateEnglishBlock}
           onReplaceWithEnglish={handleReplaceWithEnglish}
           onUpdateMessageTags={(message, tags) => void handleUpdateMessageTags(message, tags)}
+          onUpdateMessageReferences={(message, references) => void handleUpdateMessageReferences(message, references)}
         />
       )}
 
