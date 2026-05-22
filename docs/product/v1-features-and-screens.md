@@ -534,6 +534,8 @@ Scrolling behavior:
 
 - Long conversations should scroll only the message list, not the entire conversation screen.
 - The conversation header, selected-message merge toolbar, and message composer should remain visible while the user scrolls through messages.
+- Opening a conversation should position the latest visible block at the bottom of the message list.
+- Sending or appending a new visible block should scroll that new block to the bottom of the message list.
 
 ---
 
@@ -611,6 +613,7 @@ Layout:
 - User stays on the conversation list after releasing a reordered conversation.
 - Conversations that receive newly created blocks move to the top of the conversation list.
 - User can reorder messages inside a conversation with move controls or drag-handle drop on desktop and touch/pointer devices.
+- User can open a conversation or send a new block and land with the latest visible block aligned to the bottom of the message list.
 - User can merge multiple selected messages inside a conversation.
 - User can convert a message to English and either create a new result block or replace the source block.
 - User can convert draft composer text to English and send the selected English result directly with any current composer image attachments and references.
@@ -692,6 +695,7 @@ Version 1 is complete when:
 - I can reorder conversations, see the same preview/insertion-marker feedback as block dragging, stay on the conversation list after release, and see the same order after refresh.
 - I can add or transfer a new block into a conversation and see that receiving conversation move to the top of the list.
 - I can reorder text blocks with move controls or a drag handle on desktop and touch/pointer devices and see the same order after refresh.
+- I can open a conversation or send a new block and see the latest visible block positioned at the bottom of the scrollable message list.
 - I can select multiple text blocks, merge them into one block, and confirm the originals are removed.
 - I can convert a text block to English, select variants, and create the English result below the original.
 - I can replace a source text block with selected English text.

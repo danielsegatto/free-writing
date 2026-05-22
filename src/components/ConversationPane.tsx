@@ -156,6 +156,11 @@ export function ConversationPane({
   const editTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const selectionAnchorRef = useRef<{ messageId: string; top: number } | null>(null);
   const messagesRef = useRef<HTMLDivElement | null>(null);
+  const previousAutoScrollStateRef = useRef<{
+    conversationId: string | null;
+    visibleMessageCount: number;
+    lastVisibleMessageId: string | null;
+  } | null>(null);
   const isTagFilterActive = selectedTags.length > 0;
   const visibleMessages = useMemo(
     () => (isTagFilterActive ? activeMessages.filter((message) => messageMatchesAnyTag(message, selectedTags)) : activeMessages),
@@ -257,6 +262,30 @@ export function ConversationPane({
     textarea.style.height = 'auto';
     textarea.style.height = `${textarea.scrollHeight}px`;
   }, [editText, editingMessage?.id]);
+
+  useLayoutEffect(() => {
+    const conversationId = activeConversation?.id ?? null;
+    const lastVisibleMessageId = visibleMessages.at(-1)?.id ?? null;
+    const previousState = previousAutoScrollStateRef.current;
+
+    previousAutoScrollStateRef.current = {
+      conversationId,
+      visibleMessageCount: visibleMessages.length,
+      lastVisibleMessageId
+    };
+
+    if (!conversationId || !lastVisibleMessageId) return;
+
+    const isEnteringConversation = previousState?.conversationId !== conversationId;
+    const isAppendingVisibleMessage =
+      previousState?.conversationId === conversationId &&
+      visibleMessages.length > previousState.visibleMessageCount &&
+      lastVisibleMessageId !== previousState.lastVisibleMessageId;
+
+    if (!isEnteringConversation && !isAppendingVisibleMessage) return;
+
+    findMessageElement(messagesRef.current, lastVisibleMessageId)?.scrollIntoView?.({ block: 'end' });
+  }, [activeConversation?.id, visibleMessages]);
 
   useLayoutEffect(() => {
     const anchor = selectionAnchorRef.current;

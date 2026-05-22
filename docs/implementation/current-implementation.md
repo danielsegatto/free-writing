@@ -28,7 +28,7 @@ Implemented:
 - Message transfer support distinguishes copied/forwarded messages from moved messages with `transferType` and stores `forwardedFromConversationTitle` for copied-block origin display.
 - Composer `Ctrl+Enter` / `Cmd+Enter` opens draft English conversion, `Ctrl+Shift+Enter` / `Cmd+Shift+Enter` sends the current draft directly, and plain `Enter` inserts a newline. Inline message edits use `Ctrl+Enter` / `Cmd+Enter` to save.
 - Responsive phone/desktop layout.
-- Conversation pane layout is constrained to the viewport; only the message list scrolls, keeping the conversation header, merge toolbar, and composer visible in long conversations.
+- Conversation pane layout is constrained to the viewport; only the message list scrolls, keeping the conversation header, merge toolbar, and composer visible in long conversations. Entering a conversation bottom-aligns the latest visible block, and newly appended visible blocks scroll into the bottom position.
 - Dark visual theme across sign-in, sidebar, conversation pane, composer, message bubbles, modal, and hover states.
 - PWA manifest and generated service worker.
 - Browser/PWA theme colors are aligned to the dark app shell color.
@@ -121,7 +121,7 @@ src/components/Sidebar.tsx
   Search, conversation list, create, rename, delete, drag reorder, and navigation UI. Normal conversation rows show title and updated time; search results still show matching message text for context.
 
 src/components/ConversationPane.tsx
-  Active conversation view and orchestration for selected-message state, copy/edit/transfer/reorder/drag-and-drop/merge flows, English conversion hook wiring, index synthesis, insertion marker state, reference picker open mode, and inline edit/image-paste state.
+  Active conversation view and orchestration for selected-message state, copy/edit/transfer/reorder/drag-and-drop/merge flows, English conversion hook wiring, index synthesis, insertion marker state, reference picker open mode, bottom-aligned latest-block scrolling on conversation entry/new block append, and inline edit/image-paste state.
 
 src/components/CalendarPane.tsx
   Global dated-block calendar. Owns Today/This week/This month view selection, groups loaded blocks by local date, and opens source messages through the same navigation/highlight path as references.

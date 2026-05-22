@@ -115,24 +115,25 @@ Run against a configured Firebase project in Chrome or Safari after visiting the
 42. In a long conversation on a touch device or emulator, drag a block handle near the top and bottom edges of the visible message list and confirm the list auto-scrolls while the drag stays active.
 43. Select at least two messages, including a block with an image when possible, merge them, and confirm one unified block replaces the originals and keeps selected attachments. On desktop, enter block selection by double-clicking the first block; on touch devices, enter it by double-tapping the first block. After selection mode starts, confirm single clicks/taps toggle the remaining blocks.
 44. Create or use a long conversation and confirm scrolling moves only the message list while the conversation header, merge toolbar, and bottom composer remain visible.
-45. Confirm the active conversation header shows the conversation title without a message-count subtitle.
-46. Convert a message with several sentences to English, confirm the picker shows multiple sentence-level segment groups without a separate assembled preview, choose non-default options for at least one segment, and create the English block.
-47. Confirm the English block appears directly below the original, moves the receiving conversation to the top of the list, and remains after reload.
-48. Convert another message to English and replace the source block with the selected English text.
-49. Enter draft text in the composer and press `Ctrl+Shift+Enter` on Windows/Linux or `Cmd+Shift+Enter` on macOS/iPad hardware keyboards. Confirm the draft sends directly without opening English conversion.
-50. Enter draft text in the composer, paste or select a small image, convert the draft to English, choose an option, and confirm `Send English` creates the selected English text as a new message with the image attached, clears the composer image preview, and does not first place the English text in the composer.
-51. Click `Synthesize conversation index` in the active conversation header and confirm exactly one new index block appears at the bottom of the conversation.
-52. Confirm the synthesized index includes one clickable row per source block that existed before synthesis, including earlier synthesized index blocks if any existed.
-53. Click several index rows and confirm the message list scrolls to the matching source block and highlights it. Delete a referenced source block if practical and confirm that row becomes disabled rather than failing.
-54. Search for text that exists in loaded messages, including text from a synthesized index block.
-55. Disconnect the browser from the network.
-56. Reload the app.
-57. Confirm the app shell opens and cached conversations/messages remain readable.
-58. While offline, create, edit, paste or select a small image where supported, copy, delete, tag/filter, forward whole and selected text, move whole and selected text, reorder conversations, reorder messages by controls, reorder messages by drag handle where supported, and merge messages.
-59. Confirm requesting a new English conversion while offline fails gracefully without creating, replacing, sending, or changing draft text.
-60. Confirm requesting a new conversation index while offline fails gracefully without creating a new index block.
-61. Reconnect to the network.
-62. Confirm all queued changes sync and remain visible after another reload.
+45. Open a long conversation and confirm the latest visible block starts aligned at the bottom of the message list, then send a new block and confirm the new block scrolls into that same bottom position.
+46. Confirm the active conversation header shows the conversation title without a message-count subtitle.
+47. Convert a message with several sentences to English, confirm the picker shows multiple sentence-level segment groups without a separate assembled preview, choose non-default options for at least one segment, and create the English block.
+48. Confirm the English block appears directly below the original, moves the receiving conversation to the top of the list, and remains after reload.
+49. Convert another message to English and replace the source block with the selected English text.
+50. Enter draft text in the composer and press `Ctrl+Shift+Enter` on Windows/Linux or `Cmd+Shift+Enter` on macOS/iPad hardware keyboards. Confirm the draft sends directly without opening English conversion.
+51. Enter draft text in the composer, paste or select a small image, convert the draft to English, choose an option, and confirm `Send English` creates the selected English text as a new message with the image attached, clears the composer image preview, and does not first place the English text in the composer.
+52. Click `Synthesize conversation index` in the active conversation header and confirm exactly one new index block appears at the bottom of the conversation.
+53. Confirm the synthesized index includes one clickable row per source block that existed before synthesis, including earlier synthesized index blocks if any existed.
+54. Click several index rows and confirm the message list scrolls to the matching source block and highlights it. Delete a referenced source block if practical and confirm that row becomes disabled rather than failing.
+55. Search for text that exists in loaded messages, including text from a synthesized index block.
+56. Disconnect the browser from the network.
+57. Reload the app.
+58. Confirm the app shell opens and cached conversations/messages remain readable.
+59. While offline, create, edit, paste or select a small image where supported, copy, delete, tag/filter, forward whole and selected text, move whole and selected text, reorder conversations, reorder messages by controls, reorder messages by drag handle where supported, and merge messages.
+60. Confirm requesting a new English conversion while offline fails gracefully without creating, replacing, sending, or changing draft text.
+61. Confirm requesting a new conversation index while offline fails gracefully without creating a new index block.
+62. Reconnect to the network.
+63. Confirm all queued changes sync and remain visible after another reload.
 
 Expected result:
 
@@ -155,6 +156,7 @@ Expected result:
 - Conversations receiving newly created blocks move to the top of the list after direct creation, forwarding, moving, selected-text moving, and English block creation.
 - Reordered messages keep their order after reconnect and reload, whether reordered by explicit controls or the drag handle on desktop and mobile/touch devices.
 - Drag reordering continues smoothly when the intended drop target starts off-screen by auto-scrolling the message or conversation list near its top or bottom edge, and list gaps resolve to the nearest insertion slot instead of cancelling the drop.
+- Opening a conversation and appending a new visible block both leave the latest visible block aligned to the bottom of the scrollable message list.
 - Block merge selection starts by double-clicking or double-tapping the first block and then supports single-click/tap toggling for additional blocks. Merged messages keep the selected text in display order, and the original selected blocks remain removed after reconnect and reload.
 - English conversion can keep the original message unchanged by creating a new block, or replace the original when `Replace block` is chosen.
 - Draft English conversion sends the selected English result directly as a new message, preserves current composer image attachments and references, clears sent previews, and leaves the composer out of that send step.

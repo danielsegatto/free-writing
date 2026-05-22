@@ -159,7 +159,70 @@ function mockObjectUrls() {
   };
 }
 
+function mockScrollIntoView() {
+  const originalScrollIntoView = HTMLElement.prototype.scrollIntoView;
+  const scrollIntoView = vi.fn();
+
+  Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+    configurable: true,
+    value: scrollIntoView
+  });
+
+  return {
+    scrollIntoView,
+    restore: () => {
+      Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+        configurable: true,
+        value: originalScrollIntoView
+      });
+    }
+  };
+}
+
 describe('ConversationPane', () => {
+  it('opens a conversation with the last block aligned to the bottom', () => {
+    const scrollMock = mockScrollIntoView();
+
+    try {
+      renderPane();
+
+      const lastBlock = document.querySelector('[data-message-id="second"]');
+      expect(scrollMock.scrollIntoView).toHaveBeenCalledWith({ block: 'end' });
+      expect(scrollMock.scrollIntoView.mock.contexts.at(-1)).toBe(lastBlock);
+    } finally {
+      scrollMock.restore();
+    }
+  });
+
+  it('scrolls a newly appended block to the bottom', () => {
+    const scrollMock = mockScrollIntoView();
+
+    try {
+      const firstMessage = message('first', 'First');
+      const secondMessage = message('second', 'Second');
+      const initialProps = getPaneProps({
+        activeMessages: [firstMessage],
+        messagesByConversation: { [conversation.id]: [firstMessage] }
+      });
+      const { rerender } = render(<ConversationPane {...initialProps} />);
+
+      scrollMock.scrollIntoView.mockClear();
+
+      const nextProps = {
+        ...initialProps,
+        activeMessages: [firstMessage, secondMessage],
+        messagesByConversation: { [conversation.id]: [firstMessage, secondMessage] }
+      };
+      rerender(<ConversationPane {...nextProps} />);
+
+      const appendedBlock = document.querySelector('[data-message-id="second"]');
+      expect(scrollMock.scrollIntoView).toHaveBeenCalledWith({ block: 'end' });
+      expect(scrollMock.scrollIntoView.mock.contexts.at(-1)).toBe(appendedBlock);
+    } finally {
+      scrollMock.restore();
+    }
+  });
+
   it('adds image files to a message from the composer', async () => {
     const objectUrls = mockObjectUrls();
     const image = new File(['image-bytes'], 'draft.png', { type: 'image/png' });

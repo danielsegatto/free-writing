@@ -1,6 +1,6 @@
 # First Build Prompt
 
-Last updated: 2026-05-21
+Last updated: 2026-05-22
 
 Related docs: [documentation overview](../README.md), [product brief](../product/v1-product-brief.md), [features and screens](../product/v1-features-and-screens.md).
 
@@ -45,6 +45,7 @@ Conversations:
 
 Messages:
 - User can create text messages inside a conversation.
+- Opening a conversation should position the latest visible block at the bottom of the message list, and sending/appending a new visible block should scroll that block to the bottom.
 - User can attach small images to messages by selecting image files or pasting copied images.
 - User can create image-only blocks.
 - Enter should insert a newline in the composer.
