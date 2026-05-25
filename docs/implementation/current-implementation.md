@@ -1,6 +1,6 @@
 # Current Implementation
 
-Last updated: 2026-05-22
+Last updated: 2026-05-25
 
 Related docs: [documentation overview](../README.md), [product brief](../product/v1-product-brief.md), [architecture](../architecture/firebase-pwa-architecture.md), [QA checklist](../qa-v1-verification.md).
 
@@ -11,7 +11,7 @@ The current app state is a working Firebase-backed React PWA named `Free Writing
 Implemented:
 
 - Vite + React frontend.
-- Focused Vitest coverage for app transfer navigation, forward/move transfer decision helpers, transfer word-selection helpers, conversation service writes including inline wiki-link rename rewrites, sidebar drag reordering, message service writes, block connection/backlink helpers and UI, inline conversation-link parsing/typeahead/rendering, inline image attachments and paste handling, loaded-message search, tag normalization/filtering and inline tag suggestions, composer keyboard conversion and direct-send behavior, composer date action expansion and submission, inline editing, text/rich block copy feedback and fallbacks, reorder controls, desktop and touch drag-handle reorder behavior including body-scroll protection, gap drop zones, insertion markers, and edge autoscroll, multi-block merge selection on desktop and touch, English conversion UI/service/helper behavior, conversation index synthesis service/UI/Worker behavior, and the shared forward/move modal.
+- Focused Vitest coverage for app transfer navigation, forward/move transfer decision helpers, transfer word-selection helpers, conversation service writes including inline wiki-link rename rewrites, sidebar drag reordering, message service writes, block connection/backlink helpers and UI, inline conversation-link parsing/typeahead/rendering, long text block expand/collapse rendering, inline image attachments and paste handling, loaded-message search, tag normalization/filtering and inline tag suggestions, composer keyboard conversion and direct-send behavior, composer date action expansion and submission, inline editing, text/rich block copy feedback and fallbacks, reorder controls, desktop and touch drag-handle reorder behavior including body-scroll protection, gap drop zones, insertion markers, and edge autoscroll, multi-block merge selection on desktop and touch, English conversion UI/service/helper behavior, conversation index synthesis service/UI/Worker behavior, and the shared forward/move modal.
 - React code organized into small components, subscription/shared UI hooks, Firebase services, and utility helpers.
 - Firebase Authentication with Google provider.
 - Firebase configuration guard that shows a setup notice when `.env` is missing or still contains placeholder values.
@@ -19,7 +19,7 @@ Implemented:
 - Firestore security rules scoped to the signed-in user's UID.
 - Conversation create, rename, open, delete, and drag-handle reorder with floating preview, insertion marker, gap-tolerant drops, and edge autoscroll.
 - Conversation list rows show conversation title and updated time only; they intentionally do not render stored message previews.
-- Message create, edit, copy-to-clipboard for text-only, text/image, and image-only blocks, delete, copy/forward to another conversation with clickable source-conversation metadata, move to another conversation with a post-move open-target notice, partial text copying/moving from the transfer dialog, structured conversation links, quote citations, saved block-to-block connections with derived backlinks, inline `[[Conversation title]]` links with composer suggestions, search, manual up/down reorder, drag-handle reorder on desktop and touch/pointer devices with message-list edge autoscroll, selected-block merge, and synthesized clickable conversation index blocks.
+- Message create, compact display of long text blocks with icon-only expand/collapse, edit, copy-to-clipboard for text-only, text/image, and image-only blocks, delete, copy/forward to another conversation with clickable source-conversation metadata, move to another conversation with a post-move open-target notice, partial text copying/moving from the transfer dialog, structured conversation links, quote citations, saved block-to-block connections with derived backlinks, inline `[[Conversation title]]` links with composer suggestions, search, manual up/down reorder, drag-handle reorder on desktop and touch/pointer devices with message-list edge autoscroll, selected-block merge, and synthesized clickable conversation index blocks.
 - Optional block date/time scheduling with a top-level global Calendar screen. Dated blocks from all loaded conversations appear in Today, This week, and This month views; calendar items open and highlight the source block.
 - Small image attachments on new and edited blocks. Images can be selected, pasted into the composer, pasted through a touch-friendly clipboard action where the browser permits it, or pasted while editing an existing block.
 - Image attachments are compressed in the browser and stored inline in Firestore message documents. Firebase Storage is intentionally not used so the app stays on the free Spark plan.
@@ -142,7 +142,7 @@ src/components/MessageConnections.tsx
   Per-message structured reference and backlink rendering. Owns outbound reference cards, collapsed/expanded backlink rows, reference icons, and navigation target construction for cards while receiving loaded backlink data from `ConversationPane`.
 
 src/components/MessageText.tsx
-  Message body text rendering. Owns inline conversation-link rendering and reference-range highlighting while delegating marker parsing to `src/utils/inlineConversationLinks.ts`.
+  Message body text rendering. Owns inline conversation-link rendering, reference-range highlighting, and compact long-text previews. Blocks over three source lines or the wrapped-paragraph character threshold render a preview with an icon-only expand/collapse button; reference-target navigation auto-expands the source block so highlighted quote ranges are visible. Marker parsing stays delegated to `src/utils/inlineConversationLinks.ts`.
 
 src/components/MessageEditForm.tsx
   Inline message edit form rendering. Owns the edit textarea, scheduled date/time input, existing/new image previews, editable reference cards, save/cancel controls, and edit-form keyboard behavior while receiving all edit state and callbacks from `MessageBubble`.

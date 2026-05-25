@@ -574,6 +574,34 @@ button {
   overflow-wrap: anywhere;
 }
 
+.message-text-block {
+  margin: 6px 0 10px;
+}
+
+.message-text-block p {
+  margin-bottom: 8px;
+}
+
+.message-expand-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  margin-left: auto;
+  border: 1px solid rgba(84, 214, 191, 0.42);
+  border-radius: 5px;
+  padding: 0;
+  color: #9ff4e5;
+  background: rgba(84, 214, 191, 0.1);
+}
+
+.message-expand-button:hover {
+  border-color: rgba(84, 214, 191, 0.74);
+  color: #c7fff5;
+  background: rgba(84, 214, 191, 0.16);
+}
+
 .inline-conversation-link {
   display: inline-flex;
   min-width: 0;

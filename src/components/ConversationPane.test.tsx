@@ -349,6 +349,34 @@ describe('ConversationPane', () => {
     expect(await screen.findByText('Copied')).toBeInTheDocument();
   });
 
+  it('collapses text blocks longer than three lines until expanded', () => {
+    const longText = [
+      'Line one',
+      'Line two',
+      'Line three',
+      'Hidden fourth line'
+    ].join('\n');
+    const longMessage = message('large', longText);
+
+    renderPane({
+      activeMessages: [longMessage],
+      messagesByConversation: {
+        [conversation.id]: [longMessage]
+      }
+    });
+
+    expect(screen.getByText(/Line three/)).toBeInTheDocument();
+    expect(screen.queryByText(/Hidden fourth line/)).not.toBeInTheDocument();
+
+    const expandButton = screen.getByRole('button', { name: 'Expand text block' });
+    expect(expandButton).toHaveAttribute('aria-expanded', 'false');
+
+    fireEvent.click(expandButton);
+
+    expect(screen.getByText(/Hidden fourth line/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Collapse text block' })).toHaveAttribute('aria-expanded', 'true');
+  });
+
   it('copies text and attached images as rich clipboard content', async () => {
     const write = vi.fn().mockResolvedValue(undefined);
     const originalClipboardItem = globalThis.ClipboardItem;

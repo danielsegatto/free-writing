@@ -1,12 +1,12 @@
 # Free Writing Documentation
 
-Last updated: 2026-05-22
+Last updated: 2026-05-25
 
 This is the entry point for the Free Writing PWA documentation. The detailed base document has been split into smaller files so product intent, architecture, implementation status, and reusable prompts can be updated independently.
 
 ## App summary
 
-Free Writing is a private, Google-login messaging-style PWA for one user. It supports conversations, conversation list drag reordering, saved text/image blocks, optional block date/time scheduling with a global calendar, image paste and selection, search, tags/flags on blocks with quick reuse suggestions plus global and conversation filtering, copying text/image blocks to the browser clipboard, editing, deletion, keyboard shortcuts for direct send and draft English conversion, copying or moving whole blocks or selected parts between conversations with source metadata for copied blocks, saved block-to-block connections with backlinks, manual up/down and drag-handle block reordering on desktop and touch/pointer devices, multi-block merging, per-block English conversion, conversation index synthesis, multi-device access, and offline support for the app shell plus cached Firestore data.
+Free Writing is a private, Google-login messaging-style PWA for one user. It supports conversations, conversation list drag reordering, saved text/image blocks with compact expand/collapse rendering for long text, optional block date/time scheduling with a global calendar, image paste and selection, search, tags/flags on blocks with quick reuse suggestions plus global and conversation filtering, copying text/image blocks to the browser clipboard, editing, deletion, keyboard shortcuts for direct send and draft English conversion, copying or moving whole blocks or selected parts between conversations with source metadata for copied blocks, saved block-to-block connections with backlinks, manual up/down and drag-handle block reordering on desktop and touch/pointer devices, multi-block merging, per-block English conversion, conversation index synthesis, multi-device access, and offline support for the app shell plus cached Firestore data.
 
 Target devices:
 
@@ -63,7 +63,7 @@ Use the product docs when changing what the app should do or checking whether a 
 
 - Google/Gmail login behavior
 - Conversation behavior, including manual conversation ordering
-- Message creation, date/time scheduling and calendar browsing, image attachments, editing, deletion, block connections/backlinks, copying or moving whole/partial blocks between conversations, reordering, merging, English conversion, and conversation index synthesis
+- Message creation, compact long-text block display with expand/collapse, date/time scheduling and calendar browsing, image attachments, editing, deletion, block connections/backlinks, copying or moving whole/partial blocks between conversations, reordering, merging, English conversion, and conversation index synthesis
 - Message search
 - Sign-in, conversation list, conversation, calendar, and search screens
 - Functional requirements

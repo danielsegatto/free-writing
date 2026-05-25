@@ -1,6 +1,6 @@
 # Version 1 Features and Screens
 
-Last updated: 2026-05-22
+Last updated: 2026-05-25
 
 Related docs: [product brief](v1-product-brief.md), [architecture](../architecture/firebase-pwa-architecture.md), [current implementation](../implementation/current-implementation.md).
 
@@ -64,6 +64,8 @@ Each message should show:
 - Image attachments, when present
 - Created date/time
 - Edited indicator, if edited
+
+Long message text should initially render as a compact preview of roughly three lines, with an icon-only expand/collapse control that reveals or hides the full block content.
 
 Required message actions:
 
@@ -526,6 +528,7 @@ Content:
 - Message actions: edit, delete, copy/forward
 - Message action: copy block content to the clipboard
 - Message action: move to another conversation
+- Long message text preview with an icon-only expand/collapse control
 - Message tag chips plus an inline add/remove editor with suggestions
 - Message action: convert to English
 - Header action: synthesize a clickable conversation index
