@@ -175,20 +175,23 @@ Version 1 behavior:
 - Each message has a `Convert to English` action.
 - The composer has a `Convert draft to English` action when a non-empty draft is present.
 - The app breaks the text into sentence-level segments, preferring one segment per complete sentence or short standalone line.
+- After the user chooses segment options, the selected English text is sent through a second AI organization pass before saving or sending.
+- The organization pass may add Markdown structure such as headings, subheadings, bullet lists, numbered lists, quotes, line breaks, and paragraph breaks while preserving the selected English meaning.
 - Each segment shows three selectable English versions.
 - The first option is selected by default.
 - The user can choose one version for every segment.
 - The picker focuses on the segment option list and does not show a separate assembled preview.
-- For a saved message, `Create block` inserts the assembled English text as a new message directly below the original.
-- For a saved message, `Replace block` updates the original block with the assembled English text.
-- For draft text, `Send English` sends the assembled English text directly as a new message while preserving any current composer image attachments and structured references.
+- For a saved message, `Create block` inserts the organized English Markdown text as a new message directly below the original.
+- For a saved message, `Replace block` updates the original block with the organized English Markdown text.
+- For draft text, `Send English` sends the organized English Markdown text directly as a new message while preserving any current composer image attachments and structured references.
 
 Requirements:
 
 - Empty text should not be sent for conversion.
-- Conversion requires the signed-in user and a working server-side translation endpoint.
-- Translation failures should show a clear error without creating, replacing, or changing draft text.
+- Conversion requires the signed-in user and working server-side translation and English-organization endpoints.
+- Translation or organization failures should show a clear error without creating, replacing, or changing draft text.
 - The Groq/API key must stay server-side and must not be exposed through `VITE_` browser environment variables.
+- Saved English results are normal message text, so Markdown remains editable, searchable, copyable, downloadable as raw `.md` text, and renderable in the message body.
 
 ---
 

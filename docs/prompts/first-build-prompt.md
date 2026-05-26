@@ -25,7 +25,7 @@ Core requirements:
 - Cloud sync using Firestore.
 - Firestore offline persistence enabled.
 - PWA support with manifest and service worker.
-- Server-side AI proxy for text-block English conversion and conversation index synthesis.
+- Server-side AI proxy for text-block English conversion, selected-English Markdown organization, and conversation index synthesis.
 - App shell should open offline after first load.
 - Cached conversations and messages should be readable offline.
 - Offline writes should sync when the device is online again.
@@ -93,9 +93,10 @@ Messages:
 - Merging creates one normal replacement message from the selected blocks in display order and removes the selected originals.
 - Merging preserves selected image attachments in display order.
 - Whole-block copy/move preserves scheduled date/time. Partial text forwards create target blocks from the selected text. Merging keeps the earliest scheduled date/time from the selected blocks.
-- English conversion breaks the source text into sentence-level segments, offers three selectable English versions for each segment, and can create the selected English result as a new message below the original.
-- For saved messages, English conversion can also replace the source block with the selected English text.
-- For draft text, English conversion sends the selected English text directly as a new message.
+- English conversion breaks the source text into sentence-level segments and offers three selectable English versions for each segment.
+- After the user chooses segment options, send the selected English through a second AI pass that organizes it into a readable Markdown block before saving or sending.
+- For saved messages, English conversion can create the organized English Markdown result as a new message below the original or replace the source block with the organized result.
+- For draft text, English conversion sends the organized English Markdown result directly as a new message.
 - Show an optional "Copied" / "Copied from [conversation name]" label on copied/forwarded messages.
 - Show an optional "Moved" label on moved messages.
 - Show an "edited" label if a message was changed.
@@ -143,7 +144,7 @@ Message fields:
 AI conversion and synthesis:
 - Use a server-side endpoint such as a Cloudflare Worker so the AI provider key is not exposed in browser code.
 - Require the signed-in Firebase user for AI requests.
-- Store created English results as normal messages with `sortOrder` immediately after the source message.
+- Store created English results as normal messages with `sortOrder` immediately after the source message. The saved text should be the organized Markdown result from the second English pass.
 - Store synthesized conversation indexes as normal bottom messages with `blockKind: "conversation-index"` and structured `indexEntries`.
 
 Image attachment constraints:
@@ -181,7 +182,7 @@ Build in this order:
 17. Add tags/flags and tag filtering
 18. Add date/time scheduling and the global calendar
 19. Merge selected text blocks
-20. Add English conversion through a server-side proxy
+20. Add English conversion and selected-English Markdown organization through a server-side proxy
 21. Add conversation index synthesis through the server-side proxy
 22. Search messages
 23. Add PWA manifest
@@ -191,6 +192,6 @@ Build in this order:
 27. Test on desktop
 28. Test on tablet
 29. Test offline behavior
-30. Test authenticated English conversion and index synthesis
+30. Test authenticated English conversion, English organization, and index synthesis
 
 ---

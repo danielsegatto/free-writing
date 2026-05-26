@@ -578,6 +578,53 @@ button {
   overflow-wrap: anywhere;
 }
 
+.message-markdown {
+  margin: 6px 0 10px;
+  overflow-wrap: anywhere;
+}
+
+.message-markdown h1,
+.message-markdown h2,
+.message-markdown h3 {
+  margin: 8px 0 8px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.message-markdown h1 {
+  font-size: 1.18rem;
+}
+
+.message-markdown h2 {
+  font-size: 1.08rem;
+}
+
+.message-markdown h3 {
+  font-size: 1rem;
+}
+
+.message-markdown p {
+  margin: 6px 0 10px;
+  white-space: normal;
+}
+
+.message-markdown ul,
+.message-markdown ol {
+  margin: 6px 0 10px;
+  padding-left: 22px;
+}
+
+.message-markdown li {
+  margin: 3px 0;
+}
+
+.message-markdown blockquote {
+  margin: 8px 0 10px;
+  padding-left: 12px;
+  border-left: 3px solid rgba(84, 214, 191, 0.56);
+  color: #c7d8d5;
+}
+
 .message-text-block {
   margin: 6px 0 10px;
 }
@@ -1549,6 +1596,11 @@ button {
   border-radius: 8px;
   background: #101719;
   line-height: 1.45;
+}
+
+.english-option span {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .english-option:has(input:checked) {

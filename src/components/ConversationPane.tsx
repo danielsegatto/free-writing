@@ -76,6 +76,7 @@ type ConversationPaneProps = {
   onMergeMessages: (messages: Message[]) => Promise<void>;
   onSynthesizeIndex: (messages: Message[], conversationTitle: string) => Promise<void>;
   onConvertToEnglish: (text: string) => Promise<EnglishConversion>;
+  onFormatEnglishText: (text: string) => Promise<string>;
   onCreateEnglishBlock: (message: Message, text: string) => Promise<void>;
   onReplaceWithEnglish: (message: Message, text: string) => Promise<void>;
   onUpdateMessageTags: (message: Message, tags: string[]) => void | Promise<void>;
@@ -133,6 +134,7 @@ export function ConversationPane({
   onMergeMessages,
   onSynthesizeIndex,
   onConvertToEnglish,
+  onFormatEnglishText,
   onCreateEnglishBlock,
   onReplaceWithEnglish,
   onUpdateMessageTags,
@@ -213,6 +215,7 @@ export function ConversationPane({
     pendingReferences,
     draftScheduledAt,
     onConvertToEnglish,
+    onFormatEnglishText,
     onSubmitMessage,
     onCreateEnglishBlock,
     onReplaceWithEnglish,
