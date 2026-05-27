@@ -204,7 +204,7 @@ describe('translation worker', () => {
 
     const response = await worker.fetch(new Request('https://free-writing-translation.example.workers.dev/api/format-english', {
       method: 'POST',
-      body: JSON.stringify({ text: 'Ready to send' }),
+      body: JSON.stringify({ text: 'Ready to send', selectedSegments: ['Ready to send'] }),
       headers: {
         Origin: 'https://free-writing-e29a1.web.app',
         Authorization: 'Bearer id-token',
@@ -222,9 +222,46 @@ describe('translation worker', () => {
     };
     expect(groqRequest.messages[0]?.content).toContain('Organize the selected English text');
     expect(groqRequest.messages[0]?.content).toContain('before it is submitted');
-    expect(groqRequest.messages[0]?.content).toContain('You may add concise Markdown elements');
+    expect(groqRequest.messages[0]?.content).toContain('immutable source text');
+    expect(groqRequest.messages[0]?.content).toContain('Every selected segment must appear verbatim');
+    expect(groqRequest.messages[0]?.content).toContain('Selected English segments that must be preserved verbatim');
+    expect(groqRequest.messages[0]?.content).toContain('You may add concise organizational text and Markdown elements');
     expect(groqRequest.messages[0]?.content).toContain('Do not add new facts');
     expect(groqRequest.temperature).toBe(0.5);
+  });
+
+  it('rejects formatted English that removes a selected segment', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ users: [{ localId: 'user-id' }] })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                text: '# Plan\n\n- Ready to send'
+              })
+            }
+          }
+        ]
+      })));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await worker.fetch(new Request('https://free-writing-translation.example.workers.dev/api/format-english', {
+      method: 'POST',
+      body: JSON.stringify({
+        text: 'Ready to send\nKeep this exact sentence',
+        selectedSegments: ['Ready to send', 'Keep this exact sentence']
+      }),
+      headers: {
+        Origin: 'https://free-writing-e29a1.web.app',
+        Authorization: 'Bearer id-token',
+        'Content-Type': 'application/json'
+      }
+    }), env);
+    const body = await response.json() as { error: string };
+
+    expect(response.status).toBe(502);
+    expect(body.error).toContain('Unable to organize');
   });
 
   it('returns parsed conversation index entries from Groq', async () => {

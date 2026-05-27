@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { EnglishConversion, EnglishConversionRequest, Message, MessageReference } from '../types';
-import { assembleEnglishText } from '../utils/englishConversion';
+import { assembleEnglishText, getSelectedEnglishSegments } from '../utils/englishConversion';
 import {
   getSelectedTextFromRanges,
   getSelectionRangeChunks,
@@ -38,7 +38,7 @@ type UseEnglishConversionPickerOptions = {
   pendingReferences: MessageReference[];
   draftScheduledAt: Date | null;
   onConvertToEnglish: (request: string | EnglishConversionRequest) => Promise<EnglishConversion>;
-  onFormatEnglishText: (text: string) => Promise<string>;
+  onFormatEnglishText: (text: string, selectedSegments?: string[]) => Promise<string>;
   onSubmitMessage: (
     textOverride?: string,
     imageFiles?: File[],
@@ -205,11 +205,12 @@ export function useEnglishConversionPicker({
   async function saveResult(action: EnglishPickerAction) {
     if (!englishPicker?.conversion) return;
     const englishText = assembleEnglishText(englishPicker.conversion, englishPicker.selections);
+    const selectedSegments = getSelectedEnglishSegments(englishPicker.conversion, englishPicker.selections);
     if (!englishText) return;
 
     setEnglishPicker({ ...englishPicker, status: getFormattingStatus(action), error: null });
     try {
-      const formattedEnglishText = await onFormatEnglishText(englishText);
+      const formattedEnglishText = await onFormatEnglishText(englishText, selectedSegments);
       const textToSave = formattedEnglishText.trim() || englishText;
       setEnglishPicker({ ...englishPicker, status: getSavingStatus(action), error: null });
 

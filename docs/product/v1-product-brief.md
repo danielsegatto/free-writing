@@ -31,7 +31,7 @@ The app should let the user:
 - Connect saved blocks to other saved blocks and see backlinks
 - Reorder text blocks inside a conversation with explicit controls and a drag handle on desktop and touch/pointer devices
 - Merge multiple selected text blocks into one unified block
-- Convert saved text blocks, selected saved-text portions, or draft text into organized English Markdown by choosing from AI-generated variants
+- Convert saved text blocks, selected saved-text portions, or draft text into organized English Markdown by choosing from AI-generated variants while preserving the chosen English text
 - Synthesize a clickable index that maps the current conversation
 - Access the same content from iPhone, desktop, and tablet
 - Use the app offline when possible
@@ -103,7 +103,7 @@ The user should be able to:
 16. Send the current draft directly from the composer with `Ctrl+Shift+Enter` on Windows/Linux and `Cmd+Shift+Enter` on macOS/iPad keyboards.
 17. Reorder conversations and reorder text blocks inside a conversation with touch-friendly controls and drag handles on desktop and touch/pointer devices.
 18. Select multiple text blocks in a conversation and merge them into one unified block, removing the originals.
-19. Convert a saved text block, a selected portion of a saved block, or draft text into organized English Markdown by selecting one of three English versions for each segment, then letting AI structure the selected result before it is saved.
+19. Convert a saved text block, a selected portion of a saved block, or draft text into organized English Markdown by selecting one of three English versions for each segment, then letting AI structure the selected result before it is saved without removing or rewriting chosen segments.
 20. Write inline conversation links from the composer or while editing existing blocks, with `[[` suggestions and a visible insert control for touch devices.
 21. Connect related saved blocks with whole-block or quote links and see backlinks from connected source blocks.
 22. Synthesize a clickable conversation index that maps every current block back to its source.

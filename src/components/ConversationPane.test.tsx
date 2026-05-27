@@ -2289,7 +2289,7 @@ describe('ConversationPane', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Create block' }));
 
     await waitFor(() => {
-      expect(onFormatEnglishText).toHaveBeenCalledWith('First selected\nSecond selected');
+      expect(onFormatEnglishText).toHaveBeenCalledWith('First selected\nSecond selected', ['First selected', 'Second selected']);
     });
     expect(onCreateEnglishBlock).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'first' }),
@@ -2407,7 +2407,7 @@ describe('ConversationPane', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Send English' }));
 
     expect(onConvertToEnglish).toHaveBeenCalledWith('Pronto para enviar');
-    expect(onFormatEnglishText).toHaveBeenCalledWith('Ready to submit');
+    expect(onFormatEnglishText).toHaveBeenCalledWith('Ready to submit', ['Ready to submit']);
     await waitFor(() => {
       expect(onSubmitMessage).toHaveBeenCalledWith('- Ready to submit', [], [], null);
     });

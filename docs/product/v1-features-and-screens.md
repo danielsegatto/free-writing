@@ -203,7 +203,7 @@ Version 1 behavior:
 - For selected saved-message text, the conversion request sends the selected text plus surrounding before/after context. The AI must use the context only for meaning and continuity, not translate or return it.
 - The app breaks the selected text into sentence-level segments, preferring one segment per complete sentence or short standalone line.
 - After the user chooses segment options, the selected English text is sent through a second AI organization pass before saving or sending.
-- The organization pass may add Markdown structure such as headings, subheadings, bullet lists, numbered lists, quotes, line breaks, and paragraph breaks while preserving the selected English meaning.
+- The organization pass is limited to arranging the selected English segments into readable Markdown. It may add headings, subheadings, bullet lists, numbered lists, quotes, line breaks, paragraph breaks, and concise organizational text, but every selected segment must remain present verbatim.
 - Each segment shows three selectable English versions.
 - The first option is selected by default.
 - The user can choose one version for every segment.

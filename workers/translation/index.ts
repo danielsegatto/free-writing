@@ -154,7 +154,36 @@ function parseEnglishConversion(content: string): EnglishConversion {
   };
 }
 
-function parseFormattedEnglishText(content: string): FormattedEnglishText {
+function getSelectedSegments(value: unknown) {
+  return Array.isArray(value)
+    ? value.map((segment) => (typeof segment === 'string' ? segment.trim() : '')).filter(Boolean)
+    : [];
+}
+
+function countOccurrences(text: string, segment: string) {
+  let count = 0;
+  let index = text.indexOf(segment);
+  while (index !== -1) {
+    count += 1;
+    index = text.indexOf(segment, index + segment.length);
+  }
+  return count;
+}
+
+function assertPreservesSelectedSegments(text: string, selectedSegments: string[]) {
+  const requiredCounts = new Map<string, number>();
+  selectedSegments.forEach((segment) => {
+    requiredCounts.set(segment, (requiredCounts.get(segment) ?? 0) + 1);
+  });
+
+  for (const [segment, requiredCount] of requiredCounts) {
+    if (countOccurrences(text, segment) < requiredCount) {
+      throw new Error('Groq removed selected English text during formatting.');
+    }
+  }
+}
+
+function parseFormattedEnglishText(content: string, selectedSegments: string[] = []): FormattedEnglishText {
   const parsed = JSON.parse(content) as unknown;
   if (!parsed || typeof parsed !== 'object') {
     throw new Error('Groq returned a non-object response.');
@@ -165,7 +194,9 @@ function parseFormattedEnglishText(content: string): FormattedEnglishText {
     throw new Error('Groq returned no usable formatted English text.');
   }
 
-  return { text: text.trim() };
+  const formattedText = text.trim();
+  assertPreservesSelectedSegments(formattedText, selectedSegments);
+  return { text: formattedText };
 }
 
 function parseConversationIndex(content: string, blocks: ConversationIndexBlock[]): ConversationIndexResponse {
@@ -256,24 +287,34 @@ ${text}
 `.trim();
 }
 
-function buildEnglishFormattingPrompt(text: string) {
+function buildEnglishFormattingPrompt(text: string, selectedSegments: string[] = []) {
+  const selectedSegmentInstructions = selectedSegments.length > 0
+    ? `
+Selected English segments that must be preserved verbatim:
+${selectedSegments.map((segment, index) => `${index + 1}. ${segment}`).join('\n')}
+`
+    : '';
+
   return `
 You are an English writing editor. Organize the selected English text into a clear Markdown block before it is submitted.
 
 Task:
-1. Keep the user's meaning and wording as intact as possible.
-2. Arrange the selected English into a readable structure using Markdown when helpful.
-3. You may add concise Markdown elements such as "# Title", "## Subtitle", "- bullet", "1. numbered item", and "> quote" to organize the existing ideas.
-4. Preserve all facts, nuance, and ordering from the selected English text.
-5. Do not add new facts, conclusions, examples, calls to action, or decorative filler.
-6. Prefer readable paragraphs and lists over one flat paragraph.
-7. Do not wrap the result in a Markdown code fence.
+1. Treat every selected English segment as immutable source text.
+2. Never remove, rewrite, paraphrase, summarize, merge away, shorten, or correct any selected segment.
+3. Every selected segment must appear verbatim in the final Markdown text, exactly as written.
+4. Arrange the selected English segments into the best readable order and structure using Markdown when helpful.
+5. You may add concise organizational text and Markdown elements such as "# Title", "## Subtitle", "- bullet", "1. numbered item", and "> quote" around the selected segments.
+6. Preserve all facts, nuance, and ordering relationships from the selected English text.
+7. Do not add new facts, conclusions, examples, calls to action, or decorative filler.
+8. Prefer readable paragraphs and lists over one flat paragraph.
+9. Do not wrap the result in a Markdown code fence.
 
 Return ONLY valid JSON with this exact structure:
 {
   "text": "Final Markdown text"
 }
 
+${selectedSegmentInstructions}
 Selected English text:
 ${text}
 `.trim();
@@ -339,6 +380,19 @@ async function readEnglishConversionRequest(request: Request): Promise<EnglishCo
 
 async function readRequestText(request: Request) {
   return (await readEnglishConversionRequest(request)).text;
+}
+
+async function readEnglishFormattingRequest(request: Request) {
+  const body = await request.json() as unknown;
+  const candidate = body && typeof body === 'object' ? body as {
+    text?: unknown;
+    selectedSegments?: unknown;
+  } : null;
+
+  return {
+    text: typeof candidate?.text === 'string' ? candidate.text.trim() : '',
+    selectedSegments: getSelectedSegments(candidate?.selectedSegments)
+  };
 }
 
 async function readSynthesisRequest(request: Request) {
@@ -461,8 +515,11 @@ async function handleEnglishFormatting(request: Request, env: WorkerEnv) {
   }
 
   let text = '';
+  let selectedSegments: string[] = [];
   try {
-    text = await readRequestText(request);
+    const formattingRequest = await readEnglishFormattingRequest(request);
+    text = formattingRequest.text;
+    selectedSegments = formattingRequest.selectedSegments;
   } catch {
     return jsonResponse(request, env, 400, { error: 'Text is required.' });
   }
@@ -480,7 +537,7 @@ async function handleEnglishFormatting(request: Request, env: WorkerEnv) {
       },
       body: JSON.stringify({
         model: 'openai/gpt-oss-120b',
-        messages: [{ role: 'user', content: buildEnglishFormattingPrompt(text) }],
+        messages: [{ role: 'user', content: buildEnglishFormattingPrompt(text, selectedSegments) }],
         temperature: 0.5,
         max_completion_tokens: 4096,
         top_p: 1,
@@ -504,7 +561,7 @@ async function handleEnglishFormatting(request: Request, env: WorkerEnv) {
       return jsonResponse(request, env, 502, { error: 'The English formatting service returned no content.' });
     }
 
-    return jsonResponse(request, env, 200, parseFormattedEnglishText(content));
+    return jsonResponse(request, env, 200, parseFormattedEnglishText(content, selectedSegments));
   } catch {
     return jsonResponse(request, env, 502, { error: 'Unable to organize this English text.' });
   }

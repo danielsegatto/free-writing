@@ -111,7 +111,7 @@ describe('translation service', () => {
     })));
     vi.stubGlobal('fetch', fetchMock);
 
-    const result = await requestStructuredEnglishText('  Ready to send  ');
+    const result = await requestStructuredEnglishText('  Ready to send  ', [' Ready to send ']);
 
     expect(fetchMock).toHaveBeenCalledWith('/api/format-english', {
       method: 'POST',
@@ -119,7 +119,7 @@ describe('translation service', () => {
         Authorization: 'Bearer id-token',
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ text: 'Ready to send' })
+      body: JSON.stringify({ text: 'Ready to send', selectedSegments: ['Ready to send'] })
     });
     expect(result).toBe('# Notes\n\n- Ready to send');
   });

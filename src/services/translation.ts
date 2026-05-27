@@ -113,11 +113,12 @@ export async function requestEnglishVersions(input: string | EnglishConversionRe
   return parseEnglishConversion(body);
 }
 
-export async function requestStructuredEnglishText(text: string): Promise<string> {
+export async function requestStructuredEnglishText(text: string, selectedSegments: string[] = []): Promise<string> {
   const cleanText = text.trim();
   if (!cleanText) {
     throw new Error('This English text is empty.');
   }
+  const cleanSelectedSegments = selectedSegments.map((segment) => segment.trim()).filter(Boolean);
 
   const token = await auth?.currentUser?.getIdToken();
   if (!token) {
@@ -130,7 +131,10 @@ export async function requestStructuredEnglishText(text: string): Promise<string
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ text: cleanText })
+    body: JSON.stringify({
+      text: cleanText,
+      ...(cleanSelectedSegments.length > 0 ? { selectedSegments: cleanSelectedSegments } : {})
+    })
   });
 
   let body: unknown = null;

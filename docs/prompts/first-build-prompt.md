@@ -100,7 +100,7 @@ Messages:
 - Saved-message English conversion starts with a source text selection step. If no words are selected it converts the whole block; if words are selected it sends only the selected text plus surrounding before/after context.
 - English conversion breaks the selected source text into sentence-level segments and offers three selectable English versions for each segment.
 - For partial saved-message conversion, the AI request should use surrounding context only for meaning, tone, references, pronouns, and continuity, and must not translate or return the context itself.
-- After the user chooses segment options, send the selected English through a second AI pass that organizes it into a readable Markdown block before saving or sending.
+- After the user chooses segment options, send the selected English through a second AI pass that organizes it into a readable Markdown block before saving or sending. This organization pass may add Markdown structure and concise organizational text, but it must never remove, rewrite, summarize, or paraphrase selected segments; every selected segment must remain present verbatim.
 - For saved messages, English conversion can create the organized English Markdown result as a new message below the original or replace the source block/selected source part with the organized result.
 - For draft text, English conversion sends the organized English Markdown result directly as a new message.
 - Show an optional "Copied" / "Copied from [conversation name]" label on copied/forwarded messages.
@@ -150,7 +150,7 @@ Message fields:
 AI conversion and synthesis:
 - Use a server-side endpoint such as a Cloudflare Worker so the AI provider key is not exposed in browser code.
 - Require the signed-in Firebase user for AI requests.
-- Store created English results as normal messages with `sortOrder` immediately after the source message. The saved text should be the organized Markdown result from the second English pass. Partial saved-message replacement should preserve the surrounding original text and replace only the selected source part.
+- Store created English results as normal messages with `sortOrder` immediately after the source message. The saved text should be the organized Markdown result from the second English pass, with selected segment text preserved verbatim. Partial saved-message replacement should preserve the surrounding original text and replace only the selected source part.
 - Store synthesized conversation indexes as normal bottom messages with `blockKind: "conversation-index"` and structured `indexEntries`.
 
 Image attachment constraints:
