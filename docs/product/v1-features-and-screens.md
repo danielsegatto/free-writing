@@ -70,6 +70,7 @@ Long message text should initially render as a compact preview of roughly three 
 Required message actions:
 
 - Create message
+- Toggle information-only view for the active conversation
 - Add small image attachments from the file picker or copied image paste
 - Edit message
 - Copy block content to the system clipboard
@@ -86,6 +87,28 @@ Required message actions:
 Optional message actions:
 
 - Duplicate message in same conversation
+
+### 7.3.0 Information-only view mode
+
+The user can switch the active conversation into an information-only view to concentrate on each block's content.
+
+Version 1 behavior:
+
+- The conversation header exposes an `Information-only mode` toggle.
+- The mode is remembered locally in the browser and applies when returning to the app on that device.
+- While active, each block still shows its text, images, tags, created/edited/scheduled metadata, references, backlinks, inline conversation links, and synthesized index rows.
+- While active, normal creation/editing/management controls are hidden, including the composer, block action bars, tag add/remove controls, selection toolbar, and long-text expand/collapse buttons.
+- Long text renders fully in this mode so the user does not need an expand action to read it.
+- Navigation remains available: inline conversation links, reference cards, backlinks, copied-source conversation links, and synthesized index rows still open their targets.
+- Each text-bearing saved block exposes a `Show normal controls` option. Using it restores the normal per-block controls for only that block while the rest of the conversation remains in information-only view.
+- Only one block can show normal controls at a time; choosing another block closes the previously opened one.
+- The active normal-controls block can return to the information-only presentation with `Return block to view mode`.
+- Entering information-only mode clears multi-block selection state.
+
+Requirements:
+
+- This is a visualization preference, not Firestore data. It should not change messages, conversations, tags, references, or ordering.
+- The local browser preference should not be treated as account-synced state.
 
 ### 7.3.1 Message composer keyboard behavior
 
@@ -552,6 +575,7 @@ Content:
 
 - Conversation title
 - Back button on mobile
+- Information-only mode toggle in the conversation header
 - Message list
 - Message input fixed at the bottom of the visible conversation pane
 - Image preview strip in the composer when images are selected or pasted
@@ -568,6 +592,7 @@ Content:
 - Selection controls and a merge action for combining multiple selected blocks
 - English conversion picker modal with scrollable segment options
 - Date/time metadata and edit controls when a block is scheduled or being edited
+- Information-only mode that hides most controls while preserving block information and navigation, with a per-block option to temporarily show normal controls for only one block
 
 Scrolling behavior:
 
@@ -630,6 +655,7 @@ Layout:
 
 - User can create a message.
 - User can create an image-only message.
+- User can enable information-only view, read full block information without most controls, and temporarily show normal controls for one block at a time.
 - User can add image attachments by file selection, paste, or touch paste action where supported.
 - User can open draft English conversion from the composer with `Ctrl+Enter` / `Cmd+Enter`.
 - User can send the current draft directly from the composer with `Ctrl+Shift+Enter` / `Cmd+Shift+Enter`.
@@ -648,7 +674,7 @@ Layout:
 - User can move a whole message to another conversation.
 - User can add a conversation or quote reference to a message.
 - User can connect a saved block to another loaded saved block and expand backlinks from connected source blocks.
-- User can create an inline conversation link by typing `[[`, filtering conversation suggestions, selecting one, and sending the completed link.
+- User can create an inline conversation link by typing `[[` or using the visible `[[` insert action, filtering conversation suggestions, selecting one, and saving or sending the completed link.
 - User can open an inline conversation link from a saved message when its title uniquely matches a conversation.
 - User can reorder conversations in the conversation list with a drag handle and see the same order after refresh.
 - User stays on the conversation list after releasing a reordered conversation.
@@ -713,6 +739,8 @@ Version 1 is complete when:
 - I can sign in with Google/Gmail.
 - I can create conversations.
 - I can write messages inside conversations.
+- I can enter information-only view, focus on block text/images/tags/metadata/references without the composer or normal block action bars, and still use inline/reference/index navigation.
+- I can show normal controls for one block while in information-only view, confirm no edit form opens automatically, open normal controls on another block and see the previous block return to view mode, then close the active block back to view mode.
 - I can add a small image to a new block by file selection or paste.
 - I can paste an image while editing an existing block and save it onto that block.
 - Clicking a saved image preview does nothing.
@@ -729,7 +757,8 @@ Version 1 is complete when:
 - I can open the global calendar, browse dated blocks by today, this week, or this month, and open a source block from a calendar item.
 - I can add a conversation or quote reference to a message and open it when the source is loaded.
 - I can connect a saved block to another loaded saved block, including itself, and use backlinks to navigate back to connected source blocks.
-- I can type `[[`, choose a conversation suggestion by click or keyboard, send the block, and see the saved inline link render without bracket markers while still opening the target conversation.
+- I can type `[[` or use the visible `[[` insert action in the composer, choose a conversation suggestion by click or keyboard, send the block, and see the saved inline link render without bracket markers while still opening the target conversation.
+- I can type `[[` or use the visible `[[` insert action while editing an existing block, choose a conversation suggestion, save the edit, and keep the bottom composer reserved for new messages.
 - I can open draft English conversion with `Ctrl+Enter` / `Cmd+Enter`.
 - I can send the current draft directly with `Ctrl+Shift+Enter` / `Cmd+Shift+Enter`.
 - I can search messages.

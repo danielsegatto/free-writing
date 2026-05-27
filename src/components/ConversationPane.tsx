@@ -7,7 +7,7 @@ import {
   useState,
   type ClipboardEvent
 } from 'react';
-import { ArrowLeft, Map as MapIcon, MoreVertical, X } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff, Map as MapIcon, MoreVertical, X } from 'lucide-react';
 import { EnglishPickerModal } from './EnglishPickerModal';
 import { MessageDragPreview } from './MessageDragPreview';
 import { MessageComposer } from './MessageComposer';
@@ -39,9 +39,11 @@ type ConversationPaneProps = {
   selectedTags: string[];
   messagesByConversation: Record<string, Message[]>;
   navigationTarget: MessageReferenceNavigationTarget | null;
+  isInformationMode: boolean;
   moveNotice: { targetConversationId: string; targetConversationTitle: string } | null;
   draft: string;
   editingMessage: Message | null;
+  onToggleInformationMode: () => void;
   onOpenMoveNotice: () => void;
   onDismissMoveNotice: () => void;
   onBack: () => void;
@@ -108,9 +110,11 @@ export function ConversationPane({
   selectedTags,
   messagesByConversation,
   navigationTarget,
+  isInformationMode,
   moveNotice,
   draft,
   editingMessage,
+  onToggleInformationMode,
   onOpenMoveNotice,
   onDismissMoveNotice,
   onBack,
@@ -148,6 +152,7 @@ export function ConversationPane({
   const [referencePickerMode, setReferencePickerMode] = useState<ReferencePickerMode | null>(null);
   const [connectionSourceMessage, setConnectionSourceMessage] = useState<Message | null>(null);
   const [activeReferenceTarget, setActiveReferenceTarget] = useState<MessageReferenceNavigationTarget | null>(null);
+  const [normalModeMessageId, setNormalModeMessageId] = useState<string | null>(null);
   const [isMerging, setIsMerging] = useState(false);
   const [isSynthesizingIndex, setIsSynthesizingIndex] = useState(false);
   const [isApplyingSelectedAction, setIsApplyingSelectedAction] = useState(false);
@@ -277,6 +282,24 @@ export function ConversationPane({
     setConnectionSourceMessage(null);
     setReferencePickerMode(null);
   }, [activeConversation?.id]);
+
+  useEffect(() => {
+    if (!isInformationMode) return;
+    setIsMergeSelectionMode(false);
+    setSelectedMessageIds([]);
+    setMergeError(null);
+  }, [isInformationMode]);
+
+  useEffect(() => {
+    if (isInformationMode) return;
+    setNormalModeMessageId(null);
+  }, [isInformationMode]);
+
+  useEffect(() => {
+    if (!normalModeMessageId) return;
+    if (visibleMessages.some((message) => message.id === normalModeMessageId)) return;
+    setNormalModeMessageId(null);
+  }, [normalModeMessageId, visibleMessages]);
 
   useEffect(() => {
     setEditText(editingMessage?.text ?? '');
@@ -415,6 +438,10 @@ export function ConversationPane({
     setIsMergeSelectionMode(false);
     setSelectedMessageIds([]);
     setMergeError(null);
+  }
+
+  function toggleNormalModeMessage(messageId: string) {
+    setNormalModeMessageId((currentMessageId) => (currentMessageId === messageId ? null : messageId));
   }
 
   async function mergeSelectedMessages() {
@@ -637,6 +664,16 @@ export function ConversationPane({
             </div>
             <div className="conversation-header-actions">
               <button
+                className={isInformationMode ? 'icon-button active' : 'icon-button'}
+                type="button"
+                title="Information-only mode"
+                aria-label="Information-only mode"
+                aria-pressed={isInformationMode}
+                onClick={onToggleInformationMode}
+              >
+                {isInformationMode ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+              <button
                 className="icon-button"
                 type="button"
                 title="Synthesize conversation index"
@@ -688,6 +725,8 @@ export function ConversationPane({
                   messageCount={activeMessages.length}
                   isReorderDisabled={isTagFilterActive}
                   isSelectionMode={isMergeSelectionMode}
+                  isInformationMode={isInformationMode}
+                  isNormalModeOverride={normalModeMessageId === message.id}
                   isSelected={selectedMessageIds.includes(message.id)}
                   isDragging={draggedMessageId === message.id}
                   isDragOver={false}
@@ -706,6 +745,7 @@ export function ConversationPane({
                   backlinks={backlinksByMessageKey[getMessageReferenceKey(message.conversationId, message.id)] ?? []}
                   onSelect={toggleMessageSelection}
                   onStartSelection={startMergeSelection}
+                  onToggleNormalModeOverride={toggleNormalModeMessage}
                   onNavigateToReference={onNavigateToReference}
                   onNavigateToConversation={(conversationId) => onNavigateToReference({ conversationId })}
                   canNavigateToReference={canNavigateToReference}
@@ -763,7 +803,7 @@ export function ConversationPane({
             />
           )}
 
-          {selectionToolbar}
+          {!isInformationMode && selectionToolbar}
 
           {moveNotice && (
             <div className="move-notice" role="status">
@@ -777,7 +817,7 @@ export function ConversationPane({
             </div>
           )}
 
-          {!isMergeSelectionMode && (
+          {!isMergeSelectionMode && !isInformationMode && (
             <MessageComposer
               draft={draft}
               conversations={conversations}

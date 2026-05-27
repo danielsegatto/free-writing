@@ -18,7 +18,9 @@ import {
   GripVertical,
   Languages,
   Link2,
+  MoreHorizontal,
   MoveRight,
+  X,
   Trash2
 } from 'lucide-react';
 import { MessageEditForm } from './MessageEditForm';
@@ -44,6 +46,8 @@ type MessageBubbleProps = {
   messageIndex: number;
   messageCount: number;
   isSelectionMode: boolean;
+  isInformationMode: boolean;
+  isNormalModeOverride: boolean;
   isSelected: boolean;
   isDragging: boolean;
   isDragOver: boolean;
@@ -61,6 +65,7 @@ type MessageBubbleProps = {
   backlinks: MessageBacklink[];
   onSelect: (messageId: string) => void;
   onStartSelection: (messageId: string, options?: { suppressNextClick?: boolean }) => void;
+  onToggleNormalModeOverride: (messageId: string) => void;
   onNavigateToReference: (target: MessageReferenceNavigationTarget) => void;
   onNavigateToConversation: (conversationId: string) => void;
   canNavigateToReference: (reference: MessageReference) => boolean;
@@ -124,6 +129,8 @@ export function MessageBubble({
   messageIndex,
   messageCount,
   isSelectionMode,
+  isInformationMode,
+  isNormalModeOverride,
   isSelected,
   isDragging,
   isDragOver,
@@ -141,6 +148,7 @@ export function MessageBubble({
   backlinks,
   onSelect,
   onStartSelection,
+  onToggleNormalModeOverride,
   onNavigateToReference,
   onNavigateToConversation,
   canNavigateToReference,
@@ -194,6 +202,8 @@ export function MessageBubble({
   const copyTitle = hasAttachments ? 'Copy block' : 'Copy text';
   const isConversationIndex = message.blockKind === 'conversation-index' && (message.indexEntries?.length ?? 0) > 0;
   const scheduledAt = message.scheduledAt ?? null;
+  const isBlockInformationMode = isInformationMode && !isNormalModeOverride;
+  const canToggleNormalModeOverride = isInformationMode && !message.isPending && Boolean(message.text.trim());
 
   useEffect(() => {
     return () => {
@@ -329,11 +339,21 @@ export function MessageBubble({
           </span>
         )}
         <time>{formatDate(message.createdAt)}</time>
+        {canToggleNormalModeOverride && (
+          <button
+            className="icon-button bare"
+            type="button"
+            title={isNormalModeOverride ? 'Return block to view mode' : 'Show normal controls'}
+            onClick={() => onToggleNormalModeOverride(message.id)}
+          >
+            {isNormalModeOverride ? <X size={16} /> : <MoreHorizontal size={16} />}
+          </button>
+        )}
       </div>
 
       <MessageTagEditor
         message={message}
-        isSelectionMode={isSelectionMode || Boolean(message.isPending)}
+        isSelectionMode={isSelectionMode || isBlockInformationMode || Boolean(message.isPending)}
         tagSuggestions={tagSuggestions}
         onUpdateTags={onUpdateTags}
       />
@@ -394,16 +414,18 @@ export function MessageBubble({
               message={message}
               activeReferenceTarget={activeReferenceTarget}
               conversations={conversations}
+              isInformationMode={isBlockInformationMode}
               onNavigateToConversation={onNavigateToConversation}
             />
           )}
           <MessageConnections
             references={message.references}
             backlinks={backlinks}
+            isInformationMode={isBlockInformationMode}
             canNavigateToReference={canNavigateToReference}
             onNavigateToReference={onNavigateToReference}
           />
-          {!isSelectionMode && !message.isPending && (
+          {!isSelectionMode && !isBlockInformationMode && !message.isPending && (
             <div className="message-actions">
               <div className="reorder-actions" aria-label="Reorder message">
                 <button

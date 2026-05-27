@@ -44,7 +44,16 @@ type MoveNotice = {
   targetConversationTitle: string;
 };
 
+const INFORMATION_MODE_STORAGE_KEY = 'free-writing:information-mode';
 const messageSortStep = 1000;
+
+function getStoredInformationMode() {
+  try {
+    return window.localStorage.getItem(INFORMATION_MODE_STORAGE_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
 
 function timestampFromDate(date: Date) {
   return {
@@ -114,6 +123,7 @@ export default function App() {
   const [selectedGlobalTags, setSelectedGlobalTags] = useState<string[]>([]);
   const [selectedConversationTags, setSelectedConversationTags] = useState<string[]>([]);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [isInformationMode, setIsInformationMode] = useState(getStoredInformationMode);
   const [pendingMessagesByConversation, setPendingMessagesByConversation] = useState<Record<string, Message[]>>({});
 
   const activeConversation = conversations.find((conversation) => conversation.id === activeConversationId) ?? null;
@@ -152,6 +162,14 @@ export default function App() {
       return didChange ? next : current;
     });
   }, [messagesByConversation]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(INFORMATION_MODE_STORAGE_KEY, String(isInformationMode));
+    } catch {
+      // Ignore storage errors so private browsing or quota issues do not block the app.
+    }
+  }, [isInformationMode]);
 
   function getConversationTitle(conversationId: string) {
     return conversations.find((conversation) => conversation.id === conversationId)?.title ?? null;
@@ -492,9 +510,11 @@ export default function App() {
           selectedTags={selectedConversationTags}
           messagesByConversation={displayMessagesByConversation}
           navigationTarget={navigationTarget}
+          isInformationMode={isInformationMode}
           draft={draft}
           editingMessage={editingMessage}
           moveNotice={moveNotice}
+          onToggleInformationMode={() => setIsInformationMode((current) => !current)}
           onOpenMoveNotice={() => {
             if (!moveNotice) return;
             selectConversation(moveNotice.targetConversationId);

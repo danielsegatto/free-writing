@@ -12,6 +12,7 @@ The app should let the user:
 
 - Write messages
 - Attach small images by selecting or pasting them
+- Switch to an information-only view that hides most block controls while preserving content and navigation
 - Copy text blocks, including attached images where the browser clipboard and paste target support rich clipboard content
 - Download text blocks as Markdown `.md` files
 - Read saved messages
@@ -89,24 +90,25 @@ The user should be able to:
 3. Create conversations.
 4. Write messages inside conversations.
 5. Read saved messages.
-6. Edit messages.
-7. Delete messages.
-8. Search messages.
-9. Tag or flag message blocks for later filtering, with fast reuse of previously created tags.
-10. Attach small images to message blocks by selecting files or pasting copied images.
-11. Copy saved blocks to the system clipboard, including attached images where rich clipboard support is available.
-12. Download saved text blocks as Markdown `.md` files.
-13. Copy/forward whole text blocks or selected parts of a block from one conversation to another, with copied blocks showing their source conversation.
-14. Open draft English conversion from the composer with `Ctrl+Enter` on Windows/Linux and `Cmd+Enter` on macOS/iPad keyboards.
-15. Send the current draft directly from the composer with `Ctrl+Shift+Enter` on Windows/Linux and `Cmd+Shift+Enter` on macOS/iPad keyboards.
-16. Reorder conversations and reorder text blocks inside a conversation with touch-friendly controls and drag handles on desktop and touch/pointer devices.
-17. Select multiple text blocks in a conversation and merge them into one unified block, removing the originals.
-18. Convert a saved text block, a selected portion of a saved block, or draft text into organized English Markdown by selecting one of three English versions for each segment, then letting AI structure the selected result before it is saved.
-19. Write inline conversation links from the composer or while editing existing blocks, with `[[` suggestions and a visible insert control for touch devices.
-20. Connect related saved blocks with whole-block or quote links and see backlinks from connected source blocks.
-21. Synthesize a clickable conversation index that maps every current block back to its source.
-22. Access the same content from iPhone, desktop, and tablet.
-23. Continue reading and writing offline when the app has already loaded and local data is cached.
+6. Switch into an information-only viewing mode when the user wants to focus on block content.
+7. Edit messages.
+8. Delete messages.
+9. Search messages.
+10. Tag or flag message blocks for later filtering, with fast reuse of previously created tags.
+11. Attach small images to message blocks by selecting files or pasting copied images.
+12. Copy saved blocks to the system clipboard, including attached images where rich clipboard support is available.
+13. Download saved text blocks as Markdown `.md` files.
+14. Copy/forward whole text blocks or selected parts of a block from one conversation to another, with copied blocks showing their source conversation.
+15. Open draft English conversion from the composer with `Ctrl+Enter` on Windows/Linux and `Cmd+Enter` on macOS/iPad keyboards.
+16. Send the current draft directly from the composer with `Ctrl+Shift+Enter` on Windows/Linux and `Cmd+Shift+Enter` on macOS/iPad keyboards.
+17. Reorder conversations and reorder text blocks inside a conversation with touch-friendly controls and drag handles on desktop and touch/pointer devices.
+18. Select multiple text blocks in a conversation and merge them into one unified block, removing the originals.
+19. Convert a saved text block, a selected portion of a saved block, or draft text into organized English Markdown by selecting one of three English versions for each segment, then letting AI structure the selected result before it is saved.
+20. Write inline conversation links from the composer or while editing existing blocks, with `[[` suggestions and a visible insert control for touch devices.
+21. Connect related saved blocks with whole-block or quote links and see backlinks from connected source blocks.
+22. Synthesize a clickable conversation index that maps every current block back to its source.
+23. Access the same content from iPhone, desktop, and tablet.
+24. Continue reading and writing offline when the app has already loaded and local data is cached.
 
 ## 5. What Version 1 should not include
 
@@ -134,7 +136,7 @@ This version is still for one private user.
 
 ## 6. Core user story
 
-As the only user of the app, I want to sign in with Gmail, create and organize private conversations, write and organize text/image message blocks, link to related conversations inline, connect related blocks with backlinks, add date/time to blocks and browse them on a calendar, tag or flag blocks for filtering, copy saved blocks out to other apps or download text blocks as Markdown when needed, merge related blocks, forward full blocks or selected parts, move full blocks, keep copied-block origins visible, convert whole blocks or selected parts into organized English Markdown when needed, synthesize clickable conversation maps, search them, edit them, delete them, and access them from my iPhone, desktop, and tablet, even with limited offline support.
+As the only user of the app, I want to sign in with Gmail, create and organize private conversations, write and organize text/image message blocks, switch to an information-only view when I want to concentrate, link to related conversations inline, connect related blocks with backlinks, add date/time to blocks and browse them on a calendar, tag or flag blocks for filtering, copy saved blocks out to other apps or download text blocks as Markdown when needed, merge related blocks, forward full blocks or selected parts, move full blocks, keep copied-block origins visible, convert whole blocks or selected parts into organized English Markdown when needed, synthesize clickable conversation maps, search them, edit them, delete them, and access them from my iPhone, desktop, and tablet, even with limited offline support.
 
 ---
 
@@ -142,4 +144,4 @@ As the only user of the app, I want to sign in with Gmail, create and organize p
 
 The first useful version should be:
 
-> A private Google-login PWA where I can create and organize conversations, save text/image blocks, write inline conversation links, connect related blocks with backlinks, add date/time to blocks and view them on a calendar, tag or flag blocks with quick reuse suggestions, copy text/images to the clipboard, download text blocks as Markdown files, convert whole blocks, selected parts, or draft text into organized English Markdown, synthesize clickable conversation indexes, quickly send or convert draft text with keyboard shortcuts, edit/delete/search/reorder/merge blocks, forward whole blocks or selected parts between conversations, move whole blocks between conversations, keep copied blocks' source conversation visible, and access everything across iPhone, desktop, and tablet, with offline support for cached data.
+> A private Google-login PWA where I can create and organize conversations, save text/image blocks, switch to an information-only block view, write inline conversation links, connect related blocks with backlinks, add date/time to blocks and view them on a calendar, tag or flag blocks with quick reuse suggestions, copy text/images to the clipboard, download text blocks as Markdown files, convert whole blocks, selected parts, or draft text into organized English Markdown, synthesize clickable conversation indexes, quickly send or convert draft text with keyboard shortcuts, edit/delete/search/reorder/merge blocks, forward whole blocks or selected parts between conversations, move whole blocks between conversations, keep copied blocks' source conversation visible, and access everything across iPhone, desktop, and tablet, with offline support for cached data.

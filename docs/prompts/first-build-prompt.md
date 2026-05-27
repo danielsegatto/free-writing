@@ -49,6 +49,9 @@ Messages:
 - Repeated Send clicks or direct-send shortcuts while a send is pending should not create duplicate blocks.
 - Opening a conversation should position the latest visible block at the bottom of the message list, and sending/appending a new visible block should scroll that block to the bottom.
 - Long text blocks should show only a compact preview of roughly three lines until the user expands them with an icon-only control. The same control should collapse the block again.
+- The conversation header should provide an information-only mode for focusing on block content. In this mode, block text/images/tags/metadata/references/backlinks/inline links/index rows remain visible and navigable, long text renders fully, and normal creation/editing/management controls are hidden.
+- Information-only mode should persist as a browser-local preference, not account-synced Firestore data.
+- In information-only mode, each text-bearing saved block should expose a `Show normal controls` option that restores normal block controls only for that block without opening edit mode automatically. Only one block can show normal controls at a time; opening another closes the previous one, and the active block can return to view mode.
 - User can attach small images to messages by selecting image files or pasting copied images.
 - User can create image-only blocks.
 - Enter should insert a newline in the composer.

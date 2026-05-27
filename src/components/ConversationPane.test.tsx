@@ -66,9 +66,11 @@ function getPaneProps(overrides: Partial<ComponentProps<typeof ConversationPane>
       [conversation.id]: [message('first', 'First'), message('second', 'Second')]
     },
     navigationTarget: null,
+    isInformationMode: false,
     moveNotice: null,
     draft: 'Ready to send',
     editingMessage: null,
+    onToggleInformationMode: vi.fn(),
     onOpenMoveNotice: vi.fn(),
     onDismissMoveNotice: vi.fn(),
     onBack: vi.fn(),
@@ -387,6 +389,123 @@ describe('ConversationPane', () => {
 
     expect(screen.getByText(/Hidden fourth line/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Collapse text block' })).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('toggles information-only mode from the conversation header', () => {
+    const onToggleInformationMode = vi.fn();
+    renderPane({ isInformationMode: true, onToggleInformationMode });
+
+    const toggle = screen.getByRole('button', { name: 'Information-only mode' });
+    expect(toggle).toHaveAttribute('aria-pressed', 'true');
+
+    fireEvent.click(toggle);
+
+    expect(onToggleInformationMode).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows block information but hides editing controls in information-only mode', () => {
+    const sourceConversation = { ...conversation, id: 'source-conversation', title: 'Source chat' };
+    const informationMessage: Message = {
+      ...imageMessage('info', 'Read [[Source chat]] closely'),
+      tags: ['Focus'],
+      references: [
+        {
+          id: 'reference-1',
+          type: 'block',
+          sourceConversationId: sourceConversation.id,
+          sourceConversationTitle: sourceConversation.title,
+          sourceMessageId: 'source-block',
+          sourceMessagePreview: 'Reference preview'
+        }
+      ],
+      scheduledAt: timestamp
+    };
+    const onNavigateToReference = vi.fn();
+
+    renderPane({
+      isInformationMode: true,
+      activeMessages: [informationMessage],
+      conversations: [conversation, sourceConversation],
+      messagesByConversation: {
+        [conversation.id]: [informationMessage],
+        [sourceConversation.id]: [message('source-block', 'Reference preview')]
+      },
+      onNavigateToReference
+    });
+
+    expect(screen.getByText(/Read/)).toBeInTheDocument();
+    expect(screen.getByAltText('note.png')).toBeInTheDocument();
+    expect(screen.getByText('Focus')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Source chat' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Source chat: "Reference preview"/ })).toBeInTheDocument();
+    expect(screen.getByTitle('Show normal controls')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Send' })).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Edit')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Connect block')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Copy block')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Copy text')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Download text as Markdown')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Convert to English')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Forward')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Move to conversation')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Delete')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Move up')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Add tag')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Remove Focus')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Source chat' }));
+    expect(onNavigateToReference).toHaveBeenCalledWith({ conversationId: sourceConversation.id });
+  });
+
+  it('shows normal controls for one information-mode block at a time without editing it', () => {
+    const first = message('first', 'First');
+    const second = message('second', 'Second');
+
+    renderPane({
+      isInformationMode: true,
+      activeMessages: [first, second],
+      messagesByConversation: {
+        [conversation.id]: [first, second]
+      }
+    });
+
+    fireEvent.click(screen.getAllByTitle('Show normal controls')[0]);
+
+    expect(screen.queryByLabelText('Edit message text')).not.toBeInTheDocument();
+    expect(screen.getByTitle('Return block to view mode')).toBeInTheDocument();
+    expect(screen.getByTitle('Edit')).toBeInTheDocument();
+    expect(screen.getByTitle('Connect block')).toBeInTheDocument();
+    expect(screen.getByTitle('Copy text')).toBeInTheDocument();
+    expect(screen.getByTitle('Forward')).toBeInTheDocument();
+    expect(screen.getByTitle('Add tag')).toBeInTheDocument();
+    expect(screen.getAllByTitle('Show normal controls')).toHaveLength(1);
+
+    fireEvent.click(screen.getByTitle('Show normal controls'));
+
+    expect(screen.queryByLabelText('Edit message text')).not.toBeInTheDocument();
+    expect(screen.getByTitle('Return block to view mode')).toBeInTheDocument();
+    expect(screen.getAllByTitle('Show normal controls')).toHaveLength(1);
+
+    fireEvent.click(screen.getByTitle('Return block to view mode'));
+
+    expect(screen.queryByTitle('Edit')).not.toBeInTheDocument();
+    expect(screen.getAllByTitle('Show normal controls')).toHaveLength(2);
+  });
+
+  it('clears block selection when information-only mode turns on', async () => {
+    const props = getPaneProps();
+    const { rerender } = render(<ConversationPane {...props} />);
+
+    fireEvent.doubleClick(document.querySelector('[data-message-id="first"]') as HTMLElement);
+    expect(screen.getByRole('button', { name: 'Copy selected blocks to conversation' })).toBeInTheDocument();
+
+    rerender(<ConversationPane {...props} isInformationMode />);
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'Copy selected blocks to conversation' })).not.toBeInTheDocument();
+    });
+
+    rerender(<ConversationPane {...props} />);
+    expect(screen.queryByRole('button', { name: 'Copy selected blocks to conversation' })).not.toBeInTheDocument();
   });
 
   it('copies text and attached images as rich clipboard content', async () => {
@@ -2427,6 +2546,7 @@ describe('ConversationPane', () => {
     const onNavigateToReference = vi.fn();
 
     renderPane({
+      isInformationMode: true,
       activeMessages: [first, indexBlock],
       messagesByConversation: {
         [conversation.id]: [first, indexBlock]
