@@ -1,6 +1,6 @@
 # Version 1 Features and Screens
 
-Last updated: 2026-05-26
+Last updated: 2026-05-27
 
 Related docs: [product brief](v1-product-brief.md), [architecture](../architecture/firebase-pwa-architecture.md), [current implementation](../implementation/current-implementation.md).
 
@@ -99,6 +99,7 @@ Requirements:
 - `Ctrl+Shift+Enter` sends the current draft directly on Windows/Linux.
 - `Cmd+Shift+Enter` sends the current draft directly on macOS and iPad hardware keyboards.
 - Typing `[[` opens conversation-title suggestions for inline conversation links.
+- The composer should also expose a visible `[[` insert action so touch users can start an inline conversation link without relying on a hardware or software keyboard sequence.
 - Conversation-title suggestions filter as the user types and support mouse/touch selection plus desktop keyboard navigation with `ArrowUp`, `ArrowDown`, `Enter`, `Tab`, and `Escape`.
 - The visible Send button sends the current draft.
 - Empty or whitespace-only messages should not be sent.
@@ -233,6 +234,8 @@ Version 1 behavior:
 - Quote fragment selection uses the same word-selection behavior as forwarding: click toggles words, dragging selects or unselects multiple words, and separate non-adjacent fragments stay separate.
 - Blocks with incoming saved-block connections show a collapsed backlink row such as `Connected from 2 blocks`; expanding it shows clickable source-block cards.
 - The composer supports `[[Conversation title]]` inline links through typeahead suggestions from unique conversation titles.
+- The inline edit form supports the same `[[Conversation title]]` typeahead behavior while editing an existing block.
+- The composer and inline edit form both provide a visible `[[` insert action that places the marker at the current cursor or selection and opens suggestions.
 - Saved inline conversation links render as the conversation title with a visual linked/quoted cue; the `[[` and `]]` markers do not show in the message body.
 - Inline conversation links open the matching conversation when exactly one loaded conversation has that title.
 - Missing or duplicate conversation titles remain plain text.
@@ -313,6 +316,7 @@ Requirements:
 - Edit action available from each message.
 - Existing message text appears in an inline edit field inside the message block, not in the bottom composer.
 - The inline edit field expands to show the whole text while editing instead of requiring scrolling inside the field.
+- Typing `[[` or using the visible `[[` insert action while editing opens the same inline conversation-link suggestions as the composer.
 - User can save or cancel.
 - After saving, update the message text.
 - Pasted images while editing should be appended to the block on save.

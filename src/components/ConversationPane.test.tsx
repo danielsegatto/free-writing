@@ -1628,6 +1628,73 @@ describe('ConversationPane', () => {
     expect(onDraftChange).toHaveBeenLastCalledWith('[[Beta notes]]');
   });
 
+  it('inserts a conversation wiki link marker from the composer shortcut button', async () => {
+    const onDraftChange = vi.fn();
+    const sourceConversation = { ...conversation, id: 'source-conversation', title: 'Source chat' };
+
+    renderStatefulPane({
+      draft: '',
+      conversations: [conversation, sourceConversation],
+      onDraftChange
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Insert [[' }));
+
+    const composer = screen.getByPlaceholderText('Write a message') as HTMLTextAreaElement;
+    await waitFor(() => {
+      expect(composer).toHaveValue('[[');
+    });
+    expect(await screen.findByRole('option', { name: 'Source chat' })).toBeInTheDocument();
+    expect(onDraftChange).toHaveBeenLastCalledWith('[[');
+  });
+
+  it('suggests conversation wiki links while editing a block and completes the selected title', async () => {
+    const onSaveEdit = vi.fn(async () => undefined);
+    const editingMessage = message('first', 'See ');
+    const sourceConversation = { ...conversation, id: 'source-conversation', title: 'Source chat' };
+    renderPane({
+      editingMessage,
+      activeMessages: [editingMessage],
+      conversations: [conversation, sourceConversation],
+      messagesByConversation: { [conversation.id]: [editingMessage] },
+      onSaveEdit
+    });
+
+    const editor = screen.getByLabelText('Edit message text') as HTMLTextAreaElement;
+    fireEvent.change(editor, { target: { value: 'See [[' } });
+    editor.setSelectionRange(6, 6);
+    fireEvent.keyUp(editor);
+
+    fireEvent.click(await screen.findByRole('option', { name: 'Source chat' }));
+
+    await waitFor(() => {
+      expect(editor).toHaveValue('See [[Source chat]]');
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(onSaveEdit).toHaveBeenCalledWith(expect.objectContaining({ id: 'first' }), 'See [[Source chat]]', [], [], null);
+  });
+
+  it('inserts a conversation wiki link marker from the edit shortcut button', async () => {
+    const editingMessage = message('first', 'First');
+    const sourceConversation = { ...conversation, id: 'source-conversation', title: 'Source chat' };
+    renderPane({
+      editingMessage,
+      activeMessages: [editingMessage],
+      conversations: [conversation, sourceConversation],
+      messagesByConversation: { [conversation.id]: [editingMessage] }
+    });
+
+    const editor = screen.getByLabelText('Edit message text') as HTMLTextAreaElement;
+    editor.setSelectionRange(0, 0);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Insert [[' })[0]);
+
+    await waitFor(() => {
+      expect(editor).toHaveValue('[[First');
+    });
+    expect(await screen.findByRole('option', { name: 'Source chat' })).toBeInTheDocument();
+  });
+
   it('renders reference cards and navigates to their targets', () => {
     const props = renderPane({
       activeMessages: [

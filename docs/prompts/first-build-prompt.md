@@ -1,6 +1,6 @@
 # First Build Prompt
 
-Last updated: 2026-05-26
+Last updated: 2026-05-27
 
 Related docs: [documentation overview](../README.md), [product brief](../product/v1-product-brief.md), [features and screens](../product/v1-features-and-screens.md).
 
@@ -56,6 +56,7 @@ Messages:
 - Cmd+Enter should open draft English conversion on macOS and iPad hardware keyboards.
 - Ctrl+Shift+Enter should send the current draft directly on Windows/Linux.
 - Cmd+Shift+Enter should send the current draft directly on macOS and iPad hardware keyboards.
+- Typing `[[` in the composer or inline edit form should open unique conversation-title suggestions for inline conversation links. Both places should also expose a visible `[[` insert button for touch users.
 - User can edit messages inline inside the message block, without moving the text into the composer.
 - User can paste images while editing a message, preview them, and save them onto that block.
 - User can add, edit, clear, and view one scheduled date/time on a block.

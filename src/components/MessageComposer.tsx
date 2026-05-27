@@ -172,6 +172,17 @@ export function MessageComposer({
     completeInlineLinkSuggestion(suggestion.title);
   }
 
+  function insertInlineLinkMarker() {
+    const textarea = textareaRef.current;
+    const startOffset = textarea?.selectionStart ?? draft.length;
+    const endOffset = textarea?.selectionEnd ?? startOffset;
+    const nextText = `${draft.slice(0, startOffset)}[[${draft.slice(endOffset)}`;
+    const nextCursorOffset = startOffset + 2;
+    pendingCursorOffset.current = nextCursorOffset;
+    setDraftCursorOffset(nextCursorOffset);
+    onDraftChange(nextText);
+  }
+
   return (
     <form
       className="composer"
@@ -361,6 +372,16 @@ export function MessageComposer({
           onClick={() => void pasteImagesFromClipboard()}
         >
           <ClipboardPaste size={17} />
+        </button>
+        <button
+          className="icon-button"
+          type="button"
+          title="Insert [["
+          aria-label="Insert [["
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={insertInlineLinkMarker}
+        >
+          <span className="inline-link-marker-icon">[[</span>
         </button>
         <button
           className="icon-button"

@@ -341,6 +341,7 @@ export function MessageBubble({
       {isEditing ? (
         <MessageEditForm
           message={message}
+          conversations={conversations}
           editText={editText}
           editReferences={editReferences}
           editScheduledAt={editScheduledAt}
