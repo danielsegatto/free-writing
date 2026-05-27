@@ -94,3 +94,9 @@ export type EnglishSegment = {
 export type EnglishConversion = {
   segments: EnglishSegment[];
 };
+
+export type EnglishConversionRequest = {
+  text: string;
+  contextBefore?: string;
+  contextAfter?: string;
+};

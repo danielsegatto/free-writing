@@ -168,21 +168,24 @@ Requirements:
 
 ### 7.3.4 Convert text to English
 
-The user can convert saved text blocks or draft composer text into English.
+The user can convert saved text blocks, selected saved-text portions, or draft composer text into English.
 
 Version 1 behavior:
 
 - Each message has a `Convert to English` action.
 - The composer has a `Convert draft to English` action when a non-empty draft is present.
-- The app breaks the text into sentence-level segments, preferring one segment per complete sentence or short standalone line.
+- Saved-message conversion opens with a source text selection step. Leaving all words unselected converts the whole block; selecting words converts only that part.
+- The saved-message selection step uses the same tap/click toggle and pointer-drag word selection behavior as forwarding and quote selection, and should use most of the available viewport on tiny devices.
+- For selected saved-message text, the conversion request sends the selected text plus surrounding before/after context. The AI must use the context only for meaning and continuity, not translate or return it.
+- The app breaks the selected text into sentence-level segments, preferring one segment per complete sentence or short standalone line.
 - After the user chooses segment options, the selected English text is sent through a second AI organization pass before saving or sending.
 - The organization pass may add Markdown structure such as headings, subheadings, bullet lists, numbered lists, quotes, line breaks, and paragraph breaks while preserving the selected English meaning.
 - Each segment shows three selectable English versions.
 - The first option is selected by default.
 - The user can choose one version for every segment.
 - The picker focuses on the segment option list and does not show a separate assembled preview.
-- For a saved message, `Create block` inserts the organized English Markdown text as a new message directly below the original.
-- For a saved message, `Replace block` updates the original block with the organized English Markdown text.
+- For a saved message, `Create block` inserts the organized English Markdown text for the selected part as a new message directly below the original.
+- For a saved message, `Replace block` updates the original block. Whole-block conversion replaces the whole block; partial conversion replaces only the selected source text and keeps surrounding text intact.
 - For draft text, `Send English` sends the organized English Markdown text directly as a new message while preserving any current composer image attachments and structured references.
 
 Requirements:
@@ -649,7 +652,7 @@ Layout:
 - User can reorder messages inside a conversation with move controls or drag-handle drop on desktop and touch/pointer devices.
 - User can open a conversation or send a new block and land with the latest visible block aligned to the bottom of the message list.
 - User can merge multiple selected messages inside a conversation.
-- User can convert a message to English and either create a new result block or replace the source block.
+- User can convert all or part of a message to English and either create a new result block or replace the whole block/selected part.
 - User can convert draft composer text to English and send the selected English result directly with any current composer image attachments and references.
 - User can synthesize a conversation index block from all active conversation blocks in one contextual AI request.
 - User can click each synthesized index entry to jump to its corresponding source block.

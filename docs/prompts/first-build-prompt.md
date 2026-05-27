@@ -80,7 +80,7 @@ Messages:
 - Drag reordering should auto-scroll the visible message list when the user drags near the top or bottom edge so off-screen drop targets remain reachable.
 - User can select multiple text blocks inside a conversation and merge them into one unified block.
 - Block selection starts with a double-click on desktop or a double-tap on touch devices; after the first block is selected, single clicks/taps toggle other blocks.
-- User can convert a text block to English.
+- User can convert a whole text block or selected part of a text block to English.
 - User can convert draft composer text to English and send the selected English result directly.
 - User can synthesize a clickable conversation index from the active conversation header.
 - Index synthesis should send all visible blocks in display order in one contextual AI request, include previous index blocks, append the new index block to the bottom, and render each generated row as a link to its source block.
@@ -93,9 +93,11 @@ Messages:
 - Merging creates one normal replacement message from the selected blocks in display order and removes the selected originals.
 - Merging preserves selected image attachments in display order.
 - Whole-block copy/move preserves scheduled date/time. Partial text forwards create target blocks from the selected text. Merging keeps the earliest scheduled date/time from the selected blocks.
-- English conversion breaks the source text into sentence-level segments and offers three selectable English versions for each segment.
+- Saved-message English conversion starts with a source text selection step. If no words are selected it converts the whole block; if words are selected it sends only the selected text plus surrounding before/after context.
+- English conversion breaks the selected source text into sentence-level segments and offers three selectable English versions for each segment.
+- For partial saved-message conversion, the AI request should use surrounding context only for meaning, tone, references, pronouns, and continuity, and must not translate or return the context itself.
 - After the user chooses segment options, send the selected English through a second AI pass that organizes it into a readable Markdown block before saving or sending.
-- For saved messages, English conversion can create the organized English Markdown result as a new message below the original or replace the source block with the organized result.
+- For saved messages, English conversion can create the organized English Markdown result as a new message below the original or replace the source block/selected source part with the organized result.
 - For draft text, English conversion sends the organized English Markdown result directly as a new message.
 - Show an optional "Copied" / "Copied from [conversation name]" label on copied/forwarded messages.
 - Show an optional "Moved" label on moved messages.
@@ -144,7 +146,7 @@ Message fields:
 AI conversion and synthesis:
 - Use a server-side endpoint such as a Cloudflare Worker so the AI provider key is not exposed in browser code.
 - Require the signed-in Firebase user for AI requests.
-- Store created English results as normal messages with `sortOrder` immediately after the source message. The saved text should be the organized Markdown result from the second English pass.
+- Store created English results as normal messages with `sortOrder` immediately after the source message. The saved text should be the organized Markdown result from the second English pass. Partial saved-message replacement should preserve the surrounding original text and replace only the selected source part.
 - Store synthesized conversation indexes as normal bottom messages with `blockKind: "conversation-index"` and structured `indexEntries`.
 
 Image attachment constraints:

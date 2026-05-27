@@ -1,10 +1,17 @@
 import { useState } from 'react';
-import type { EnglishConversion, Message, MessageReference } from '../types';
+import type { EnglishConversion, EnglishConversionRequest, Message, MessageReference } from '../types';
 import { assembleEnglishText } from '../utils/englishConversion';
+import {
+  getSelectedTextFromRanges,
+  getSelectionRangeChunks,
+  replaceTextRanges,
+  type TextSelectionRange
+} from '../utils/textSelection';
 
 export type EnglishPickerSource = { type: 'message'; message: Message } | { type: 'draft'; imageFiles: File[] };
 
 export type EnglishPickerStatus =
+  | 'selecting'
   | 'loading'
   | 'ready'
   | 'formatting-create'
@@ -21,6 +28,7 @@ export type EnglishPickerState = {
   conversion: EnglishConversion | null;
   selections: number[];
   error: string | null;
+  sourceRanges: TextSelectionRange[];
 };
 
 export type EnglishPickerAction = 'create' | 'replace' | 'draft';
@@ -29,7 +37,7 @@ type UseEnglishConversionPickerOptions = {
   draft: string;
   pendingReferences: MessageReference[];
   draftScheduledAt: Date | null;
-  onConvertToEnglish: (text: string) => Promise<EnglishConversion>;
+  onConvertToEnglish: (request: string | EnglishConversionRequest) => Promise<EnglishConversion>;
   onFormatEnglishText: (text: string) => Promise<string>;
   onSubmitMessage: (
     textOverride?: string,
@@ -61,30 +69,75 @@ function getFormattingStatus(action: EnglishPickerAction): EnglishPickerStatus {
 function createLoadingState(source: EnglishPickerSource): EnglishPickerState {
   return {
     source,
-    status: 'loading',
+    status: source.type === 'message' ? 'selecting' : 'loading',
     conversion: null,
     selections: [],
-    error: null
+    error: null,
+    sourceRanges: []
   };
 }
 
-function createReadyState(source: EnglishPickerSource, conversion: EnglishConversion): EnglishPickerState {
+function createLoadingConversionState(source: EnglishPickerSource, sourceRanges: TextSelectionRange[] = []): EnglishPickerState {
+  return {
+    source,
+    status: 'loading',
+    conversion: null,
+    selections: [],
+    error: null,
+    sourceRanges
+  };
+}
+
+function createReadyState(
+  source: EnglishPickerSource,
+  conversion: EnglishConversion,
+  sourceRanges: TextSelectionRange[] = []
+): EnglishPickerState {
   return {
     source,
     status: 'ready',
     conversion,
     selections: conversion.segments.map(() => 0),
-    error: null
+    error: null,
+    sourceRanges
   };
 }
 
-function createErrorState(source: EnglishPickerSource, error: unknown): EnglishPickerState {
+function createErrorState(
+  source: EnglishPickerSource,
+  error: unknown,
+  sourceRanges: TextSelectionRange[] = []
+): EnglishPickerState {
   return {
     source,
     status: 'error',
     conversion: null,
     selections: [],
-    error: getErrorMessage(error, 'Unable to convert this text to English.')
+    error: getErrorMessage(error, 'Unable to convert this text to English.'),
+    sourceRanges
+  };
+}
+
+function createMessageConversionRequest(message: Message, ranges: TextSelectionRange[]) {
+  const chunks = getSelectionRangeChunks(message.text, ranges);
+  if (chunks.length === 0) {
+    return {
+      request: message.text,
+      sourceRanges: []
+    };
+  }
+
+  const selectedText = getSelectedTextFromRanges(message.text, chunks);
+  const firstChunk = chunks[0];
+  const lastChunk = chunks[chunks.length - 1];
+
+  return {
+    request: {
+      text: selectedText,
+      contextBefore: message.text.slice(0, firstChunk.startOffset).trim(),
+      contextAfter: message.text.slice(lastChunk.endOffset).trim()
+    },
+    sourceRanges: chunks
   };
 }
 
@@ -111,12 +164,19 @@ export function useEnglishConversionPicker({
   async function openMessagePicker(message: Message) {
     const source: EnglishPickerSource = { type: 'message', message };
     setEnglishPicker(createLoadingState(source));
+  }
+
+  async function convertMessageSelection(ranges: TextSelectionRange[]) {
+    if (!englishPicker || englishPicker.source.type !== 'message') return;
+    const source = englishPicker.source;
+    const { request, sourceRanges } = createMessageConversionRequest(source.message, ranges);
+    setEnglishPicker(createLoadingConversionState(source, sourceRanges));
 
     try {
-      const conversion = await onConvertToEnglish(message.text);
-      setEnglishPicker(createReadyState(source, conversion));
+      const conversion = await onConvertToEnglish(request);
+      setEnglishPicker(createReadyState(source, conversion, sourceRanges));
     } catch (error) {
-      setEnglishPicker(createErrorState(source, error));
+      setEnglishPicker(createErrorState(source, error, sourceRanges));
     }
   }
 
@@ -161,7 +221,10 @@ export function useEnglishConversionPicker({
         if (action === 'create') {
           await onCreateEnglishBlock(englishPicker.source.message, textToSave);
         } else {
-          await onReplaceWithEnglish(englishPicker.source.message, textToSave);
+          const replacementText = englishPicker.sourceRanges.length > 0
+            ? replaceTextRanges(englishPicker.source.message.text, englishPicker.sourceRanges, textToSave)
+            : textToSave;
+          await onReplaceWithEnglish(englishPicker.source.message, replacementText);
         }
       }
       setEnglishPicker(null);
@@ -180,6 +243,7 @@ export function useEnglishConversionPicker({
     closePicker: () => setEnglishPicker(null),
     openMessagePicker,
     openDraftPicker,
+    convertMessageSelection,
     updateSelection,
     saveResult
   };

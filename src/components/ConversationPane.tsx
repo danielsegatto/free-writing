@@ -17,7 +17,7 @@ import { SelectionToolbar } from './SelectionToolbar';
 import { useEnglishConversionPicker } from '../hooks/useEnglishConversionPicker';
 import { useImagePreviews } from '../hooks/useImagePreviews';
 import { useListReorderDrag } from '../hooks/useListReorderDrag';
-import type { Conversation, EnglishConversion, Message, MessageReference } from '../types';
+import type { Conversation, EnglishConversion, EnglishConversionRequest, Message, MessageReference } from '../types';
 import type { DropPosition } from '../utils/dropTargets';
 import { getImageFilesFromClipboardData } from '../utils/imageFiles';
 import { downloadMessageAsMarkdown } from '../utils/messageDownload';
@@ -75,7 +75,7 @@ type ConversationPaneProps = {
   onReorderMessage: (draggedMessageId: string, targetMessageId: string, position: DropPosition) => void;
   onMergeMessages: (messages: Message[]) => Promise<void>;
   onSynthesizeIndex: (messages: Message[], conversationTitle: string) => Promise<void>;
-  onConvertToEnglish: (text: string) => Promise<EnglishConversion>;
+  onConvertToEnglish: (request: string | EnglishConversionRequest) => Promise<EnglishConversion>;
   onFormatEnglishText: (text: string) => Promise<string>;
   onCreateEnglishBlock: (message: Message, text: string) => Promise<void>;
   onReplaceWithEnglish: (message: Message, text: string) => Promise<void>;
@@ -208,6 +208,7 @@ export function ConversationPane({
     closePicker: closeEnglishPicker,
     openMessagePicker: openMessageEnglishPicker,
     openDraftPicker: openDraftEnglishPicker,
+    convertMessageSelection: convertEnglishMessageSelection,
     updateSelection: updateEnglishSelection,
     saveResult: saveEnglishResult
   } = useEnglishConversionPicker({
@@ -800,6 +801,7 @@ export function ConversationPane({
               state={englishPicker}
               isSaving={englishPickerIsSaving}
               onClose={closeEnglishPicker}
+              onConvertSelection={convertEnglishMessageSelection}
               onSelectionChange={updateEnglishSelection}
               onSave={(action) => void saveEnglishResult(action)}
             />

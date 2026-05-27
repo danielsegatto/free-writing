@@ -47,6 +47,32 @@ describe('translation service', () => {
     expect(result.segments[0].separatorAfter).toBe('line');
   });
 
+  it('posts selected text with surrounding context', async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+      segments: [
+        {
+          original: 'mundo',
+          options: ['world', 'earth', 'the world']
+        }
+      ]
+    })));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await requestEnglishVersions({
+      text: ' mundo ',
+      contextBefore: 'Olá ',
+      contextAfter: ' bonito '
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/to-english', expect.objectContaining({
+      body: JSON.stringify({
+        text: 'mundo',
+        contextBefore: 'Olá',
+        contextAfter: 'bonito'
+      })
+    }));
+  });
+
   it('rejects invalid or empty translation responses', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ segments: [] }))));
 

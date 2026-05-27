@@ -13,6 +13,12 @@ type DevEnglishSegment = {
   separatorAfter?: 'space' | 'line' | 'blankLine';
 };
 
+type DevEnglishConversionRequest = {
+  text: string;
+  contextBefore: string;
+  contextAfter: string;
+};
+
 type DevConversationIndexBlock = {
   id: string;
   position: number;
@@ -46,19 +52,35 @@ let firebaseCertCache: {
 
 const englishSegmentSeparators = new Set(['space', 'line', 'blankLine']);
 
-function buildEnglishPrompt(text: string) {
+function buildEnglishPrompt({ text, contextBefore, contextAfter }: DevEnglishConversionRequest) {
+  const contextInstructions = contextBefore || contextAfter
+    ? `
+Context:
+- Use the surrounding context only for meaning, tone, references, pronouns, continuity, and ambiguity.
+- Process only the selected text. Never translate, rewrite, segment, summarize, or include the surrounding context in the returned segments.
+
+Context before selected text:
+${contextBefore || '[None]'}
+
+Context after selected text:
+${contextAfter || '[None]'}
+`
+    : '';
+
   return `
 You are a translation editor. Convert the provided text to English.
 
 Task:
-1. Preserve Markdown-like structure from the original text, including bullet points, numbered lists, dashes, headings, line breaks, and paragraph breaks.
-2. Divide the text into sentence-level or line-level segments. Prefer one segment per complete sentence, list item, heading, quote, or short standalone line.
-3. Do not merge separate sentences, list items, headings, quotes, or lines into one segment.
-4. Split a very long or compound sentence when it contains multiple ideas.
-5. Preserve the original order and meaning across all segments.
-6. For each segment, provide exactly three distinct, natural English versions.
-7. If the original segment is a Markdown structure, keep that structure in every option, such as "- item", "1. item", "> quote", or "# Heading".
-8. Set separatorAfter to the spacing that should follow this segment before the next segment:
+1. Process only the selected text. If surrounding context is provided, use it only to understand meaning, tone, references, pronouns, and continuity.
+2. Never translate, rewrite, segment, summarize, or include surrounding context in the returned segments.
+3. Preserve Markdown-like structure from the selected text, including bullet points, numbered lists, dashes, headings, line breaks, and paragraph breaks.
+4. Divide the selected text into sentence-level or line-level segments. Prefer one segment per complete sentence, list item, heading, quote, or short standalone line.
+5. Do not merge separate sentences, list items, headings, quotes, or lines into one segment.
+6. Split a very long or compound sentence when it contains multiple ideas.
+7. Preserve the original order and meaning across all segments.
+8. For each segment, provide exactly three distinct, natural English versions.
+9. If the original segment is a Markdown structure, keep that structure in every option, such as "- item", "1. item", "> quote", or "# Heading".
+10. Set separatorAfter to the spacing that should follow this segment before the next segment:
    - "space" for normal sentence flow in the same paragraph.
    - "line" for a single line break, including between list items or standalone lines.
    - "blankLine" for a paragraph break.
@@ -74,7 +96,8 @@ Return ONLY valid JSON with this exact structure:
   ]
 }
 
-Text to process:
+${contextInstructions}
+Selected text to process:
 ${text}
 `.trim();
 }
@@ -331,6 +354,20 @@ function parseSynthesisBody(body: unknown) {
   return { conversationTitle, blocks };
 }
 
+function parseEnglishConversionBody(body: unknown): DevEnglishConversionRequest {
+  const candidate = body && typeof body === 'object' ? body as {
+    text?: unknown;
+    contextBefore?: unknown;
+    contextAfter?: unknown;
+  } : null;
+
+  return {
+    text: typeof candidate?.text === 'string' ? candidate.text.trim() : '',
+    contextBefore: typeof candidate?.contextBefore === 'string' ? candidate.contextBefore.trim() : '',
+    contextAfter: typeof candidate?.contextAfter === 'string' ? candidate.contextAfter.trim() : ''
+  };
+}
+
 function localEnglishApi(env: Record<string, string>): Plugin {
   return {
     name: 'local-english-api',
@@ -359,11 +396,9 @@ function localEnglishApi(env: Record<string, string>): Plugin {
 
         try {
           const body = await readJsonBody(request);
-          const text = body && typeof body === 'object' && typeof (body as { text?: unknown }).text === 'string'
-            ? (body as { text: string }).text.trim()
-            : '';
+          const englishRequest = parseEnglishConversionBody(body);
 
-          if (!text) {
+          if (!englishRequest.text) {
             sendJson(response, 400, { error: 'Text is required.' });
             return;
           }
@@ -376,7 +411,7 @@ function localEnglishApi(env: Record<string, string>): Plugin {
             },
             body: JSON.stringify({
               model: 'openai/gpt-oss-120b',
-              messages: [{ role: 'user', content: buildEnglishPrompt(text) }],
+              messages: [{ role: 'user', content: buildEnglishPrompt(englishRequest) }],
               temperature: 1,
               max_completion_tokens: 4096,
               top_p: 1,

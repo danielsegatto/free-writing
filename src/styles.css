@@ -1535,8 +1535,9 @@ button {
 
 .english-picker {
   display: flex;
-  width: min(720px, 100%);
-  max-height: 86vh;
+  width: min(1040px, calc(100vw - 28px));
+  height: min(780px, calc(100dvh - 28px));
+  max-height: calc(100dvh - 28px);
   flex-direction: column;
   overflow: hidden;
   border: 1px solid #2d3c40;
@@ -1564,6 +1565,40 @@ button {
 .picker-status,
 .english-picker .notice {
   margin: 16px;
+}
+
+.english-selection-panel {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  padding: 12px;
+  gap: 10px;
+}
+
+.english-source-text {
+  flex: 1;
+  min-height: 220px;
+  overflow-y: auto;
+  border: 1px solid #344246;
+  border-radius: 8px;
+  padding: 12px;
+  color: #e8eef2;
+  background: #101719;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+  overscroll-behavior: contain;
+}
+
+.english-selection-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: #a8b6bb;
+  font-size: 0.9rem;
 }
 
 .english-segments {
@@ -1947,6 +1982,26 @@ button {
     width: min(100%, 430px);
     height: calc(100dvh - 24px);
     max-height: calc(100dvh - 24px);
+  }
+
+  .english-picker {
+    width: min(100%, 430px);
+    height: calc(100dvh - 24px);
+    max-height: calc(100dvh - 24px);
+  }
+
+  .english-picker-header,
+  .english-picker-actions {
+    padding: 12px;
+  }
+
+  .english-picker-actions {
+    flex-wrap: wrap;
+  }
+
+  .english-picker-actions .primary-button,
+  .english-picker-actions .text-button {
+    min-height: 40px;
   }
 
   .message-bubble {

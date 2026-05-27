@@ -2,7 +2,7 @@ import { act, cleanup, createEvent, fireEvent, render, screen, waitFor, within }
 import { useState, type ComponentProps } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { ConversationPane } from './ConversationPane';
-import type { Conversation, Message } from '../types';
+import type { Conversation, EnglishConversionRequest, Message } from '../types';
 
 const timestamp = {
   toDate: () => new Date('2026-05-12T12:00:00Z'),
@@ -91,7 +91,7 @@ function getPaneProps(overrides: Partial<ComponentProps<typeof ConversationPane>
     onReorderMessage: vi.fn(),
     onMergeMessages: vi.fn(async () => undefined),
     onSynthesizeIndex: vi.fn(async () => undefined),
-    onConvertToEnglish: vi.fn(async (_text: string) => ({
+    onConvertToEnglish: vi.fn(async (_request: string | EnglishConversionRequest) => ({
       segments: [
         {
           original: 'First',
@@ -2060,6 +2060,8 @@ describe('ConversationPane', () => {
     });
 
     fireEvent.click(screen.getAllByTitle('Convert to English')[0]);
+    expect(await screen.findByLabelText('Choose text to convert')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Convert block' }));
 
     expect(props.onConvertToEnglish).toHaveBeenCalledWith('First');
     expect(await screen.findByRole('dialog', { name: 'Choose English versions' })).toBeInTheDocument();
@@ -2095,6 +2097,7 @@ describe('ConversationPane', () => {
     });
 
     fireEvent.click(screen.getAllByTitle('Convert to English')[0]);
+    fireEvent.click(await screen.findByRole('button', { name: 'Convert block' }));
     fireEvent.click(await screen.findByLabelText('First selected'));
     fireEvent.click(screen.getByLabelText('Second selected'));
     fireEvent.click(screen.getByRole('button', { name: 'Create block' }));
@@ -2125,6 +2128,7 @@ describe('ConversationPane', () => {
     });
 
     fireEvent.click(screen.getAllByTitle('Convert to English')[0]);
+    fireEvent.click(await screen.findByRole('button', { name: 'Convert block' }));
     fireEvent.click(await screen.findByLabelText('First replacement'));
     fireEvent.click(screen.getByRole('button', { name: 'Replace block' }));
 
@@ -2132,6 +2136,68 @@ describe('ConversationPane', () => {
       expect(onReplaceWithEnglish).toHaveBeenCalledWith(
         expect.objectContaining({ id: 'first' }),
         '## Replacement\n\nFirst replacement'
+      );
+    });
+  });
+
+  it('converts selected saved text with surrounding context', async () => {
+    const source = message('first', 'Olá mundo bonito');
+    const onConvertToEnglish = vi.fn(async () => ({
+      segments: [
+        {
+          original: 'mundo',
+          options: ['world', 'earth', 'the world'] as [string, string, string]
+        }
+      ]
+    }));
+    renderPane({
+      activeMessages: [source],
+      messagesByConversation: { [conversation.id]: [source] },
+      onConvertToEnglish
+    });
+
+    fireEvent.click(screen.getByTitle('Convert to English'));
+    fireEvent.click(await screen.findByRole('button', { name: 'mundo' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Convert selection' }));
+
+    await waitFor(() => {
+      expect(onConvertToEnglish).toHaveBeenCalledWith({
+        text: 'mundo',
+        contextBefore: 'Olá',
+        contextAfter: 'bonito'
+      });
+    });
+    expect(await screen.findByLabelText('world')).toBeChecked();
+  });
+
+  it('replaces only the selected source text with English', async () => {
+    const source = message('first', 'Olá mundo bonito');
+    const onReplaceWithEnglish = vi.fn(async () => undefined);
+    const onFormatEnglishText = vi.fn(async () => 'world');
+    renderPane({
+      activeMessages: [source],
+      messagesByConversation: { [conversation.id]: [source] },
+      onReplaceWithEnglish,
+      onFormatEnglishText,
+      onConvertToEnglish: vi.fn(async () => ({
+        segments: [
+          {
+            original: 'mundo',
+            options: ['world', 'earth', 'the world'] as [string, string, string]
+          }
+        ]
+      }))
+    });
+
+    fireEvent.click(screen.getByTitle('Convert to English'));
+    fireEvent.click(await screen.findByRole('button', { name: 'mundo' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Convert selection' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Replace block' }));
+
+    await waitFor(() => {
+      expect(onReplaceWithEnglish).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'first' }),
+        'Olá world bonito'
       );
     });
   });
@@ -2214,6 +2280,7 @@ describe('ConversationPane', () => {
     });
 
     fireEvent.click(screen.getAllByTitle('Convert to English')[0]);
+    fireEvent.click(await screen.findByRole('button', { name: 'Convert block' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Translation service unavailable');
     expect(screen.getByRole('button', { name: 'Create block' })).toBeDisabled();

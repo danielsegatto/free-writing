@@ -21,6 +21,16 @@ function request(init: RequestInit = {}) {
   });
 }
 
+function selectedTextRequest() {
+  return request({
+    body: JSON.stringify({
+      text: 'mundo',
+      contextBefore: 'Olá',
+      contextAfter: 'bonito'
+    })
+  });
+}
+
 function synthesisRequest(init: RequestInit = {}) {
   return new Request('https://free-writing-translation.example.workers.dev/api/synthesize-index', {
     method: 'POST',
@@ -136,10 +146,44 @@ describe('translation worker', () => {
       messages: Array<{ content: string }>;
     };
     expect(groqRequest.messages[0]?.content).toContain('Preserve Markdown-like structure');
+    expect(groqRequest.messages[0]?.content).toContain('Process only the selected text');
     expect(groqRequest.messages[0]?.content).toContain('sentence-level or line-level segments');
     expect(groqRequest.messages[0]?.content).toContain('list item, heading, quote, or short standalone line');
     expect(groqRequest.messages[0]?.content).toContain('separatorAfter');
     expect(groqRequest.messages[0]?.content).toContain('"blankLine" for a paragraph break');
+  });
+
+  it('uses surrounding context without asking Groq to process it', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ users: [{ localId: 'user-id' }] })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                segments: [
+                  {
+                    original: 'mundo',
+                    options: ['world', 'earth', 'the world']
+                  }
+                ]
+              })
+            }
+          }
+        ]
+      })));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await worker.fetch(selectedTextRequest(), env);
+
+    expect(response.status).toBe(200);
+    const groqRequest = JSON.parse(fetchMock.mock.calls[1]?.[1]?.body as string) as {
+      messages: Array<{ content: string }>;
+    };
+    expect(groqRequest.messages[0]?.content).toContain('Context before selected text:\nOlá');
+    expect(groqRequest.messages[0]?.content).toContain('Context after selected text:\nbonito');
+    expect(groqRequest.messages[0]?.content).toContain('Never translate, rewrite, segment, summarize, or include the surrounding context');
+    expect(groqRequest.messages[0]?.content).toContain('Selected text to process:\nmundo');
   });
 
   it('organizes selected English text into Markdown before submission', async () => {
