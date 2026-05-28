@@ -70,7 +70,10 @@ function getPaneProps(overrides: Partial<ComponentProps<typeof ConversationPane>
     moveNotice: null,
     draft: 'Ready to send',
     editingMessage: null,
+    isExportingConversation: false,
+    conversationExportError: null,
     onToggleInformationMode: vi.fn(),
+    onExportConversation: vi.fn(),
     onOpenMoveNotice: vi.fn(),
     onDismissMoveNotice: vi.fn(),
     onBack: vi.fn(),
@@ -191,6 +194,25 @@ function mockScrollIntoView() {
 }
 
 describe('ConversationPane', () => {
+  it('exports the active conversation from the conversation header', () => {
+    const props = renderPane();
+
+    fireEvent.click(screen.getByTitle('Export conversation'));
+
+    expect(props.onExportConversation).toHaveBeenCalledTimes(1);
+  });
+
+  it('disables conversation export while pending and shows errors', () => {
+    const props = renderPane({
+      isExportingConversation: true,
+      conversationExportError: 'Unable to export this conversation.'
+    });
+
+    expect(screen.getByTitle('Export conversation')).toBeDisabled();
+    expect(screen.getByRole('alert')).toHaveTextContent('Unable to export this conversation.');
+    expect(props.onExportConversation).not.toHaveBeenCalled();
+  });
+
   it('opens a conversation with the last block aligned to the bottom', () => {
     const scrollMock = mockScrollIntoView();
 

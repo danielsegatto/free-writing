@@ -76,6 +76,7 @@ Messages:
 - Clicking a calendar item should open the source conversation and highlight the source block.
 - User can copy saved blocks to the system clipboard. Text-only blocks copy plain text; blocks with images use best-effort rich clipboard data containing text and attached images, with plain-text fallback when possible.
 - User can download a saved text-bearing block as a Markdown `.md` file containing the raw block text. The filename should include a sanitized conversation title, the block creation date, and the block ID.
+- User can export the active conversation from the conversation header and export all conversations from the app header. Each export should download a faithful JSON bundle plus a readable Markdown companion. JSON should preserve full conversation/message records including inline image data URLs; Markdown should omit inline base64 image payloads.
 - User can delete messages with confirmation.
 - User can add and remove tags/flags on message blocks. The tag editor should suggest previously created tags from loaded blocks as the user types, exclude tags already on the current block, and support click or Enter selection.
 - User can filter loaded blocks by tag globally and within the active conversation.
@@ -203,14 +204,15 @@ Build in this order:
 20. Merge selected text blocks
 21. Add English conversion and selected-English Markdown organization through a server-side proxy
 22. Add conversation index synthesis through the server-side proxy
-23. Search messages
-24. Add PWA manifest
-25. Add service worker
-26. Enable Firestore offline persistence
-27. Test on iPhone 8
-28. Test on desktop
-29. Test on tablet
-30. Test offline behavior
-31. Test authenticated English conversion, English organization, and index synthesis
+23. Add app-based conversation export as JSON plus Markdown
+24. Search messages
+25. Add PWA manifest
+26. Add service worker
+27. Enable Firestore offline persistence
+28. Test on iPhone 8
+29. Test on desktop
+30. Test on tablet
+31. Test offline behavior
+32. Test authenticated English conversion, English organization, and index synthesis
 
 ---

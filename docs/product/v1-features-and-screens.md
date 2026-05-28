@@ -75,6 +75,7 @@ Required message actions:
 - Edit message
 - Copy block content to the system clipboard
 - Download text block content as a Markdown `.md` file
+- Export the active conversation or all conversations as JSON plus Markdown
 - Delete message
 - Add, remove, and reuse tags/flags on a message
 - Copy/forward message to another conversation
@@ -216,6 +217,25 @@ Requirements:
 
 - Downloading is a browser-only action and does not change Firestore data.
 - Image attachments are not embedded in the Markdown file in Version 1.
+
+### 7.3.3.2 Export conversation data
+
+The user can export conversation data from inside the signed-in app for experiments outside the app.
+
+Version 1 behavior:
+
+- The active conversation header exposes an `Export conversation` action.
+- The app header exposes an `Export all conversations` action.
+- Each export downloads a faithful JSON bundle and a readable Markdown companion.
+- JSON preserves full conversation and message records, including inline image attachment data.
+- Markdown includes readable conversation/message metadata and raw text, but omits inline base64 image payloads.
+- Export actions show a concise pending state and a clear error if the export fails.
+
+Requirements:
+
+- Exporting is a browser download action and does not change Firestore data.
+- Export reads through the signed-in user's normal Firestore access; no admin credential or separate CLI path is required.
+- Pending optimistic blocks are excluded until confirmed by Firestore.
 
 ### 7.3.4 Convert text to English
 
@@ -569,6 +589,7 @@ Content:
 
 - Header with app name
 - Calendar action
+- Export all conversations action
 - Search button or search input
 - New conversation button
 - List of conversations
@@ -616,6 +637,7 @@ Content:
 - Compact button-like per-block Kanban column selector beside the tag chips when Kanban columns exist
 - Message action: convert to English
 - Header action: synthesize a clickable conversation index
+- Header action: export the active conversation as JSON plus Markdown
 - Transfer dialog for copying/forwarding whole blocks or selected text parts with tap and drag word selection, plus direct target selection for whole-block moves
 - Reorder controls for moving text blocks, plus drag-handle reordering between blocks on desktop and touch/pointer devices
 - Selection controls and a merge action for combining multiple selected blocks
@@ -696,6 +718,7 @@ Layout:
 - User can paste images while editing a message and save them onto that block.
 - User can copy text-only, text/image, and image-only blocks to the system clipboard where browser support allows.
 - User can download a text-bearing block as a Markdown `.md` file.
+- User can export the active conversation or all conversations as JSON plus Markdown from inside the app.
 - User can add, remove, and reuse tags/flags on message blocks.
 - User can filter loaded blocks by tags globally and within the active conversation.
 - User can add, edit, clear, and view a scheduled date/time on a block.
@@ -787,6 +810,7 @@ Version 1 is complete when:
 - I can copy a block with images and paste text plus attached images into a rich paste target where supported by the browser and target app.
 - I can copy an image-only block and paste the image into a compatible target where supported.
 - I can download a text-bearing block as a Markdown `.md` file whose contents match the block text.
+- I can export the active conversation and all conversations from inside the app, receiving JSON that preserves full records and Markdown that is readable without inline base64 image payloads.
 - I can delete a message.
 - I can tag or flag a block, reuse an existing tag from suggestions while typing, remove the tag, and filter loaded blocks by tag.
 - I can add, edit, clear, and view a date/time on a block.

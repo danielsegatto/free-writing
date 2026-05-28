@@ -38,6 +38,7 @@ import { searchLoadedMessages } from './services/search';
 import { uploadMessageImages } from './services/storage';
 import { requestEnglishVersions, requestStructuredEnglishText } from './services/translation';
 import { formatConversationIndexText, requestConversationIndex } from './services/synthesis';
+import { exportAllConversations, exportConversation } from './services/exports';
 import type { Conversation, ConversationVisualizationView, Message, MessageReference } from './types';
 import type { DropPosition } from './utils/dropTargets';
 import { applyKanbanSortOrder, getKanbanColumnMessages, getNextKanbanSortOrder } from './utils/kanban';
@@ -46,6 +47,7 @@ import type { MessageReferenceNavigationTarget } from './utils/messageReferences
 import { getTaggedMessageResults, getTagSummaries, toggleTagSelection } from './utils/tags';
 import { executeTransferAction, type TransferAction, type MessageSelection } from './utils/transferActions';
 import type { TextSelectionRange } from './utils/textSelection';
+import { downloadAllConversationsExport, downloadConversationExport } from './utils/conversationExport';
 
 type MoveNotice = {
   targetConversationId: string;
@@ -133,6 +135,10 @@ export default function App() {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isInformationMode, setIsInformationMode] = useState(getStoredInformationMode);
   const [pendingMessagesByConversation, setPendingMessagesByConversation] = useState<Record<string, Message[]>>({});
+  const [isExportingConversation, setIsExportingConversation] = useState(false);
+  const [conversationExportError, setConversationExportError] = useState<string | null>(null);
+  const [isExportingAllConversations, setIsExportingAllConversations] = useState(false);
+  const [allConversationsExportError, setAllConversationsExportError] = useState<string | null>(null);
 
   const activeConversation = conversations.find((conversation) => conversation.id === activeConversationId) ?? null;
   const displayMessagesByConversation = useMemo(
@@ -616,6 +622,34 @@ export default function App() {
     selectConversation(conversationId);
   }
 
+  async function handleExportActiveConversation() {
+    if (!user || !activeConversationId || isExportingConversation) return;
+    setIsExportingConversation(true);
+    setConversationExportError(null);
+
+    try {
+      downloadConversationExport(await exportConversation(user.uid, activeConversationId));
+    } catch (error) {
+      setConversationExportError(error instanceof Error ? error.message : 'Unable to export this conversation.');
+    } finally {
+      setIsExportingConversation(false);
+    }
+  }
+
+  async function handleExportAllConversations() {
+    if (!user || conversations.length === 0 || isExportingAllConversations) return;
+    setIsExportingAllConversations(true);
+    setAllConversationsExportError(null);
+
+    try {
+      downloadAllConversationsExport(await exportAllConversations(user.uid));
+    } catch (error) {
+      setAllConversationsExportError(error instanceof Error ? error.message : 'Unable to export conversations.');
+    } finally {
+      setIsExportingAllConversations(false);
+    }
+  }
+
   if (authLoading) {
     return <div className="loading">Loading Free Writing...</div>;
   }
@@ -638,11 +672,14 @@ export default function App() {
         tagResults={globalTagResults}
         renamingId={renamingId}
         renameDraft={renameDraft}
+        isExportingAllConversations={isExportingAllConversations}
+        allConversationsExportError={allConversationsExportError}
         onSearchTermChange={setSearchTerm}
         onToggleTag={(tag) => setSelectedGlobalTags((current) => toggleTagSelection(current, tag))}
         onClearTags={() => setSelectedGlobalTags([])}
         onOpenTagResult={handleOpenTagResult}
         onOpenCalendar={openCalendar}
+        onExportAllConversations={() => void handleExportAllConversations()}
         onCreateConversation={() => void handleCreateConversation()}
         onSelectConversation={selectConversation}
         onStartRename={handleStartRename}
@@ -676,7 +713,10 @@ export default function App() {
           draft={draft}
           editingMessage={editingMessage}
           moveNotice={moveNotice}
+          isExportingConversation={isExportingConversation}
+          conversationExportError={conversationExportError}
           onToggleInformationMode={() => setIsInformationMode((current) => !current)}
+          onExportConversation={() => void handleExportActiveConversation()}
           onOpenMoveNotice={() => {
             if (!moveNotice) return;
             selectConversation(moveNotice.targetConversationId);

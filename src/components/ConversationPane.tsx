@@ -12,6 +12,7 @@ import {
   ArrowRight,
   ChevronLeft,
   ChevronRight,
+  Download,
   Eye,
   EyeOff,
   LayoutGrid,
@@ -67,7 +68,10 @@ type ConversationPaneProps = {
   moveNotice: { targetConversationId: string; targetConversationTitle: string } | null;
   draft: string;
   editingMessage: Message | null;
+  isExportingConversation: boolean;
+  conversationExportError: string | null;
   onToggleInformationMode: () => void;
+  onExportConversation: () => void;
   onOpenMoveNotice: () => void;
   onDismissMoveNotice: () => void;
   onBack: () => void;
@@ -146,7 +150,10 @@ export function ConversationPane({
   moveNotice,
   draft,
   editingMessage,
+  isExportingConversation,
+  conversationExportError,
   onToggleInformationMode,
+  onExportConversation,
   onOpenMoveNotice,
   onDismissMoveNotice,
   onBack,
@@ -977,6 +984,8 @@ export function ConversationPane({
       onDelete={() => void deleteSelectedMessages()}
     />
   ) : null;
+  const headerStatus = synthesisError ?? conversationExportError ?? (isSynthesizingIndex ? 'Synthesizing conversation index...' : null) ?? (isExportingConversation ? 'Exporting conversation...' : null);
+  const headerStatusIsError = Boolean(synthesisError || conversationExportError);
 
   return (
     <section className={`conversation-pane ${activeConversation ? 'open' : ''}`}>
@@ -988,9 +997,9 @@ export function ConversationPane({
             </button>
             <div>
               <h2>{activeConversation.title}</h2>
-              {(isSynthesizingIndex || synthesisError) && (
-                <p className={synthesisError ? 'conversation-status error' : 'conversation-status'} role={synthesisError ? 'alert' : 'status'}>
-                  {synthesisError ?? 'Synthesizing conversation index...'}
+              {headerStatus && (
+                <p className={headerStatusIsError ? 'conversation-status error' : 'conversation-status'} role={headerStatusIsError ? 'alert' : 'status'}>
+                  {headerStatus}
                 </p>
               )}
             </div>
@@ -1024,6 +1033,15 @@ export function ConversationPane({
                 onClick={onToggleInformationMode}
               >
                 {isInformationMode ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+              <button
+                className="icon-button"
+                type="button"
+                title="Export conversation"
+                disabled={isExportingConversation}
+                onClick={onExportConversation}
+              >
+                <Download size={18} />
               </button>
               <button
                 className="icon-button"

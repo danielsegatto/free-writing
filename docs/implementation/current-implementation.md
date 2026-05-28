@@ -11,7 +11,7 @@ The current app state is a working Firebase-backed React PWA named `Free Writing
 Implemented:
 
 - Vite + React frontend.
-- Focused Vitest coverage for app transfer navigation, information-only mode persistence and block-level normal-controls override, forward/move transfer decision helpers, transfer word-selection helpers, conversation service writes including inline wiki-link rename rewrites, sidebar drag reordering, message service writes, block connection/backlink helpers and UI, inline conversation-link parsing/typeahead/rendering, Markdown message rendering, long text block expand/collapse rendering, inline image attachments and paste handling, loaded-message search, tag normalization/filtering and inline tag suggestions, composer keyboard conversion and direct-send behavior, composer date action expansion and submission, inline editing, text/rich block copy feedback and fallbacks, Markdown text-block download helpers, reorder controls, desktop and touch drag-handle reorder behavior including body-scroll protection, gap drop zones, insertion markers, and edge autoscroll, multi-block merge selection on desktop and touch including retargeted delayed-click suppression after touch double-tap entry, English conversion UI/service/helper behavior, conversation index synthesis service/UI/Worker behavior, and the shared forward/move modal.
+- Focused Vitest coverage for app transfer navigation, information-only mode persistence and block-level normal-controls override, forward/move transfer decision helpers, transfer word-selection helpers, conversation service writes including inline wiki-link rename rewrites, sidebar drag reordering, message service writes, block connection/backlink helpers and UI, inline conversation-link parsing/typeahead/rendering, Markdown message rendering, long text block expand/collapse rendering, inline image attachments and paste handling, loaded-message search, tag normalization/filtering and inline tag suggestions, composer keyboard conversion and direct-send behavior, composer date action expansion and submission, inline editing, text/rich block copy feedback and fallbacks, Markdown text-block download helpers, app-based conversation export service/helpers/buttons, reorder controls, desktop and touch drag-handle reorder behavior including body-scroll protection, gap drop zones, insertion markers, and edge autoscroll, multi-block merge selection on desktop and touch including retargeted delayed-click suppression after touch double-tap entry, English conversion UI/service/helper behavior, conversation index synthesis service/UI/Worker behavior, and the shared forward/move modal.
 - React code organized into small components, subscription/shared UI hooks, Firebase services, and utility helpers.
 - Firebase Authentication with Google provider.
 - Firebase configuration guard that shows a setup notice when `.env` is missing or still contains placeholder values.
@@ -43,6 +43,7 @@ Implemented:
 - Cloudflare Worker backend proxy for hosted English conversion, selected-English Markdown organization, and conversation index synthesis.
 - Local Vite development middleware for `/api/to-english`, `/api/format-english`, and `/api/synthesize-index` so Codespaces/Vite testing works without Firebase Hosting rewrites.
 - Repeatable non-deploying security-check workflow in `docs/ai-maintenance/security-check.md`, exposed through `npm run security:check`.
+- App-based export buttons for the active conversation and all conversations. They read through the signed-in user's normal Firebase client permissions and download JSON plus Markdown files for prompt, agent, and flow experiments.
 
 Known development follow-ups:
 
@@ -109,6 +110,13 @@ Current setup behavior:
 - When Firebase is not configured, `app`, `auth`, `googleProvider`, and `db` remain `null`.
 - `src/components/SignInScreen.tsx` disables Google sign-in and shows a setup notice instead of letting Firebase initialization fail.
 - Service functions call `requireAuth()` or `requireDb()` so accidental use without real Firebase config produces a clear error.
+
+App export behavior:
+
+- `src/services/exports.ts` performs read-only Firestore client reads under `users/{userId}/conversations` and nested `messages`.
+- Active-conversation export fetches the selected conversation fresh from Firestore; all-conversations export fetches every conversation and its messages.
+- `src/utils/conversationExport.ts` builds portable JSON bundles and Markdown companions, serializes Firestore timestamp-like values, preserves inline image data URLs in JSON, and redacts inline base64 payloads from Markdown.
+- Export actions download files in the browser and do not write to Firestore. Pending optimistic blocks are excluded until confirmed by Firestore.
 
 ## Current frontend code organization
 
@@ -205,6 +213,9 @@ src/styles.css
 
 index.html + vite.config.ts
   Browser theme color, generated PWA manifest colors, and local `/api/to-english`, `/api/format-english`, plus `/api/synthesize-index` development middleware. Theme colors currently match the dark app shell so installed/mobile surfaces do not flash the old light theme.
+
+src/services/exports.ts + src/utils/conversationExport.ts
+  App-based export tooling. The service reads conversations and nested messages through Firebase client permissions; the utility serializes Firestore values into portable JSON, preserves attachment payloads in JSON, sorts messages by app display order, redacts inline data URLs from Markdown, and triggers browser downloads.
 ```
 
 Development impact:

@@ -19,7 +19,7 @@ npm run security:check
 
 Expected result:
 
-- Vitest passes for app-level optimistic text-block send/reconciliation/failure behavior, information-only mode persistence and block-level normal-controls override, List/Kanban visualization switching, custom Kanban column normalization/deduping, column management, block column assignment, Kanban card movement, transfer and calendar navigation, forward/move transfer decision helpers, transfer word-selection helpers, search, calendar date grouping, tag normalization/filtering and inline tag suggestions, inline conversation-link parsing/typeahead/rendering, composer and inline-edit `[[` shortcut insertion, conversation service writes including top-list touches for new blocks and inline wiki-link rename rewrites, sidebar drag reordering with insertion markers, gap drop zones, edge autoscroll, and post-drag click suppression, message service writes including scheduled date/time preservation, image-only messages, Kanban placement, block connection/backlink helpers and UI, Markdown message rendering, long text block expand/collapse rendering, composer image/date selection and paste, composer duplicate-submit guards, inline edit image/date behavior, text-only and rich block copy feedback/fallbacks, Markdown text-block download helpers, composer keyboard conversion and direct-send behavior including draft English sends with pasted images, inline editing, copied-origin metadata/link rendering, post-move notice rendering, reorder controls, desktop and touch drag-handle reorder behavior including body-scroll protection, insertion markers, gap drop zones, and edge autoscroll, selected-block merge including desktop double-click, mobile double-tap entry, and delayed-click suppression during the selection toolbar transition, whole-block and partial English conversion with context plus second-pass English organization UI/service/Worker behavior, conversation index synthesis service/UI/Worker behavior, and the transfer modal including forward multi-part word selection, move direct target selection, and duplicate target-click protection.
+- Vitest passes for app-level optimistic text-block send/reconciliation/failure behavior, information-only mode persistence and block-level normal-controls override, List/Kanban visualization switching, custom Kanban column normalization/deduping, column management, block column assignment, Kanban card movement, transfer and calendar navigation, forward/move transfer decision helpers, transfer word-selection helpers, search, calendar date grouping, tag normalization/filtering and inline tag suggestions, inline conversation-link parsing/typeahead/rendering, composer and inline-edit `[[` shortcut insertion, conversation service writes including top-list touches for new blocks and inline wiki-link rename rewrites, sidebar drag reordering with insertion markers, gap drop zones, edge autoscroll, and post-drag click suppression, message service writes including scheduled date/time preservation, image-only messages, Kanban placement, block connection/backlink helpers and UI, Markdown message rendering, long text block expand/collapse rendering, composer image/date selection and paste, composer duplicate-submit guards, inline edit image/date behavior, text-only and rich block copy feedback/fallbacks, Markdown text-block download helpers, app-based conversation export serialization/Markdown helpers, composer keyboard conversion and direct-send behavior including draft English sends with pasted images, inline editing, copied-origin metadata/link rendering, post-move notice rendering, reorder controls, desktop and touch drag-handle reorder behavior including body-scroll protection, insertion markers, gap drop zones, and edge autoscroll, selected-block merge including desktop double-click, mobile double-tap entry, and delayed-click suppression during the selection toolbar transition, whole-block and partial English conversion with context plus second-pass English organization UI/service/Worker behavior, conversation index synthesis service/UI/Worker behavior, and the transfer modal including forward multi-part word selection, move direct target selection, and duplicate target-click protection.
 - The production build completes without TypeScript or Vite errors.
 - `npm run security:check` additionally runs `npm audit` and should report no known dependency vulnerabilities.
 
@@ -34,6 +34,20 @@ Expected security boundary:
 - English conversion, selected-English organization, and conversation-index synthesis send text only through authenticated server-side proxy requests. Partial saved-message English conversion may send surrounding before/after text as context, but only for the explicit conversion request.
 - Secrets remain in ignored local files or platform secret stores, not tracked files or browser-exposed `VITE_...` variables.
 - Browser offline persistence is treated as an accepted device-local cache, not as cross-user access.
+- App-based conversation exports use the signed-in user's normal Firestore access. Exported JSON should be treated as private production writing data because it preserves full message records and inline image data URLs.
+
+## App export smoke check
+
+Run after signing in with a Firebase-backed account that has at least one conversation.
+
+Expected result:
+
+- The active conversation header can export one `.json` and one `.md` file for the open conversation.
+- The sidebar app header can export one `.json` and one `.md` file for all conversations.
+- Export buttons disable while an export is pending and show a concise error if the export fails.
+- JSON contains full conversation records and nested message records, including attachment payloads.
+- Markdown companions are readable and do not include inline base64 image data.
+- No Firestore writes occur.
 
 ## Kanban visualization QA
 

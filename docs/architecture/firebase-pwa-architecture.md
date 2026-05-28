@@ -252,6 +252,19 @@ New composer text/reference/date-only sends reserve a Firestore document ID on t
 `indexEntries`
 : Optional structured entries for synthesized conversation-index blocks. Each entry points to a source message ID in the same conversation and stores display text for the clickable index row. Old or normal messages without this field are treated as having no index entries.
 
+### 9.4 App-based experimentation exports
+
+Prompt, agent, and flow experiments can start from export files downloaded inside the signed-in app. The app exposes export buttons for the active conversation and for all conversations. Exports use the normal Firebase client SDK and Firestore rules, so no admin credential or separate database access path is required.
+
+Each export creates:
+
+- A JSON bundle with `schemaVersion`, `exportedAt`, `userId`, the full conversation document record, and every message document record.
+- A Markdown companion for reading and prompt review.
+
+The JSON bundle is the faithful database snapshot. It preserves inline image data URLs, references, tags, scheduled dates, transfer metadata, Kanban fields, conversation-index entries, and serialized timestamp metadata. The Markdown file intentionally omits inline base64 image payloads and points back to the JSON export for complete attachment data.
+
+This workflow is intentionally export-only. Experiment outputs should not be written back to production Firestore until a separate guarded import or app feature is designed.
+
 Forwarded and moved source metadata is kept for transfer labeling and compatibility. Copied/forwarded blocks can expose conversation-level source navigation through `forwardedFromConversationId` plus `forwardedFromConversationTitle`; whole-block and quote-level navigation is rendered from structured `references` instead of text markers.
 
 Inline conversation links are deliberately schema-free: they use the existing `text` and `searchText` fields, not the structured `references` array. Missing or duplicate title matches remain plain text. Conversation rename writes update matching inline title markers in saved message text and `searchText`, while structured reference title snapshots remain unchanged.
