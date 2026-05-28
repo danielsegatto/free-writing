@@ -1,6 +1,6 @@
 # Current Implementation
 
-Last updated: 2026-05-27
+Last updated: 2026-05-28
 
 Related docs: [documentation overview](../README.md), [product brief](../product/v1-product-brief.md), [architecture](../architecture/firebase-pwa-architecture.md), [QA checklist](../qa-v1-verification.md).
 
@@ -27,6 +27,7 @@ Implemented:
 - English conversion for saved messages and composer draft text. It segments source text, presents three English options per segment, assembles the selected options, sends that selected English through a second AI organization pass that can add Markdown structure, and then creates a new message below a saved source, replaces a saved source, or sends selected draft English text directly as a new message.
 - Conversation index synthesis for the active conversation. The header action sends all visible blocks in one contextual AI request, appends a new bottom index block, and renders each generated entry as a clickable row that jumps to its source block.
 - Message transfer support distinguishes copied/forwarded messages from moved messages with `transferType` and stores `forwardedFromConversationTitle` for copied-block origin display.
+- Conversation visualization supports saved `list` and `kanban` views. Kanban uses custom per-conversation columns, one optional column assignment per block, column-local card ordering, a one-column-at-a-time mobile layout, and touch-friendly card/column shortcut controls. The block column selector lives beside the tag chips, shows `∅` while unassigned, and shows the selected column name when assigned.
 - Composer `Ctrl+Enter` / `Cmd+Enter` opens draft English conversion, `Ctrl+Shift+Enter` / `Cmd+Shift+Enter` sends the current draft directly, and plain `Enter` inserts a newline. Inline message edits use `Ctrl+Enter` / `Cmd+Enter` to save.
 - Responsive phone/desktop layout.
 - Conversation pane layout is constrained to the viewport; only the message list scrolls, keeping the conversation header, merge toolbar, and composer visible in long conversations. Entering a conversation bottom-aligns the latest visible block, and newly appended visible blocks scroll into the bottom position.
@@ -35,6 +36,7 @@ Implemented:
 - Browser/PWA theme colors are aligned to the dark app shell color.
 - Firestore persistent local cache is enabled for cached data and offline writes.
 - Information-only view mode is stored as a browser-local `localStorage` preference under `free-writing:information-mode`; it is intentionally not synchronized through Firestore.
+- Conversation visualization view is stored in Firestore per conversation so List/Kanban selection syncs across devices.
 - Conversation order and message order are persisted with numeric `sortOrder` values and sync across devices. New blocks move the receiving conversation to the top by assigning a top `sortOrder`; manual reorder remains stable until a later new block arrives in a conversation.
 - Search runs across messages loaded by Firestore subscriptions; the current hook subscribes to every conversation's messages after the conversation list loads.
 - Calendar browsing runs across the same loaded message set as global search and tag browsing; it does not require a separate Firestore query or external index for v1.
@@ -123,7 +125,7 @@ src/components/Sidebar.tsx
   Search, conversation list, create, rename, delete, drag reorder, and navigation UI. Normal conversation rows show title and updated time; search results still show matching message text for context.
 
 src/components/ConversationPane.tsx
-  Active conversation view and orchestration for information-only mode display, the currently exposed single-block normal-controls override, selected-message state, copy/download/edit/transfer/reorder/drag-and-drop/merge flows, English conversion hook wiring, index synthesis, insertion marker state, reference picker open mode, bottom-aligned latest-block scrolling on conversation entry/new block append, and inline edit/image-paste state. Backlink grouping is delegated to `src/utils/messageReferences.ts`.
+  Active conversation view and orchestration for information-only mode display, saved List/Kanban visualization switching, custom Kanban column controls, the currently exposed single-block normal-controls override, selected-message state, copy/download/edit/transfer/reorder/drag-and-drop/merge flows, English conversion hook wiring, index synthesis, insertion marker state, reference picker open mode, bottom-aligned latest-block scrolling on conversation entry/new block append, and inline edit/image-paste state. Backlink grouping is delegated to `src/utils/messageReferences.ts`.
 
 src/components/CalendarPane.tsx
   Global dated-block calendar. Owns Today/This week/This month view selection, groups loaded blocks by local date, and opens source messages through the same navigation/highlight path as references.
@@ -138,7 +140,7 @@ src/components/MessageDragPreview.tsx
   Floating dragged-message preview rendering used by message drag reordering.
 
 src/components/MessageBubble.tsx
-  Per-message rendering and local action wiring. Owns message metadata display including scheduled date/time, client-only `Sending...` pending state, clickable copied-origin conversation names, inert image attachment previews, synthesized index rows, copy feedback label, information-only `Show normal controls` / `Return block to view mode` toggles, reorder buttons and drag handle, connect/download/transfer/delete/English action buttons, and drag/pointer event binding passed down from `ConversationPane`. Pending blocks hide normal block actions until confirmed. Text rendering, connection cards/backlinks, inline edit form markup, and block tag rendering/editing are delegated to smaller message components.
+  Per-message rendering and local action wiring. Owns message metadata display including scheduled date/time, client-only `Sending...` pending state, clickable copied-origin conversation names, inert image attachment previews, synthesized index rows, copy feedback label, information-only `Show normal controls` / `Return block to view mode` toggles, list reorder buttons and drag handle, Kanban column assignment/move shortcuts, connect/download/transfer/delete/English action buttons, and drag/pointer event binding passed down from `ConversationPane`. Pending blocks hide normal block actions until confirmed. Text rendering, connection cards/backlinks, inline edit form markup, and block tag rendering/editing are delegated to smaller message components.
 
 src/components/MessageConnections.tsx
   Per-message structured reference and backlink rendering. Owns outbound reference cards, collapsed/expanded backlink rows, reference icons, and navigation target construction for cards while receiving loaded backlink data from `ConversationPane`.
@@ -150,7 +152,7 @@ src/components/MessageEditForm.tsx
   Inline message edit form rendering. Owns the edit textarea, inline conversation-link typeahead, visible `[[` insert action, scheduled date/time input, existing/new image previews, editable reference cards, save/cancel controls, and edit-form keyboard behavior while receiving all edit state and callbacks from `MessageBubble`.
 
 src/components/MessageTagEditor.tsx
-  Per-message tag chip and inline tag editor rendering. Owns tag editor open/draft/highlight/saving/error state, suggestion keyboard handling, add/remove actions, and calls back to `ConversationPane` through `MessageBubble` for persistence. Pure tag normalization, dedupe, add/remove, and suggestion filtering stay in `src/utils/tags.ts`.
+  Per-message tag chip and inline tag editor rendering. Owns tag editor open/draft/highlight/saving/error state, suggestion keyboard handling, add/remove actions, and calls back to `ConversationPane` through `MessageBubble` for persistence. It can receive a compact trailing control, currently used for the Kanban column selector beside the tag chips. Pure tag normalization, dedupe, add/remove, and suggestion filtering stay in `src/utils/tags.ts`.
 
 src/components/MessageComposer.tsx
   Draft composer rendering, pending reference chips, inline conversation-link typeahead, visible `[[` insert action, labeled `Date` action, scheduled date/time input, image selection/paste previews, and keyboard behavior. Owns the composer form markup, draft textarea, visible send action, a synchronous submit guard for rapid clicks/shortcuts, `[[` suggestion list with click and keyboard completion, date action `aria-expanded` / `aria-controls` wiring, `Ctrl+Enter` / `Cmd+Enter` draft English conversion shortcut passed down from `ConversationPane`, and `Ctrl+Shift+Enter` / `Cmd+Shift+Enter` direct-send shortcut through the same submit path as the Send button.
@@ -182,6 +184,7 @@ src/hooks/useEnglishConversionPicker.ts
 src/services/
   Firebase auth, conversation, message, image preparation, search, translation, and synthesis request operations.
   `messages.ts` keeps Firestore message write payload construction in small local helpers so create, client-reserved-ID create, transfer, merge, image attachment, English-result, and synthesized-index writes share the same field defaults. `reserveMessageId` and `createMessageWithId` support optimistic composer sends without storing pending-only fields in Firestore.
+  Kanban placement writes live here too: conversations normalize duplicate Kanban column IDs out of subscription data, new blocks can receive an optional column/order, saved blocks can update or clear `kanbanColumnId`, and column-local reorders rewrite `kanbanSortOrder` in a batch.
   `storage.ts` is named for historical upload intent but currently performs free-plan client-side image compression and inline attachment construction; it does not call Firebase Storage.
   `synthesis.ts` posts the active conversation title and all visible blocks to the AI proxy, validates one returned index entry per source block, normalizes empty/image-only blocks to fallback descriptions, and formats the plain-text fallback/search body for persisted index messages.
 
@@ -338,6 +341,17 @@ Local hosting on an idle machine is not the primary Version 1 deployment target.
 - Native desktop drag state is kept independent from touch/pen pointer state so browser pointer-cancel events during desktop drag do not clear the active desktop drop target.
 - Dropping a message asks `App.tsx` to move the dragged message before or after the resolved target message.
 - `src/services/messages.ts` persists the final visible order by rewriting numeric `sortOrder` values in a Firestore batch.
+
+### Kanban visualization
+
+- `Conversation.visualizationView` stores whether a conversation opens in List or Kanban. Missing values default to List.
+- `Conversation.kanbanColumns` stores custom column metadata inline on the conversation document. There are no default columns; an empty Kanban conversation shows a setup state until the user adds a column.
+- `src/services/conversations.ts` normalizes column arrays and removes repeated column IDs from subscription data, which prevents duplicate React keys if a local optimistic column add and a Firestore listener update overlap.
+- `Message.kanbanColumnId` and `Message.kanbanSortOrder` store one optional column assignment and column-local order per block. Unassigned blocks stay visible in list view and are hidden from Kanban.
+- `MessageBubble` renders Kanban assignment through `MessageTagEditor`'s trailing control so the selector appears in the top tag row. The empty state is the symbol `∅`; assigned cards display the selected column name.
+- Kanban uses the same saved block actions as list view where practical. Card movement is button-based for small/touch devices: up/down within a column and previous/next column shortcuts.
+- On mobile, Kanban shows one active column at a time with previous/next controls and a column picker. Desktop renders horizontally scrollable columns.
+- Creating a new block from the composer while Kanban view is open assigns it to the active column. Creating columns does not migrate existing blocks automatically.
 
 ### Reorder conversations
 

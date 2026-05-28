@@ -1,6 +1,6 @@
 # First Build Prompt
 
-Last updated: 2026-05-27
+Last updated: 2026-05-28
 
 Related docs: [documentation overview](../README.md), [product brief](../product/v1-product-brief.md), [features and screens](../product/v1-features-and-screens.md).
 
@@ -11,7 +11,7 @@ Use this prompt when asking an AI builder to create the first version:
 ```text
 Build a simple multi-device offline-capable PWA called "Free Writing".
 
-The app is for one private user. It should feel like a minimal WhatsApp-style app, but it is for writing, organizing, scheduling dated blocks on a calendar, tagging/filtering, searching, editing, deleting, merging, converting to English, synthesizing clickable conversation indexes, attaching small images, and copying or moving my own message blocks between private conversations.
+The app is for one private user. It should feel like a minimal WhatsApp-style app, but it is for writing, organizing blocks in List or Kanban views, scheduling dated blocks on a calendar, tagging/filtering, searching, editing, deleting, merging, converting to English, synthesizing clickable conversation indexes, attaching small images, and copying or moving my own message blocks between private conversations.
 
 Target devices:
 - iPhone 8
@@ -52,6 +52,14 @@ Messages:
 - The conversation header should provide an information-only mode for focusing on block content. In this mode, block text/images/tags/metadata/references/backlinks/inline links/index rows remain visible and navigable, long text renders fully, and normal creation/editing/management controls are hidden.
 - Information-only mode should persist as a browser-local preference, not account-synced Firestore data.
 - In information-only mode, each text-bearing saved block should expose a `Show normal controls` option that restores normal block controls only for that block without opening edit mode automatically. Only one block can show normal controls at a time; opening another closes the previous one, and the active block can return to view mode.
+- The conversation header should provide List and Kanban view controls. The selected List/Kanban view should persist per conversation in Firestore.
+- Kanban should use custom user-created columns only; do not create default columns automatically.
+- Existing blocks should remain unassigned until the user assigns them to a Kanban column. Unassigned blocks remain visible in List view and are hidden from Kanban.
+- Each block should have at most one Kanban column. When Kanban columns exist, the block's top tag row should expose a compact column selector that shows `∅` for no selected column and the selected column name when assigned.
+- New blocks sent from the composer while Kanban is open should be assigned to the active Kanban column.
+- Users should be able to add, rename, move left/right, and delete Kanban columns. Deleting a column should make its blocks unassigned, not delete them.
+- Desktop Kanban should show columns horizontally. Mobile Kanban should show one active column at a time with previous/next controls and a picker.
+- Kanban cards should keep touch-friendly shortcut controls for moving within the active column and to previous/next columns.
 - User can attach small images to messages by selecting image files or pasting copied images.
 - User can create image-only blocks.
 - Enter should insert a newline in the composer.
@@ -125,6 +133,8 @@ Conversation fields:
 - updatedAt
 - lastMessagePreview
 - sortOrder
+- visualizationView
+- kanbanColumns
 
 Message fields:
 - id
@@ -146,6 +156,8 @@ Message fields:
 - references
 - blockKind
 - indexEntries
+- kanbanColumnId
+- kanbanSortOrder
 
 AI conversion and synthesis:
 - Use a server-side endpoint such as a Cloudflare Worker so the AI provider key is not exposed in browser code.
@@ -186,18 +198,19 @@ Build in this order:
 15. Move message to another conversation
 16. Reorder text blocks
 17. Add tags/flags and tag filtering
-18. Add date/time scheduling and the global calendar
-19. Merge selected text blocks
-20. Add English conversion and selected-English Markdown organization through a server-side proxy
-21. Add conversation index synthesis through the server-side proxy
-22. Search messages
-23. Add PWA manifest
-24. Add service worker
-25. Enable Firestore offline persistence
-26. Test on iPhone 8
-27. Test on desktop
-28. Test on tablet
-29. Test offline behavior
-30. Test authenticated English conversion, English organization, and index synthesis
+18. Add List/Kanban visualization switching, custom columns, and block column assignment
+19. Add date/time scheduling and the global calendar
+20. Merge selected text blocks
+21. Add English conversion and selected-English Markdown organization through a server-side proxy
+22. Add conversation index synthesis through the server-side proxy
+23. Search messages
+24. Add PWA manifest
+25. Add service worker
+26. Enable Firestore offline persistence
+27. Test on iPhone 8
+28. Test on desktop
+29. Test on tablet
+30. Test offline behavior
+31. Test authenticated English conversion, English organization, and index synthesis
 
 ---

@@ -1,6 +1,6 @@
 # Version 1 Features and Screens
 
-Last updated: 2026-05-27
+Last updated: 2026-05-28
 
 Related docs: [product brief](v1-product-brief.md), [architecture](../architecture/firebase-pwa-architecture.md), [current implementation](../implementation/current-implementation.md).
 
@@ -83,6 +83,7 @@ Required message actions:
 - Merge multiple selected messages into one unified block
 - Convert message to English
 - Synthesize a clickable conversation index block for the active conversation
+- Switch the active conversation between List and Kanban visualizations
 
 Optional message actions:
 
@@ -109,6 +110,32 @@ Requirements:
 
 - This is a visualization preference, not Firestore data. It should not change messages, conversations, tags, references, or ordering.
 - The local browser preference should not be treated as account-synced state.
+
+### 7.3.0.1 Visualization templates and Kanban
+
+The user can view the same conversation blocks through alternate templates over time. Version 1 starts with List and Kanban.
+
+Version 1 behavior:
+
+- The conversation header exposes List and Kanban view controls.
+- The selected List/Kanban view is saved per conversation and syncs across devices.
+- Kanban uses custom columns created by the user; no default columns are created automatically.
+- Existing blocks are not moved into Kanban automatically. They stay visible in List view until assigned to a Kanban column.
+- Each block can belong to one Kanban column at a time.
+- The block's top tag row exposes a compact column selector when the conversation has Kanban columns. It shows `∅` when no column is selected and the selected column name when assigned.
+- New blocks sent from the composer while Kanban is open are assigned to the active Kanban column.
+- Columns can be added, renamed, moved left/right, and deleted.
+- Deleting a column does not delete blocks. Blocks in that column become unassigned and return to List-only visibility.
+- Desktop Kanban shows columns horizontally. Mobile Kanban shows one active column at a time with previous/next column controls and a picker.
+- Kanban cards keep the same core block actions where practical: edit, tags, connect, copy/download, English conversion, forward, move to conversation, and delete.
+- Kanban cards expose shortcut buttons for moving up/down in the active column and moving to the previous/next column.
+
+Requirements:
+
+- Kanban column metadata is stored on the conversation.
+- Kanban card membership and column-local order are stored on the message.
+- The normal list `sortOrder` remains separate from Kanban card order.
+- This view system should be extensible for future templates such as whiteboard or flowchart without hard-coding all visualization state into the list renderer.
 
 ### 7.3.1 Message composer keyboard behavior
 
@@ -576,6 +603,7 @@ Content:
 - Conversation title
 - Back button on mobile
 - Information-only mode toggle in the conversation header
+- List/Kanban view controls and Kanban column management controls in the conversation header
 - Message list
 - Message input fixed at the bottom of the visible conversation pane
 - Image preview strip in the composer when images are selected or pasted
@@ -585,6 +613,7 @@ Content:
 - Message action: move to another conversation
 - Long message text preview with an icon-only expand/collapse control
 - Message tag chips plus an inline add/remove editor with suggestions
+- Compact per-block Kanban column selector beside the tag chips when Kanban columns exist
 - Message action: convert to English
 - Header action: synthesize a clickable conversation index
 - Transfer dialog for copying/forwarding whole blocks or selected text parts with tap and drag word selection, plus direct target selection for whole-block moves
@@ -656,6 +685,9 @@ Layout:
 - User can create a message.
 - User can create an image-only message.
 - User can enable information-only view, read full block information without most controls, and temporarily show normal controls for one block at a time.
+- User can switch the active conversation between List and Kanban views.
+- User can add, rename, move, and delete custom Kanban columns.
+- User can assign a block to a Kanban column from the block's top tag row, where no selected column is shown with `∅` and an assigned column shows its name.
 - User can add image attachments by file selection, paste, or touch paste action where supported.
 - User can open draft English conversion from the composer with `Ctrl+Enter` / `Cmd+Enter`.
 - User can send the current draft directly from the composer with `Ctrl+Shift+Enter` / `Cmd+Shift+Enter`.
@@ -741,6 +773,10 @@ Version 1 is complete when:
 - I can write messages inside conversations.
 - I can enter information-only view, focus on block text/images/tags/metadata/references without the composer or normal block action bars, and still use inline/reference/index navigation.
 - I can show normal controls for one block while in information-only view, confirm no edit form opens automatically, open normal controls on another block and see the previous block return to view mode, then close the active block back to view mode.
+- I can switch a conversation between List and Kanban views and see the selected view persist after reload.
+- I can add, rename, move, and delete custom Kanban columns without default columns being created automatically.
+- I can assign a block to a Kanban column from the top tag row; unassigned blocks show `∅`, assigned blocks show the selected column name, and deleting a column makes its blocks unassigned rather than deleting them.
+- On a phone-sized viewport, I can use Kanban one active column at a time with compact previous/next and picker controls.
 - I can add a small image to a new block by file selection or paste.
 - I can paste an image while editing an existing block and save it onto that block.
 - Clicking a saved image preview does nothing.

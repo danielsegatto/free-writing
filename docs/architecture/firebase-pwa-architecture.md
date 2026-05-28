@@ -1,6 +1,6 @@
 # Firebase PWA Architecture
 
-Last updated: 2026-05-26
+Last updated: 2026-05-28
 
 Related docs: [product brief](../product/v1-product-brief.md), [features and screens](../product/v1-features-and-screens.md), [current implementation](../implementation/current-implementation.md).
 
@@ -79,7 +79,15 @@ Useful user fields:
   "createdAt": "2026-05-11T12:00:00.000Z",
   "updatedAt": "2026-05-11T12:05:00.000Z",
   "lastMessagePreview": "Short preview of latest message",
-  "sortOrder": 1000
+  "sortOrder": 1000,
+  "visualizationView": "kanban",
+  "kanbanColumns": [
+    {
+      "id": "kanban-column-id",
+      "title": "Drafting",
+      "sortOrder": 1000
+    }
+  ]
 }
 ```
 
@@ -105,6 +113,12 @@ Useful user fields:
 
 `sortOrder`
 : Numeric display order in the conversation list. Conversations should display by `sortOrder` ascending, with recent update time as a fallback for older records without explicit ordering. Manual conversation reorder rewrites all conversation `sortOrder` values in visible order. When a conversation receives a newly created block, the app assigns that conversation a new top `sortOrder` so it moves above the current first row.
+
+`visualizationView`
+: Saved per-conversation view preference. Current known values are `list` and `kanban`; missing or unknown values are treated as `list`.
+
+`kanbanColumns`
+: Optional embedded custom Kanban column definitions for the conversation. Columns are ordered by their own numeric `sortOrder`. A conversation can have no Kanban columns; in that case Kanban view opens to an empty setup state rather than creating default columns automatically.
 
 ---
 
@@ -152,6 +166,8 @@ Useful user fields:
   "updatedAt": null,
   "scheduledAt": "2026-05-21T09:30:00.000Z",
   "sortOrder": 1000,
+  "kanbanColumnId": "kanban-column-id",
+  "kanbanSortOrder": 1000,
   "isForwarded": false,
   "transferType": null,
   "forwardedFromConversationId": null,
@@ -209,6 +225,12 @@ New composer text/reference/date-only sends reserve a Firestore document ID on t
 `sortOrder`
 : Numeric display order within a conversation. Messages should be displayed by `sortOrder` ascending, with `createdAt` as a fallback.
 
+`kanbanColumnId`
+: Optional custom Kanban column assignment. Blocks without this field or with null remain normal list blocks and do not appear in Kanban until assigned.
+
+`kanbanSortOrder`
+: Optional display order inside a Kanban column. Card order is independent from the conversation list `sortOrder` so a block can keep its normal list position while also moving within a Kanban column.
+
 `isForwarded`
 : Whether this message was forwarded from another conversation.
 
@@ -241,6 +263,8 @@ English conversion results are also stored as normal messages. Creating an Engli
 Synthesized conversation indexes are stored as ordinary message documents with `blockKind: "conversation-index"` and `indexEntries`. The `text` field stores a plain fallback/search representation of the generated index, while `indexEntries` drives the clickable rows. Creating an index appends a new bottom message and moves the receiving conversation to the top like other new blocks. Previous index blocks remain normal source blocks and are included in later synthesis requests.
 
 Merged text/image blocks are stored as normal messages. The app creates a replacement message with unified text plus selected attachments in display order, assigns the union of source tags and the earliest selected `scheduledAt`, and deletes the selected original messages in the same batch.
+
+Kanban is the first saved visualization template. The active view is stored on the conversation, custom columns are embedded on the conversation, and card membership/order is stored on each message. Existing blocks are not auto-assigned when columns are created; list view remains the complete fallback for unassigned blocks. New blocks sent while Kanban view is open are assigned to the active Kanban column.
 
 ---
 

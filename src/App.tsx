@@ -6,10 +6,15 @@ import { Sidebar } from './components/Sidebar';
 import { SignInScreen } from './components/SignInScreen';
 import { useMessagingData } from './hooks/useMessagingData';
 import {
+  addKanbanColumn,
   createConversation,
+  deleteKanbanColumn,
   deleteConversation,
+  reorderKanbanColumns,
   reorderConversations,
-  renameConversation
+  renameConversation,
+  renameKanbanColumn,
+  updateConversationVisualizationView
 } from './services/conversations';
 import {
   createMessage,
@@ -22,8 +27,10 @@ import {
   mergeMessages,
   moveMessage,
   moveMessageTextSelection,
+  reorderKanbanMessages,
   reserveMessageId,
   reorderMessages,
+  updateMessageKanbanPlacement,
   updateMessageReferences,
   updateMessageTags
 } from './services/messages';
@@ -31,8 +38,9 @@ import { searchLoadedMessages } from './services/search';
 import { uploadMessageImages } from './services/storage';
 import { requestEnglishVersions, requestStructuredEnglishText } from './services/translation';
 import { formatConversationIndexText, requestConversationIndex } from './services/synthesis';
-import type { Conversation, Message, MessageReference } from './types';
+import type { Conversation, ConversationVisualizationView, Message, MessageReference } from './types';
 import type { DropPosition } from './utils/dropTargets';
+import { applyKanbanSortOrder, getKanbanColumnMessages, getNextKanbanSortOrder } from './utils/kanban';
 import { moveItemToDropPosition, moveMessageByDirection, moveMessageToDropPosition } from './utils/messageOrder';
 import type { MessageReferenceNavigationTarget } from './utils/messageReferences';
 import { getTaggedMessageResults, getTagSummaries, toggleTagSelection } from './utils/tags';
@@ -226,7 +234,8 @@ export default function App() {
     textOverride?: string,
     imageFiles: File[] = [],
     references: MessageReference[] = [],
-    scheduledAt: Date | null = null
+    scheduledAt: Date | null = null,
+    kanbanColumnId: string | null = null
   ) {
     const messageText = textOverride ?? draft;
     if (!user || !activeConversationId || (!messageText.trim() && imageFiles.length === 0 && references.length === 0)) return;
@@ -235,6 +244,9 @@ export default function App() {
       const cleanText = messageText.trim();
       const messageId = reserveMessageId(user.uid, conversationId);
       const sortOrder = getNextLocalSortOrder(displayMessagesByConversation[conversationId] ?? []);
+      const kanbanSortOrder = kanbanColumnId
+        ? getNextKanbanSortOrder(displayMessagesByConversation[conversationId] ?? [], kanbanColumnId)
+        : undefined;
       const pendingMessage: Message = {
         id: messageId,
         userId: user.uid,
@@ -247,6 +259,8 @@ export default function App() {
         updatedAt: null,
         scheduledAt: scheduledAt as Message['scheduledAt'],
         sortOrder,
+        kanbanColumnId,
+        kanbanSortOrder,
         isForwarded: false,
         transferType: null,
         forwardedFromConversationId: null,
@@ -262,7 +276,21 @@ export default function App() {
       }));
 
       try {
-        await createMessageWithId(user.uid, conversationId, messageId, messageText, sortOrder, [], references, scheduledAt);
+        if (kanbanColumnId) {
+          await createMessageWithId(
+            user.uid,
+            conversationId,
+            messageId,
+            messageText,
+            sortOrder,
+            [],
+            references,
+            scheduledAt,
+            { columnId: kanbanColumnId, sortOrder: kanbanSortOrder }
+          );
+        } else {
+          await createMessageWithId(user.uid, conversationId, messageId, messageText, sortOrder, [], references, scheduledAt);
+        }
       } catch (error) {
         setPendingMessagesByConversation((current) => ({
           ...current,
@@ -276,7 +304,22 @@ export default function App() {
 
     const attachments =
       imageFiles.length > 0 ? await uploadMessageImages(user.uid, activeConversationId, imageFiles) : [];
-    await createMessage(user.uid, activeConversationId, messageText, attachments, references, scheduledAt);
+    const kanbanSortOrder = kanbanColumnId
+      ? getNextKanbanSortOrder(displayMessagesByConversation[activeConversationId] ?? [], kanbanColumnId)
+      : undefined;
+    if (kanbanColumnId) {
+      await createMessage(
+        user.uid,
+        activeConversationId,
+        messageText,
+        attachments,
+        references,
+        scheduledAt,
+        { columnId: kanbanColumnId, sortOrder: kanbanSortOrder }
+      );
+    } else {
+      await createMessage(user.uid, activeConversationId, messageText, attachments, references, scheduledAt);
+    }
     setDraft('');
   }
 
@@ -380,6 +423,125 @@ export default function App() {
     if (!nextConversations) return;
     setConversations(nextConversations);
     await reorderConversations(user.uid, nextConversations);
+  }
+
+  async function handleSetVisualizationView(view: ConversationVisualizationView) {
+    if (!user || !activeConversationId) return;
+    setConversations((current) =>
+      current.map((conversation) =>
+        conversation.id === activeConversationId ? { ...conversation, visualizationView: view } : conversation
+      )
+    );
+    await updateConversationVisualizationView(user.uid, activeConversationId, view);
+  }
+
+  async function handleAddKanbanColumn(title: string) {
+    if (!user || !activeConversationId || !activeConversation) return null;
+    const existingColumns = activeConversation.kanbanColumns ?? [];
+    const column = await addKanbanColumn(user.uid, activeConversationId, existingColumns, title);
+    setConversations((current) =>
+      current.map((conversation) =>
+        conversation.id === activeConversationId
+          ? {
+              ...conversation,
+              visualizationView: 'kanban',
+              kanbanColumns: (conversation.kanbanColumns ?? []).some((existingColumn) => existingColumn.id === column.id)
+                ? conversation.kanbanColumns
+                : [...(conversation.kanbanColumns ?? []), column]
+            }
+          : conversation
+      )
+    );
+    return column;
+  }
+
+  async function handleRenameKanbanColumn(columnId: string, title: string) {
+    if (!user || !activeConversationId || !activeConversation) return;
+    const nextColumns = (activeConversation.kanbanColumns ?? []).map((column) =>
+      column.id === columnId ? { ...column, title: title.trim() } : column
+    );
+    setConversations((current) =>
+      current.map((conversation) =>
+        conversation.id === activeConversationId ? { ...conversation, kanbanColumns: nextColumns } : conversation
+      )
+    );
+    await renameKanbanColumn(user.uid, activeConversationId, activeConversation.kanbanColumns ?? [], columnId, title);
+  }
+
+  async function handleReorderKanbanColumn(columnId: string, direction: -1 | 1) {
+    if (!user || !activeConversationId || !activeConversation) return;
+    const columns = activeConversation.kanbanColumns ?? [];
+    const columnIndex = columns.findIndex((column) => column.id === columnId);
+    const targetIndex = columnIndex + direction;
+    if (columnIndex < 0 || targetIndex < 0 || targetIndex >= columns.length) return;
+    const nextColumns = [...columns];
+    [nextColumns[columnIndex], nextColumns[targetIndex]] = [nextColumns[targetIndex], nextColumns[columnIndex]];
+    const normalizedColumns = nextColumns.map((column, index) => ({ ...column, sortOrder: (index + 1) * messageSortStep }));
+    setConversations((current) =>
+      current.map((conversation) =>
+        conversation.id === activeConversationId ? { ...conversation, kanbanColumns: normalizedColumns } : conversation
+      )
+    );
+    await reorderKanbanColumns(user.uid, activeConversationId, normalizedColumns);
+  }
+
+  async function handleDeleteKanbanColumn(columnId: string) {
+    if (!user || !activeConversationId || !activeConversation) return;
+    const nextColumns = (activeConversation.kanbanColumns ?? [])
+      .filter((column) => column.id !== columnId)
+      .map((column, index) => ({ ...column, sortOrder: (index + 1) * messageSortStep }));
+    setConversations((current) =>
+      current.map((conversation) =>
+        conversation.id === activeConversationId ? { ...conversation, kanbanColumns: nextColumns } : conversation
+      )
+    );
+    setMessagesByConversation((current) => ({
+      ...current,
+      [activeConversationId]: (current[activeConversationId] ?? []).map((message) =>
+        message.kanbanColumnId === columnId
+          ? { ...message, kanbanColumnId: null, kanbanSortOrder: undefined }
+          : message
+      )
+    }));
+    await deleteKanbanColumn(user.uid, activeConversationId, activeConversation.kanbanColumns ?? [], columnId);
+  }
+
+  async function handleAssignKanbanColumn(message: Message, columnId: string | null) {
+    if (!user) return;
+    const conversationMessages = displayMessagesByConversation[message.conversationId] ?? [];
+    const kanbanSortOrder = columnId ? getNextKanbanSortOrder(conversationMessages, columnId) : undefined;
+    setMessagesByConversation((current) => ({
+      ...current,
+      [message.conversationId]: (current[message.conversationId] ?? []).map((item) =>
+        item.id === message.id ? { ...item, kanbanColumnId: columnId, kanbanSortOrder } : item
+      )
+    }));
+    await updateMessageKanbanPlacement(
+      user.uid,
+      message.conversationId,
+      message.id,
+      columnId ? { columnId, sortOrder: kanbanSortOrder } : null
+    );
+  }
+
+  async function handleMoveKanbanMessage(message: Message, columnId: string, direction: -1 | 1) {
+    if (!user) return;
+    const columnMessages = getKanbanColumnMessages(displayMessagesByConversation[message.conversationId] ?? [], columnId);
+    const messageIndex = columnMessages.findIndex((item) => item.id === message.id);
+    const targetIndex = messageIndex + direction;
+    if (messageIndex < 0 || targetIndex < 0 || targetIndex >= columnMessages.length) return;
+    const nextColumnMessages = [...columnMessages];
+    [nextColumnMessages[messageIndex], nextColumnMessages[targetIndex]] = [
+      nextColumnMessages[targetIndex],
+      nextColumnMessages[messageIndex]
+    ];
+    const orderedColumnMessages = applyKanbanSortOrder(nextColumnMessages, columnId);
+    const orderByMessageId = new Map(orderedColumnMessages.map((item) => [item.id, item]));
+    setMessagesByConversation((current) => ({
+      ...current,
+      [message.conversationId]: (current[message.conversationId] ?? []).map((item) => orderByMessageId.get(item.id) ?? item)
+    }));
+    await reorderKanbanMessages(user.uid, message.conversationId, columnId, orderedColumnMessages);
   }
 
   async function handleCreateEnglishBlock(source: Message, text: string) {
@@ -548,6 +710,15 @@ export default function App() {
           onReplaceWithEnglish={handleReplaceWithEnglish}
           onUpdateMessageTags={(message, tags) => void handleUpdateMessageTags(message, tags)}
           onUpdateMessageReferences={(message, references) => void handleUpdateMessageReferences(message, references)}
+          onSetVisualizationView={(view) => void handleSetVisualizationView(view)}
+          onAddKanbanColumn={handleAddKanbanColumn}
+          onRenameKanbanColumn={(columnId, title) => void handleRenameKanbanColumn(columnId, title)}
+          onReorderKanbanColumn={(columnId, direction) => void handleReorderKanbanColumn(columnId, direction)}
+          onDeleteKanbanColumn={(columnId) => void handleDeleteKanbanColumn(columnId)}
+          onAssignKanbanColumn={(message, columnId) => void handleAssignKanbanColumn(message, columnId)}
+          onMoveKanbanMessage={(message, columnId, direction) =>
+            void handleMoveKanbanMessage(message, columnId, direction)
+          }
         />
       )}
 

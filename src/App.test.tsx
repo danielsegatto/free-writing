@@ -8,6 +8,7 @@ const serviceMocks = vi.hoisted(() => ({
   createMessageWithId: vi.fn(async () => undefined),
   forwardMessage: vi.fn(async () => undefined),
   moveMessage: vi.fn(async () => undefined),
+  reorderKanbanMessages: vi.fn(async () => undefined),
   reserveMessageId: vi.fn(() => 'reserved-message')
 }));
 
@@ -153,9 +154,14 @@ vi.mock('./components/SignInScreen', () => ({
 
 vi.mock('./services/conversations', () => ({
   createConversation: vi.fn(),
+  addKanbanColumn: vi.fn(async () => null),
+  deleteKanbanColumn: vi.fn(),
   deleteConversation: vi.fn(),
+  reorderKanbanColumns: vi.fn(),
   reorderConversations: vi.fn(),
-  renameConversation: vi.fn()
+  renameConversation: vi.fn(),
+  renameKanbanColumn: vi.fn(),
+  updateConversationVisualizationView: vi.fn()
 }));
 
 vi.mock('./services/messages', () => ({
@@ -169,8 +175,10 @@ vi.mock('./services/messages', () => ({
   mergeMessages: vi.fn(),
   moveMessage: serviceMocks.moveMessage,
   moveMessageTextSelection: vi.fn(),
+  reorderKanbanMessages: serviceMocks.reorderKanbanMessages,
   reserveMessageId: serviceMocks.reserveMessageId,
   reorderMessages: vi.fn(),
+  updateMessageKanbanPlacement: vi.fn(),
   updateMessageReferences: vi.fn(),
   updateMessageTags: vi.fn()
 }));

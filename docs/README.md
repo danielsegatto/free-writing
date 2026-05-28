@@ -1,12 +1,12 @@
 # Free Writing Documentation
 
-Last updated: 2026-05-27
+Last updated: 2026-05-28
 
 This is the entry point for the Free Writing PWA documentation. The detailed base document has been split into smaller files so product intent, architecture, implementation status, and reusable prompts can be updated independently.
 
 ## App summary
 
-Free Writing is a private, Google-login messaging-style PWA for one user. It supports conversations, conversation list drag reordering, saved text/image blocks with compact expand/collapse rendering for long text, an information-only viewing mode for concentrating on block content, optional block date/time scheduling with a global calendar, image paste and selection, search, tags/flags on blocks with quick reuse suggestions plus global and conversation filtering, inline `[[Conversation title]]` links with typeahead and touch-friendly insert controls in the composer and inline editor, copying text/image blocks to the browser clipboard, downloading text blocks as Markdown files, editing, deletion, keyboard shortcuts for direct send and draft English conversion, forwarding whole blocks or selected parts between conversations, moving whole blocks between conversations, saved block-to-block connections with backlinks, manual up/down and drag-handle block reordering on desktop and touch/pointer devices, multi-block merging, whole-block or selected-part English conversion with a second Markdown organization pass that preserves chosen English segments, conversation index synthesis, multi-device access, and offline support for the app shell plus cached Firestore data.
+Free Writing is a private, Google-login messaging-style PWA for one user. It supports conversations, conversation list drag reordering, saved text/image blocks with compact expand/collapse rendering for long text, an information-only viewing mode for concentrating on block content, List/Kanban conversation visualizations with custom columns and mobile-friendly shortcut controls, optional block date/time scheduling with a global calendar, image paste and selection, search, tags/flags on blocks with quick reuse suggestions plus global and conversation filtering, inline `[[Conversation title]]` links with typeahead and touch-friendly insert controls in the composer and inline editor, copying text/image blocks to the browser clipboard, downloading text blocks as Markdown files, editing, deletion, keyboard shortcuts for direct send and draft English conversion, forwarding whole blocks or selected parts between conversations, moving whole blocks between conversations, saved block-to-block connections with backlinks, manual up/down and drag-handle block reordering on desktop and touch/pointer devices, multi-block merging, whole-block or selected-part English conversion with a second Markdown organization pass that preserves chosen English segments, conversation index synthesis, multi-device access, and offline support for the app shell plus cached Firestore data.
 
 Target devices:
 
@@ -63,7 +63,7 @@ Use the product docs when changing what the app should do or checking whether a 
 
 - Google/Gmail login behavior
 - Conversation behavior, including manual conversation ordering
-- Message creation, information-only block viewing mode, compact long-text block display with expand/collapse, inline conversation links, date/time scheduling and calendar browsing, image attachments, clipboard copy, Markdown download, editing, deletion, block connections/backlinks, copying or moving whole/partial blocks between conversations, reordering, merging, whole-block or selected-part English conversion with organized Markdown output, and conversation index synthesis
+- Message creation, information-only block viewing mode, List/Kanban visualization templates, compact long-text block display with expand/collapse, inline conversation links, date/time scheduling and calendar browsing, image attachments, clipboard copy, Markdown download, editing, deletion, block connections/backlinks, copying or moving whole/partial blocks between conversations, reordering, merging, whole-block or selected-part English conversion with organized Markdown output, and conversation index synthesis
 - Message search
 - Sign-in, conversation list, conversation, calendar, and search screens
 - Functional requirements
@@ -116,7 +116,7 @@ Use [Repeatable security check](ai-maintenance/security-check.md) when auditing 
 
 The first useful version should be:
 
-> A private Google-login PWA where I can create and organize conversations, save text/image blocks, switch into an information-only block view when I want fewer controls, write inline conversation links, connect related blocks with backlinks, add date/time to blocks and view them on a calendar, tag or flag blocks with quick reuse suggestions for filtering, copy text and attached images where the browser clipboard allows, download text blocks as Markdown files, convert whole blocks, selected parts, or draft text into organized English Markdown, synthesize a clickable conversation index, quickly send or convert draft text with keyboard shortcuts, edit/delete/search/reorder/merge blocks, forward whole blocks or selected parts between conversations, move whole blocks between conversations, and access everything across iPhone, desktop, and tablet, with offline support for cached data.
+> A private Google-login PWA where I can create and organize conversations, save text/image blocks, switch into an information-only block view when I want fewer controls, view blocks as a normal list or custom Kanban board, write inline conversation links, connect related blocks with backlinks, add date/time to blocks and view them on a calendar, tag or flag blocks with quick reuse suggestions for filtering, copy text and attached images where the browser clipboard allows, download text blocks as Markdown files, convert whole blocks, selected parts, or draft text into organized English Markdown, synthesize a clickable conversation index, quickly send or convert draft text with keyboard shortcuts, edit/delete/search/reorder/merge blocks, forward whole blocks or selected parts between conversations, move whole blocks between conversations, and access everything across iPhone, desktop, and tablet, with offline support for cached data.
 
 ## Maintenance guidance
 

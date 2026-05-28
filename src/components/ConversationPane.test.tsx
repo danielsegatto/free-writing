@@ -106,6 +106,13 @@ function getPaneProps(overrides: Partial<ComponentProps<typeof ConversationPane>
     onReplaceWithEnglish: vi.fn(async () => undefined),
     onUpdateMessageTags: vi.fn(async () => undefined),
     onUpdateMessageReferences: vi.fn(async () => undefined),
+    onSetVisualizationView: vi.fn(async () => undefined),
+    onAddKanbanColumn: vi.fn(async () => null),
+    onRenameKanbanColumn: vi.fn(async () => undefined),
+    onReorderKanbanColumn: vi.fn(async () => undefined),
+    onDeleteKanbanColumn: vi.fn(async () => undefined),
+    onAssignKanbanColumn: vi.fn(async () => undefined),
+    onMoveKanbanMessage: vi.fn(async () => undefined),
     ...overrides
   };
 }
@@ -2482,6 +2489,125 @@ describe('ConversationPane', () => {
       expect(onSynthesizeIndex).toHaveBeenCalledTimes(1);
     });
     expect(onSynthesizeIndex).toHaveBeenCalledWith(props.activeMessages, 'Inbox');
+  });
+
+  it('switches conversation visualization views from the header', () => {
+    const onSetVisualizationView = vi.fn();
+    renderPane({ onSetVisualizationView });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Kanban view' }));
+    expect(onSetVisualizationView).toHaveBeenCalledWith('kanban');
+
+    fireEvent.click(screen.getByRole('button', { name: 'List view' }));
+    expect(onSetVisualizationView).toHaveBeenCalledWith('list');
+  });
+
+  it('shows assigned blocks in Kanban while leaving unassigned blocks in list view', () => {
+    const assigned = { ...message('assigned', 'Assigned card'), kanbanColumnId: 'doing', kanbanSortOrder: 1000 };
+    const unassigned = message('unassigned', 'Unassigned block');
+
+    renderPane({
+      activeConversation: {
+        ...conversation,
+        visualizationView: 'kanban',
+        kanbanColumns: [
+          { id: 'doing', title: 'Doing', sortOrder: 1000 },
+          { id: 'done', title: 'Done', sortOrder: 2000 }
+        ]
+      },
+      activeMessages: [assigned, unassigned],
+      messagesByConversation: { [conversation.id]: [assigned, unassigned] }
+    });
+
+    expect(screen.getAllByText('Assigned card').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Unassigned block')).not.toBeInTheDocument();
+  });
+
+  it('assigns list blocks to Kanban columns from a touch-friendly selector', async () => {
+    const onAssignKanbanColumn = vi.fn(async () => undefined);
+    const block = message('first', 'First');
+
+    renderPane({
+      activeConversation: {
+        ...conversation,
+        kanbanColumns: [{ id: 'doing', title: 'Doing', sortOrder: 1000 }]
+      },
+      activeMessages: [block],
+      messagesByConversation: { [conversation.id]: [block] },
+      onAssignKanbanColumn
+    });
+
+    fireEvent.change(screen.getByLabelText('Assign to Kanban column'), { target: { value: 'doing' } });
+
+    await waitFor(() => {
+      expect(onAssignKanbanColumn).toHaveBeenCalledWith(expect.objectContaining({ id: 'first' }), 'doing');
+    });
+  });
+
+  it('creates and manages custom Kanban columns', async () => {
+    const prompt = vi.spyOn(window, 'prompt');
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const onAddKanbanColumn = vi.fn(async () => ({ id: 'new-column', title: 'Drafting', sortOrder: 1000 }));
+    const onRenameKanbanColumn = vi.fn(async () => undefined);
+    const onReorderKanbanColumn = vi.fn(async () => undefined);
+    const onDeleteKanbanColumn = vi.fn(async () => undefined);
+
+    prompt.mockReturnValueOnce('Drafting');
+    renderPane({
+      activeConversation: {
+        ...conversation,
+        visualizationView: 'kanban',
+        kanbanColumns: [
+          { id: 'doing', title: 'Doing', sortOrder: 1000 },
+          { id: 'done', title: 'Done', sortOrder: 2000 }
+        ]
+      },
+      onAddKanbanColumn,
+      onRenameKanbanColumn,
+      onReorderKanbanColumn,
+      onDeleteKanbanColumn
+    });
+
+    fireEvent.click(screen.getByTitle('Add Kanban column'));
+    await waitFor(() => expect(onAddKanbanColumn).toHaveBeenCalledWith('Drafting'));
+
+    prompt.mockReturnValueOnce('Renamed');
+    fireEvent.click(screen.getAllByTitle('Rename column')[0]);
+    expect(onRenameKanbanColumn).toHaveBeenCalledWith('doing', 'Renamed');
+
+    const moveRightButton = screen.getAllByTitle('Move column right').find((button) => !button.hasAttribute('disabled'));
+    expect(moveRightButton).toBeDefined();
+    fireEvent.click(moveRightButton as HTMLElement);
+    expect(onReorderKanbanColumn).toHaveBeenCalledWith('doing', 1);
+
+    fireEvent.click(screen.getAllByTitle('Delete column')[0]);
+    expect(confirm).toHaveBeenCalled();
+    expect(onDeleteKanbanColumn).toHaveBeenCalledWith('doing');
+
+    prompt.mockRestore();
+    confirm.mockRestore();
+  });
+
+  it('sends composer blocks into the active Kanban column', async () => {
+    const onSubmitMessage = vi.fn(async () => undefined);
+    renderPane({
+      activeConversation: {
+        ...conversation,
+        visualizationView: 'kanban',
+        kanbanColumns: [
+          { id: 'doing', title: 'Doing', sortOrder: 1000 },
+          { id: 'done', title: 'Done', sortOrder: 2000 }
+        ]
+      },
+      draft: 'Kanban draft',
+      onSubmitMessage
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+
+    await waitFor(() => {
+      expect(onSubmitMessage).toHaveBeenCalledWith(undefined, [], [], null, 'doing');
+    });
   });
 
   it('shows a compact loading state while synthesizing an index', async () => {
