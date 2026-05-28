@@ -122,7 +122,7 @@ Version 1 behavior:
 - Kanban uses custom columns created by the user; no default columns are created automatically.
 - Existing blocks are not moved into Kanban automatically. They stay visible in List view until assigned to a Kanban column.
 - Each block can belong to one Kanban column at a time.
-- The block's top tag row exposes a compact column selector when the conversation has Kanban columns. It shows `∅` when no column is selected and the selected column name when assigned.
+- The block's top tag row exposes a compact button-like column selector when the conversation has Kanban columns. It shows `∅` when no column is selected and the selected column name when assigned, without a visible dropdown arrow.
 - New blocks sent from the composer while Kanban is open are assigned to the active Kanban column.
 - Columns can be added, renamed, moved left/right, and deleted.
 - Deleting a column does not delete blocks. Blocks in that column become unassigned and return to List-only visibility.
@@ -613,7 +613,7 @@ Content:
 - Message action: move to another conversation
 - Long message text preview with an icon-only expand/collapse control
 - Message tag chips plus an inline add/remove editor with suggestions
-- Compact per-block Kanban column selector beside the tag chips when Kanban columns exist
+- Compact button-like per-block Kanban column selector beside the tag chips when Kanban columns exist
 - Message action: convert to English
 - Header action: synthesize a clickable conversation index
 - Transfer dialog for copying/forwarding whole blocks or selected text parts with tap and drag word selection, plus direct target selection for whole-block moves
@@ -687,7 +687,7 @@ Layout:
 - User can enable information-only view, read full block information without most controls, and temporarily show normal controls for one block at a time.
 - User can switch the active conversation between List and Kanban views.
 - User can add, rename, move, and delete custom Kanban columns.
-- User can assign a block to a Kanban column from the block's top tag row, where no selected column is shown with `∅` and an assigned column shows its name.
+- User can assign a block to a Kanban column from the block's top tag row, where no selected column is shown with `∅`, an assigned column shows its name, and the selector does not show a separate dropdown arrow.
 - User can add image attachments by file selection, paste, or touch paste action where supported.
 - User can open draft English conversion from the composer with `Ctrl+Enter` / `Cmd+Enter`.
 - User can send the current draft directly from the composer with `Ctrl+Shift+Enter` / `Cmd+Shift+Enter`.
@@ -775,7 +775,7 @@ Version 1 is complete when:
 - I can show normal controls for one block while in information-only view, confirm no edit form opens automatically, open normal controls on another block and see the previous block return to view mode, then close the active block back to view mode.
 - I can switch a conversation between List and Kanban views and see the selected view persist after reload.
 - I can add, rename, move, and delete custom Kanban columns without default columns being created automatically.
-- I can assign a block to a Kanban column from the top tag row; unassigned blocks show `∅`, assigned blocks show the selected column name, and deleting a column makes its blocks unassigned rather than deleting them.
+- I can assign a block to a Kanban column from the top tag row; unassigned blocks show `∅`, assigned blocks show the selected column name, the control opens by tapping its button area without a visible dropdown arrow, and deleting a column makes its blocks unassigned rather than deleting them.
 - On a phone-sized viewport, I can use Kanban one active column at a time with compact previous/next and picker controls.
 - I can add a small image to a new block by file selection or paste.
 - I can paste an image while editing an existing block and save it onto that block.

@@ -42,7 +42,7 @@ Run these checks in a real browser after signing in and creating at least one co
 1. Switch the active conversation from List to Kanban and back, reload, and confirm the selected view persists per conversation.
 2. Open Kanban before creating columns and confirm no default columns are created automatically.
 3. Add several custom columns, rename one, move columns left/right, reload, and confirm their names and order persist.
-4. Assign a block from the compact selector beside its tag chips. Confirm the selector shows `∅` before assignment and the selected column name after assignment.
+4. Assign a block from the compact selector beside its tag chips. Confirm the selector shows `∅` before assignment, the selected column name after assignment, and no separate downward arrow.
 5. Delete a column that has assigned blocks and confirm those blocks are not deleted; they become unassigned and return to List-only visibility.
 6. Send a new block while Kanban is open and confirm it lands in the active column.
 7. Move a Kanban card up/down within a column and to the previous/next column, then reload and confirm the order and column assignment persist.

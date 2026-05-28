@@ -55,7 +55,7 @@ Messages:
 - The conversation header should provide List and Kanban view controls. The selected List/Kanban view should persist per conversation in Firestore.
 - Kanban should use custom user-created columns only; do not create default columns automatically.
 - Existing blocks should remain unassigned until the user assigns them to a Kanban column. Unassigned blocks remain visible in List view and are hidden from Kanban.
-- Each block should have at most one Kanban column. When Kanban columns exist, the block's top tag row should expose a compact column selector that shows `∅` for no selected column and the selected column name when assigned.
+- Each block should have at most one Kanban column. When Kanban columns exist, the block's top tag row should expose a compact button-like column selector that shows `∅` for no selected column and the selected column name when assigned. Do not show a separate dropdown arrow; tapping the control area should open column selection.
 - New blocks sent from the composer while Kanban is open should be assigned to the active Kanban column.
 - Users should be able to add, rename, move left/right, and delete Kanban columns. Deleting a column should make its blocks unassigned, not delete them.
 - Desktop Kanban should show columns horizontally. Mobile Kanban should show one active column at a time with previous/next controls and a picker.
