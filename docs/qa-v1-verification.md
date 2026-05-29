@@ -42,8 +42,8 @@ Run after signing in with a Firebase-backed account that has at least one conver
 
 Expected result:
 
-- The active conversation header can export one `.json` and one `.md` file for the open conversation.
-- The sidebar app header can export one `.json` and one `.md` file for all conversations.
+- The active conversation header More menu can export one `.json` and one `.md` file for the open conversation.
+- The sidebar app header More menu can export one `.json` and one `.md` file for all conversations.
 - Export buttons disable while an export is pending and show a concise error if the export fails.
 - JSON contains full conversation records and nested message records, including attachment payloads.
 - Markdown companions are readable and do not include inline base64 image data.
@@ -167,7 +167,7 @@ Run against a configured Firebase project in Chrome or Safari after visiting the
 66. Repeat partial saved-message conversion and choose `Replace block`; confirm only the selected source phrase is replaced by the organized English result and the surrounding original text remains in place.
 67. Enter draft text in the composer and press `Ctrl+Shift+Enter` on Windows/Linux or `Cmd+Shift+Enter` on macOS/iPad hardware keyboards. Confirm the draft sends directly without opening English conversion and cannot be sent twice by repeating the shortcut during the pending send.
 68. Enter draft text in the composer, paste or select a small image, convert the draft to English, choose an option, and confirm `Send English` organizes the selected English text, creates the organized Markdown result as a new message with the image attached, clears the composer image preview, and does not first place the English text in the composer.
-69. Click `Synthesize conversation index` in the active conversation header and confirm exactly one new index block appears at the bottom of the conversation.
+69. Click `Synthesize conversation index` in the active conversation header More menu and confirm exactly one new index block appears at the bottom of the conversation.
 70. Confirm the synthesized index includes one clickable row per source block that existed before synthesis, including earlier synthesized index blocks if any existed.
 71. Click several index rows and confirm the message list scrolls to the matching source block and highlights it. Delete a referenced source block if practical and confirm that row becomes disabled rather than failing.
 72. Search for text that exists in loaded messages, including text from a synthesized index block.
@@ -194,6 +194,7 @@ Expected result:
 - Information-only mode hides normal block controls and the composer while preserving block information and navigation. Long text renders fully in that mode, the preference persists locally in the browser, and `Show normal controls` exposes normal actions for only one block at a time without opening edit mode automatically.
 - Tag suggestions use previously created tags from loaded blocks, filter as the user types, exclude tags already on the block, and still allow new free-text tags.
 - Dated blocks appear in the global calendar by browser-local date/time, with unscheduled blocks hidden from calendar views. The composer's `Date` action exposes its collapsed/expanded state to assistive technology. Whole-block copy/move preserves date/time, and merging keeps the earliest selected date/time.
+- On phone-width layouts, the composer keeps `Date`, image attach, `[[` insertion, composer More, and Send in one action row, while paste image, structured reference, quote citation, and draft English conversion remain reachable from More.
 - Copied/forwarded messages are labeled `Copied` or `Copied from [source conversation]`; only the source conversation name is clickable, and there is no lower copied-source card. Moved messages are labeled `Moved`.
 - Forward dialogs start on a text selection step, transfer the whole block when no words are selected, and transfer only selected words when one or more word selections exist. The selected text is visible in the selection area itself; there is no separate preview.
 - Forward word selection supports tap toggling, click-to-deselect, separate non-adjacent selections, and pointer drag selection/unselection on mouse and touch. Move dialogs skip text selection and go straight to target conversation selection.
@@ -201,6 +202,7 @@ Expected result:
 - Saved blocks can connect to any loaded block, including themselves. Quote connection selection supports click toggles, drag selection/unselection, and separate non-adjacent fragments like the forward text-selection dialog. Incoming whole-block and quote connections appear as collapsed `Connected from N blocks` backlink rows, and expanded backlink cards navigate to the source block.
 - Inline conversation links render from `[[Conversation title]]` text as marker-free title chips only when the title uniquely matches a conversation. The composer and inline edit suggestion lists filter by typed title text, support click and keyboard completion, and omit duplicate-title targets. Their visible `[[` insert buttons place the marker at the textarea cursor and open the same suggestions for touch users.
 - Icon-only controls, including modal close buttons, row/message actions, and the mobile back button, show their icons centered within the button boundary. The composer's labeled `Date` action keeps its icon and text aligned without crowding the other toolbar actions.
+- Saved block action toolbars keep common actions visible, while normal list reorder controls and Delete are available from block More; Delete is visually separated as the destructive action.
 - Reordered conversations keep their order after reconnect and reload.
 - Releasing a reordered conversation keeps the user on the conversation list rather than opening the reordered row or the first row.
 - Conversations receiving newly created blocks move to the top of the list after direct creation, forwarding, moving, and English block creation.

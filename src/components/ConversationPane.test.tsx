@@ -151,6 +151,12 @@ function renderStatefulPane(overrides: Partial<ComponentProps<typeof Conversatio
   return props;
 }
 
+function openBlockMore(index = 0) {
+  const buttons = screen.getAllByRole('button', { name: 'More block actions' });
+  fireEvent.click(buttons[index]);
+  return buttons[index];
+}
+
 function mockObjectUrls() {
   const originalCreateObjectURL = URL.createObjectURL;
   const originalRevokeObjectURL = URL.revokeObjectURL;
@@ -197,6 +203,7 @@ describe('ConversationPane', () => {
   it('exports the active conversation from the conversation header', () => {
     const props = renderPane();
 
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
     fireEvent.click(screen.getByTitle('Export conversation'));
 
     expect(props.onExportConversation).toHaveBeenCalledTimes(1);
@@ -208,6 +215,7 @@ describe('ConversationPane', () => {
       conversationExportError: 'Unable to export this conversation.'
     });
 
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
     expect(screen.getByTitle('Export conversation')).toBeDisabled();
     expect(screen.getByRole('alert')).toHaveTextContent('Unable to export this conversation.');
     expect(props.onExportConversation).not.toHaveBeenCalled();
@@ -365,6 +373,19 @@ describe('ConversationPane', () => {
         new Date(2026, 4, 21, 9, 30)
       );
     });
+  });
+
+  it('keeps primary and secondary composer tools accessible', () => {
+    renderPane({ draft: '' });
+
+    expect(screen.getByRole('button', { name: 'Date' })).toBeVisible();
+    expect(screen.getByTitle('Add images')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Insert [[' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled();
+    expect(screen.getByTitle('Paste image')).toBeVisible();
+    expect(screen.getByTitle('Add conversation link')).toBeVisible();
+    expect(screen.getByTitle('Cite text')).toBeVisible();
+    expect(screen.getByTitle('Convert draft to English')).toBeDisabled();
   });
 
   it('submits the composer only once while a send is pending', () => {
@@ -817,6 +838,7 @@ describe('ConversationPane', () => {
 
     expect(screen.getByText('First')).toBeInTheDocument();
     expect(screen.queryByText('Second')).not.toBeInTheDocument();
+    openBlockMore();
     expect(screen.getByTitle('Drag to reorder')).toBeDisabled();
     expect(screen.getAllByRole('button', { name: /urgent/i })[0]).toHaveClass('active');
   });
@@ -971,22 +993,38 @@ describe('ConversationPane', () => {
 
   it('uses reorder controls with disabled edge buttons', () => {
     const props = renderPane();
-    const moveUpButtons = screen.getAllByTitle('Move up');
-    const moveDownButtons = screen.getAllByTitle('Move down');
 
-    expect(moveUpButtons[0]).toBeDisabled();
-    expect(moveDownButtons[1]).toBeDisabled();
+    openBlockMore(0);
+    expect(screen.getByTitle('Move up')).toBeDisabled();
+    const firstMoveDown = screen.getByTitle('Move down');
+    fireEvent.click(firstMoveDown);
 
-    fireEvent.click(moveDownButtons[0]);
-    fireEvent.click(moveUpButtons[1]);
+    openBlockMore(1);
+    expect(screen.getByTitle('Move down')).toBeDisabled();
+    const secondMoveUp = screen.getByTitle('Move up');
+    fireEvent.click(secondMoveUp);
 
     expect(props.onMoveMessage).toHaveBeenCalledWith(0, 1);
     expect(props.onMoveMessage).toHaveBeenCalledWith(1, -1);
   });
 
+  it('keeps reorder and delete actions in block More', () => {
+    renderPane();
+
+    expect(screen.queryByTitle('Delete')).not.toBeInTheDocument();
+
+    openBlockMore();
+
+    expect(screen.getByTitle('Move up')).toBeInTheDocument();
+    expect(screen.getByTitle('Move down')).toBeInTheDocument();
+    expect(screen.getByTitle('Drag to reorder')).toBeInTheDocument();
+    expect(screen.getByTitle('Delete')).toHaveClass('danger');
+  });
+
   it('reorders blocks by dragging one block onto another', () => {
     const props = renderPane();
-    const firstBlockHandle = screen.getAllByTitle('Drag to reorder')[0];
+    openBlockMore();
+    const firstBlockHandle = screen.getByTitle('Drag to reorder');
     const secondBlock = screen.getByText('Second').closest('article') as HTMLElement;
 
     fireEvent.dragStart(firstBlockHandle, {
@@ -1013,7 +1051,8 @@ describe('ConversationPane', () => {
   it('keeps desktop drag active if the browser cancels the pointer during native drag', () => {
     renderPane();
     const firstBlock = screen.getByText('First').closest('article') as HTMLElement;
-    const firstBlockHandle = screen.getAllByTitle('Drag to reorder')[0];
+    openBlockMore();
+    const firstBlockHandle = screen.getByTitle('Drag to reorder');
     const secondBlock = screen.getByText('Second').closest('article') as HTMLElement;
 
     fireEvent.dragStart(firstBlockHandle, {
@@ -1039,7 +1078,8 @@ describe('ConversationPane', () => {
 
   it('shows the insertion space where the dragged block will land', () => {
     renderPane();
-    const firstBlockHandle = screen.getAllByTitle('Drag to reorder')[0];
+    openBlockMore();
+    const firstBlockHandle = screen.getByTitle('Drag to reorder');
     const secondBlock = screen.getByText('Second').closest('article') as HTMLElement;
     Object.defineProperty(secondBlock, 'getBoundingClientRect', {
       configurable: true,
@@ -1079,7 +1119,8 @@ describe('ConversationPane', () => {
   it('treats message-list gaps as valid pointer drop zones', () => {
     const props = renderPane();
     const firstBlock = screen.getByText('First').closest('article') as HTMLElement;
-    const firstBlockHandle = screen.getAllByTitle('Drag to reorder')[0];
+    openBlockMore();
+    const firstBlockHandle = screen.getByTitle('Drag to reorder');
     const secondBlock = screen.getByText('Second').closest('article') as HTMLElement;
     const messages = firstBlock.parentElement as HTMLElement;
     const originalElementFromPoint = document.elementFromPoint;
@@ -1171,7 +1212,8 @@ describe('ConversationPane', () => {
 
     renderPane();
     const firstBlock = screen.getByText('First').closest('article') as HTMLElement;
-    const firstBlockHandle = screen.getAllByTitle('Drag to reorder')[0];
+    openBlockMore();
+    const firstBlockHandle = screen.getByTitle('Drag to reorder');
     const secondBlock = screen.getByText('Second').closest('article') as HTMLElement;
     const messages = firstBlock.parentElement as HTMLElement;
     const scrollBy = vi.fn();
@@ -1230,7 +1272,8 @@ describe('ConversationPane', () => {
   it('reorders blocks with touch pointer dragging', () => {
     const props = renderPane();
     const firstBlock = screen.getByText('First').closest('article') as HTMLElement;
-    const firstBlockHandle = screen.getAllByTitle('Drag to reorder')[0];
+    openBlockMore();
+    const firstBlockHandle = screen.getByTitle('Drag to reorder');
     const secondBlock = screen.getByText('Second').closest('article') as HTMLElement;
     const originalElementFromPoint = document.elementFromPoint;
     const elementFromPoint = vi.fn(() => secondBlock);
@@ -1274,7 +1317,8 @@ describe('ConversationPane', () => {
   it('starts touch pointer dragging as soon as the drag handle is pressed', () => {
     const props = renderPane();
     const firstBlock = screen.getByText('First').closest('article') as HTMLElement;
-    const firstBlockHandle = screen.getAllByTitle('Drag to reorder')[0];
+    openBlockMore();
+    const firstBlockHandle = screen.getByTitle('Drag to reorder');
     const secondBlock = screen.getByText('Second').closest('article') as HTMLElement;
     const originalElementFromPoint = document.elementFromPoint;
     const elementFromPoint = vi.fn(() => secondBlock);
@@ -1316,7 +1360,8 @@ describe('ConversationPane', () => {
   it('starts mouse pointer dragging as soon as the drag handle is pressed', () => {
     const props = renderPane();
     const firstBlock = screen.getByText('First').closest('article') as HTMLElement;
-    const firstBlockHandle = screen.getAllByTitle('Drag to reorder')[0];
+    openBlockMore();
+    const firstBlockHandle = screen.getByTitle('Drag to reorder');
     const secondBlock = screen.getByText('Second').closest('article') as HTMLElement;
     const originalElementFromPoint = document.elementFromPoint;
     const elementFromPoint = vi.fn(() => secondBlock);
@@ -1412,7 +1457,8 @@ describe('ConversationPane', () => {
 
     renderPane();
     const firstBlock = screen.getByText('First').closest('article') as HTMLElement;
-    const firstBlockHandle = screen.getAllByTitle('Drag to reorder')[0];
+    openBlockMore();
+    const firstBlockHandle = screen.getByTitle('Drag to reorder');
     const secondBlock = screen.getByText('Second').closest('article') as HTMLElement;
     const messages = firstBlock.parentElement as HTMLElement;
     const scrollBy = vi.fn();
@@ -2505,6 +2551,7 @@ describe('ConversationPane', () => {
     const onSynthesizeIndex = vi.fn(async () => undefined);
     const props = renderPane({ onSynthesizeIndex });
 
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
     fireEvent.click(screen.getByTitle('Synthesize conversation index'));
 
     await waitFor(() => {
@@ -2643,11 +2690,13 @@ describe('ConversationPane', () => {
 
     renderPane({ onSynthesizeIndex });
 
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
     const synthesizeButton = screen.getByTitle('Synthesize conversation index');
     fireEvent.click(synthesizeButton);
 
     expect(await screen.findByText('Synthesizing conversation index...')).toBeInTheDocument();
-    expect(synthesizeButton).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+    expect(screen.getByTitle('Synthesize conversation index')).toBeDisabled();
 
     await act(async () => {
       resolveSynthesis();
@@ -2665,6 +2714,7 @@ describe('ConversationPane', () => {
 
     renderPane({ onSynthesizeIndex });
 
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
     fireEvent.click(screen.getByTitle('Synthesize conversation index'));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Synthesis unavailable');

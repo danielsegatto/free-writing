@@ -1,8 +1,8 @@
 # Version 1 Product Brief
 
-Last updated: 2026-05-28
+Last updated: 2026-05-29
 
-Related docs: [features and screens](v1-features-and-screens.md), [architecture](../architecture/firebase-pwa-architecture.md), [current implementation](../implementation/current-implementation.md).
+Related docs: [design principles](design-principles.md), [features and screens](v1-features-and-screens.md), [architecture](../architecture/firebase-pwa-architecture.md), [current implementation](../implementation/current-implementation.md).
 
 ## 1. App idea
 
@@ -65,6 +65,7 @@ The app should be:
 - Lightweight
 - Fast on older devices
 - Comfortable on larger screens
+- Content-first, with secondary actions progressively disclosed instead of crowding reading and writing surfaces
 
 ### iPhone 8 considerations
 
@@ -76,6 +77,7 @@ Important UI rules:
 - Use a simple single-column layout on phones.
 - Keep buttons large enough for touch.
 - Keep the message input fixed at the bottom.
+- Keep tight headers limited to navigation, title, primary mode controls, and a More menu for secondary actions.
 - Avoid heavy animations.
 - Avoid large libraries unless necessary.
 

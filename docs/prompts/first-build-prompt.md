@@ -1,8 +1,8 @@
 # First Build Prompt
 
-Last updated: 2026-05-28
+Last updated: 2026-05-29
 
-Related docs: [documentation overview](../README.md), [product brief](../product/v1-product-brief.md), [features and screens](../product/v1-features-and-screens.md).
+Related docs: [documentation overview](../README.md), [design principles](../product/design-principles.md), [product brief](../product/v1-product-brief.md), [features and screens](../product/v1-features-and-screens.md).
 
 ## 18. First build prompt for an AI coding tool
 
@@ -21,6 +21,7 @@ Target devices:
 Core requirements:
 - Mobile-first responsive design.
 - Simple layout that works well on small iPhone 8 screens.
+- Content-first action hierarchy: keep primary navigation and mode controls visible, and move rare header actions into a More menu instead of crowding the title.
 - Google/Gmail login using Firebase Authentication.
 - Cloud sync using Firestore.
 - Firestore offline persistence enabled.
@@ -52,7 +53,7 @@ Messages:
 - The conversation header should provide an information-only mode for focusing on block content. In this mode, block text/images/tags/metadata/references/backlinks/inline links/index rows remain visible and navigable, long text renders fully, and normal creation/editing/management controls are hidden.
 - Information-only mode should persist as a browser-local preference, not account-synced Firestore data.
 - In information-only mode, each text-bearing saved block should expose a `Show normal controls` option that restores normal block controls only for that block without opening edit mode automatically. Only one block can show normal controls at a time; opening another closes the previous one, and the active block can return to view mode.
-- The conversation header should provide List and Kanban view controls. The selected List/Kanban view should persist per conversation in Firestore.
+- The conversation header should provide List and Kanban view controls on wider screens and in the header More menu on narrow screens. The selected List/Kanban view should persist per conversation in Firestore.
 - Kanban should use custom user-created columns only; do not create default columns automatically.
 - Existing blocks should remain unassigned until the user assigns them to a Kanban column. Unassigned blocks remain visible in List view and are hidden from Kanban.
 - Each block should have at most one Kanban column. When Kanban columns exist, the block's top tag row should expose a compact button-like column selector that shows `∅` for no selected column and the selected column name when assigned. Do not show a separate dropdown arrow; tapping the control area should open column selection.
@@ -71,12 +72,13 @@ Messages:
 - User can edit messages inline inside the message block, without moving the text into the composer.
 - User can paste images while editing a message, preview them, and save them onto that block.
 - User can add, edit, clear, and view one scheduled date/time on a block.
+- On phone screens, keep the composer capture flow primary: Date, image attach, `[[` insertion, composer More, and Send stay in one action row, while paste image, structured reference, quote citation, and draft English conversion remain available in More. On wider screens, all composer tools may stay visible.
 - User can open a global Calendar screen from the sidebar and browse dated blocks from all loaded conversations in Today, This week, and This month views.
 - Today should use a time-sorted agenda list. This week should group blocks by day. This month should use a month grid on desktop and a date-grouped list on mobile.
 - Clicking a calendar item should open the source conversation and highlight the source block.
 - User can copy saved blocks to the system clipboard. Text-only blocks copy plain text; blocks with images use best-effort rich clipboard data containing text and attached images, with plain-text fallback when possible.
 - User can download a saved text-bearing block as a Markdown `.md` file containing the raw block text. The filename should include a sanitized conversation title, the block creation date, and the block ID.
-- User can export the active conversation from the conversation header and export all conversations from the app header. Each export should download a faithful JSON bundle plus a readable Markdown companion. JSON should preserve full conversation/message records including inline image data URLs; Markdown should omit inline base64 image payloads.
+- User can export the active conversation from the conversation header More menu and export all conversations from the app header More menu. Each export should download a faithful JSON bundle plus a readable Markdown companion. JSON should preserve full conversation/message records including inline image data URLs; Markdown should omit inline base64 image payloads.
 - User can delete messages with confirmation.
 - User can add and remove tags/flags on message blocks. The tag editor should suggest previously created tags from loaded blocks as the user types, exclude tags already on the current block, and support click or Enter selection.
 - User can filter loaded blocks by tag globally and within the active conversation.
@@ -95,7 +97,7 @@ Messages:
 - Block selection starts with a double-click on desktop or a double-tap on touch devices; after the first block is selected, single clicks/taps toggle other blocks.
 - User can convert a whole text block or selected part of a text block to English.
 - User can convert draft composer text to English and send the selected English result directly.
-- User can synthesize a clickable conversation index from the active conversation header.
+- User can synthesize a clickable conversation index from the active conversation header More menu.
 - Index synthesis should send all visible blocks in display order in one contextual AI request, include previous index blocks, append the new index block to the bottom, and render each generated row as a link to its source block.
 - User can connect a saved block to any loaded saved block, including same-conversation blocks and self-links, as either a whole-block connection or selected quote-fragment connections.
 - Quote-fragment connection selection should use the same click and drag word-selection behavior as the forward transfer dialog, including separate non-adjacent fragments.

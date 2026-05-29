@@ -1,8 +1,8 @@
 # Version 1 Features and Screens
 
-Last updated: 2026-05-28
+Last updated: 2026-05-29
 
-Related docs: [product brief](v1-product-brief.md), [architecture](../architecture/firebase-pwa-architecture.md), [current implementation](../implementation/current-implementation.md).
+Related docs: [design principles](design-principles.md), [product brief](v1-product-brief.md), [architecture](../architecture/firebase-pwa-architecture.md), [current implementation](../implementation/current-implementation.md).
 
 ## 7. Main features
 
@@ -118,7 +118,7 @@ The user can view the same conversation blocks through alternate templates over 
 
 Version 1 behavior:
 
-- The conversation header exposes List and Kanban view controls.
+- The conversation header exposes List and Kanban view controls directly on wider screens and through More on narrow screens.
 - The selected List/Kanban view is saved per conversation and syncs across devices.
 - Kanban uses custom columns created by the user; no default columns are created automatically.
 - Existing blocks are not moved into Kanban automatically. They stay visible in List view until assigned to a Kanban column.
@@ -151,6 +151,8 @@ Requirements:
 - `Cmd+Shift+Enter` sends the current draft directly on macOS and iPad hardware keyboards.
 - Typing `[[` opens conversation-title suggestions for inline conversation links.
 - The composer should also expose a visible `[[` insert action so touch users can start an inline conversation link without relying on a hardware or software keyboard sequence.
+- On phone screens, the composer keeps `Date`, image attach, `[[` insertion, a composer More menu, and Send in one action row; paste image, structured references, quote citation, and draft English conversion stay available in that More menu.
+- On tablet/desktop screens, the composer can keep all draft tools visible while preserving Send as the visually primary action.
 - Conversation-title suggestions filter as the user types and support mouse/touch selection plus desktop keyboard navigation with `ArrowUp`, `ArrowDown`, `Enter`, `Tab`, and `Escape`.
 - The visible Send button sends the current draft.
 - Empty or whitespace-only messages should not be sent.
@@ -224,8 +226,8 @@ The user can export conversation data from inside the signed-in app for experime
 
 Version 1 behavior:
 
-- The active conversation header exposes an `Export conversation` action.
-- The app header exposes an `Export all conversations` action.
+- The active conversation header More menu exposes an `Export conversation` action.
+- The app header More menu exposes an `Export all conversations` action.
 - Each export downloads a faithful JSON bundle and a readable Markdown companion.
 - JSON preserves full conversation and message records, including inline image attachment data.
 - Markdown includes readable conversation/message metadata and raw text, but omits inline base64 image payloads.
@@ -275,7 +277,7 @@ The user can synthesize a map-like index for the active conversation.
 
 Version 1 behavior:
 
-- The active conversation header has a `Synthesize conversation index` action.
+- The active conversation header More menu has a `Synthesize conversation index` action.
 - The action sends all currently visible conversation blocks in display order in one contextual AI request.
 - Previous synthesized index blocks are included as source blocks for later synthesis.
 - The newly created index block is appended to the bottom of the conversation.
@@ -589,11 +591,10 @@ Content:
 
 - Header with app name
 - Calendar action
-- Export all conversations action
+- More menu with export all conversations and sign-out actions
 - Search button or search input
 - New conversation button
 - List of conversations
-- Sign-out option
 
 Each conversation row should show:
 
@@ -624,7 +625,9 @@ Content:
 - Conversation title
 - Back button on mobile
 - Information-only mode toggle in the conversation header
-- List/Kanban view controls and Kanban column management controls in the conversation header
+- List/Kanban view controls in the conversation header on wider screens, and in the header More menu on narrow screens
+- Secondary header actions such as export and conversation-index synthesis in a More menu
+- Kanban column management controls near the active Kanban view rather than competing with the main conversation title
 - Message list
 - Message input fixed at the bottom of the visible conversation pane
 - Image preview strip in the composer when images are selected or pasted
@@ -636,10 +639,11 @@ Content:
 - Message tag chips plus an inline add/remove editor with suggestions
 - Compact button-like per-block Kanban column selector beside the tag chips when Kanban columns exist
 - Message action: convert to English
-- Header action: synthesize a clickable conversation index
-- Header action: export the active conversation as JSON plus Markdown
+- Header More action: synthesize a clickable conversation index
+- Header More action: export the active conversation as JSON plus Markdown
 - Transfer dialog for copying/forwarding whole blocks or selected text parts with tap and drag word selection, plus direct target selection for whole-block moves
 - Reorder controls for moving text blocks, plus drag-handle reordering between blocks on desktop and touch/pointer devices
+- Normal list block reorder controls and Delete live in block More so common block actions remain compact.
 - Selection controls and a merge action for combining multiple selected blocks
 - English conversion picker modal with scrollable segment options
 - Date/time metadata and edit controls when a block is scheduled or being edited

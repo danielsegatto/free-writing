@@ -1,6 +1,6 @@
 # Free Writing Documentation
 
-Last updated: 2026-05-28
+Last updated: 2026-05-29
 
 This is the entry point for the Free Writing PWA documentation. The detailed base document has been split into smaller files so product intent, architecture, implementation status, and reusable prompts can be updated independently.
 
@@ -40,6 +40,7 @@ Recommended Version 1 stack:
 Read these files by purpose:
 
 - [Product brief](product/v1-product-brief.md): app idea, target devices, Version 1 goal, exclusions, core user story, and product summary.
+- [Design principles](product/design-principles.md): mobile-first visual hierarchy, action disclosure, stable reading regions, dark theme guidance, and future-agent design direction.
 - [Features and screens](product/v1-features-and-screens.md): feature behavior, screen requirements, functional and non-functional requirements, and acceptance criteria.
 - [Firebase PWA architecture](architecture/firebase-pwa-architecture.md): architecture decision, data model, Firestore structure, offline behavior, sync behavior, security, privacy, and stack options.
 - [Current implementation](implementation/current-implementation.md): current React/Firebase app state, code organization, hosting decision, known follow-ups, and implementation-specific notes.
@@ -58,6 +59,14 @@ Use the product docs when changing what the app should do or checking whether a 
 - Version 1 exclusions
 - Core user story
 - Version 1 product summary
+
+[Design principles](product/design-principles.md) contains:
+
+- Content-first interface principles
+- Header and action hierarchy guidance
+- Progressive disclosure rules
+- Mobile-first layout expectations
+- Future-agent UI guidance
 
 [Features and screens](product/v1-features-and-screens.md) contains:
 

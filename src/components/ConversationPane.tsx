@@ -25,6 +25,7 @@ import {
   X
 } from 'lucide-react';
 import { EnglishPickerModal } from './EnglishPickerModal';
+import { HeaderOverflowMenu } from './HeaderOverflowMenu';
 import { MessageDragPreview } from './MessageDragPreview';
 import { MessageComposer } from './MessageComposer';
 import { MessageBubble, type CopyFeedbackStatus } from './MessageBubble';
@@ -986,6 +987,34 @@ export function ConversationPane({
   ) : null;
   const headerStatus = synthesisError ?? conversationExportError ?? (isSynthesizingIndex ? 'Synthesizing conversation index...' : null) ?? (isExportingConversation ? 'Exporting conversation...' : null);
   const headerStatusIsError = Boolean(synthesisError || conversationExportError);
+  const headerOverflowItems = [
+    {
+      label: 'List view',
+      icon: <List size={17} />,
+      active: !isKanbanView,
+      pressed: !isKanbanView,
+      onClick: () => void onSetVisualizationView('list')
+    },
+    {
+      label: 'Kanban view',
+      icon: <LayoutGrid size={17} />,
+      active: isKanbanView,
+      pressed: isKanbanView,
+      onClick: () => void onSetVisualizationView('kanban')
+    },
+    {
+      label: 'Export conversation',
+      icon: <Download size={17} />,
+      disabled: isExportingConversation,
+      onClick: onExportConversation
+    },
+    {
+      label: 'Synthesize conversation index',
+      icon: <MapIcon size={17} />,
+      disabled: activeMessages.length === 0 || isSynthesizingIndex,
+      onClick: () => void synthesizeConversationIndex()
+    }
+  ];
 
   return (
     <section className={`conversation-pane ${activeConversation ? 'open' : ''}`}>
@@ -995,7 +1024,7 @@ export function ConversationPane({
             <button className="icon-button back-button" title="Back" onClick={onBack}>
               <ArrowLeft size={20} />
             </button>
-            <div>
+            <div className="header-title-block">
               <h2>{activeConversation.title}</h2>
               {headerStatus && (
                 <p className={headerStatusIsError ? 'conversation-status error' : 'conversation-status'} role={headerStatusIsError ? 'alert' : 'status'}>
@@ -1004,26 +1033,28 @@ export function ConversationPane({
               )}
             </div>
             <div className="conversation-header-actions">
-              <button
-                className={!isKanbanView ? 'icon-button active' : 'icon-button'}
-                type="button"
-                title="List view"
-                aria-label="List view"
-                aria-pressed={!isKanbanView}
-                onClick={() => void onSetVisualizationView('list')}
-              >
-                <List size={18} />
-              </button>
-              <button
-                className={isKanbanView ? 'icon-button active' : 'icon-button'}
-                type="button"
-                title="Kanban view"
-                aria-label="Kanban view"
-                aria-pressed={isKanbanView}
-                onClick={() => void onSetVisualizationView('kanban')}
-              >
-                <LayoutGrid size={18} />
-              </button>
+              <div className="conversation-view-switcher" aria-label="Conversation view">
+                <button
+                  className={!isKanbanView ? 'icon-button active' : 'icon-button'}
+                  type="button"
+                  title="List view"
+                  aria-label="List view"
+                  aria-pressed={!isKanbanView}
+                  onClick={() => void onSetVisualizationView('list')}
+                >
+                  <List size={18} />
+                </button>
+                <button
+                  className={isKanbanView ? 'icon-button active' : 'icon-button'}
+                  type="button"
+                  title="Kanban view"
+                  aria-label="Kanban view"
+                  aria-pressed={isKanbanView}
+                  onClick={() => void onSetVisualizationView('kanban')}
+                >
+                  <LayoutGrid size={18} />
+                </button>
+              </div>
               <button
                 className={isInformationMode ? 'icon-button active' : 'icon-button'}
                 type="button"
@@ -1034,24 +1065,7 @@ export function ConversationPane({
               >
                 {isInformationMode ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
-              <button
-                className="icon-button"
-                type="button"
-                title="Export conversation"
-                disabled={isExportingConversation}
-                onClick={onExportConversation}
-              >
-                <Download size={18} />
-              </button>
-              <button
-                className="icon-button"
-                type="button"
-                title="Synthesize conversation index"
-                disabled={activeMessages.length === 0 || isSynthesizingIndex}
-                onClick={() => void synthesizeConversationIndex()}
-              >
-                <MapIcon size={18} />
-              </button>
+              <HeaderOverflowMenu items={headerOverflowItems} />
             </div>
           </header>
 

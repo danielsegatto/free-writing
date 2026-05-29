@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { MessageEditForm } from './MessageEditForm';
 import { MessageConnections } from './MessageConnections';
+import { HeaderOverflowMenu, type HeaderOverflowMenuItem } from './HeaderOverflowMenu';
 import { MessageTagEditor } from './MessageTagEditor';
 import { MessageText } from './MessageText';
 import type { Conversation, KanbanColumn, Message, MessageReference } from '../types';
@@ -238,6 +239,42 @@ export function MessageBubble({
     ) : null;
   const hasPreviousKanbanColumn = currentKanbanColumnIndex > 0;
   const hasNextKanbanColumn = currentKanbanColumnIndex >= 0 && currentKanbanColumnIndex < kanbanColumns.length - 1;
+  const blockOverflowActions: HeaderOverflowMenuItem[] = [
+    ...(!isKanbanCard
+      ? [
+          {
+            label: 'Move up',
+            icon: <ArrowUp size={17} />,
+            disabled: isReorderDisabled || messageIndex === 0,
+            onClick: () => onMoveMessage(messageIndex, -1)
+          },
+          {
+            label: 'Move down',
+            icon: <ArrowDown size={17} />,
+            disabled: isReorderDisabled || messageIndex === messageCount - 1,
+            onClick: () => onMoveMessage(messageIndex, 1)
+          },
+          {
+            label: 'Drag to reorder',
+            icon: <GripVertical size={17} />,
+            disabled: isReorderDisabled || messageCount < 2,
+            draggable: !isReorderDisabled && messageCount > 1,
+            onDragStart: (event: DragEvent<HTMLButtonElement>) => onDragStart(event, message.id),
+            onDragEnd,
+            onPointerDown: (event: PointerEvent<HTMLButtonElement>) => onPointerDown(event, message.id),
+            onPointerMove,
+            onPointerUp,
+            onPointerCancel
+          }
+        ]
+      : []),
+    {
+      label: 'Delete',
+      icon: <Trash2 size={17} />,
+      danger: true,
+      onClick: () => onDeleteMessage(message)
+    }
+  ];
 
   useEffect(() => {
     return () => {
@@ -462,7 +499,7 @@ export function MessageBubble({
           />
           {!isSelectionMode && !isBlockInformationMode && !message.isPending && (
             <div className="message-actions">
-              {isKanbanCard && currentKanbanColumnId ? (
+              {isKanbanCard && currentKanbanColumnId && (
                 <div className="reorder-actions" aria-label="Move Kanban card">
                   <button
                     className="icon-button bare"
@@ -501,39 +538,6 @@ export function MessageBubble({
                     }}
                   >
                     <ArrowRight size={16} />
-                  </button>
-                </div>
-              ) : (
-                <div className="reorder-actions" aria-label="Reorder message">
-                  <button
-                    className="icon-button bare"
-                    title="Move up"
-                    disabled={isReorderDisabled || messageIndex === 0}
-                    onClick={() => onMoveMessage(messageIndex, -1)}
-                  >
-                    <ArrowUp size={16} />
-                  </button>
-                  <button
-                    className="icon-button bare"
-                    title="Move down"
-                    disabled={isReorderDisabled || messageIndex === messageCount - 1}
-                    onClick={() => onMoveMessage(messageIndex, 1)}
-                  >
-                    <ArrowDown size={16} />
-                  </button>
-                  <button
-                    className="icon-button bare drag-handle"
-                    title="Drag to reorder"
-                    draggable={!isReorderDisabled && messageCount > 1}
-                    disabled={isReorderDisabled || messageCount < 2}
-                    onDragStart={(event) => onDragStart(event, message.id)}
-                    onDragEnd={onDragEnd}
-                    onPointerDown={(event) => onPointerDown(event, message.id)}
-                    onPointerMove={onPointerMove}
-                    onPointerUp={onPointerUp}
-                    onPointerCancel={onPointerCancel}
-                  >
-                    <GripVertical size={16} />
                   </button>
                 </div>
               )}
@@ -578,9 +582,7 @@ export function MessageBubble({
               <button className="icon-button bare" title="Move to conversation" onClick={() => onMoveToConversation(message)}>
                 <MoveRight size={16} />
               </button>
-              <button className="icon-button bare" title="Delete" onClick={() => onDeleteMessage(message)}>
-                <Trash2 size={16} />
-              </button>
+              <HeaderOverflowMenu label="More block actions" items={blockOverflowActions} />
             </div>
           )}
         </>

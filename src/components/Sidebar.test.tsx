@@ -87,6 +87,7 @@ describe('Sidebar', () => {
   it('exports all conversations from the app header', () => {
     const props = renderSidebar();
 
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
     fireEvent.click(screen.getByTitle('Export all conversations'));
 
     expect(props.onExportAllConversations).toHaveBeenCalledTimes(1);
@@ -98,6 +99,7 @@ describe('Sidebar', () => {
       allConversationsExportError: 'Unable to export conversations.'
     });
 
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
     expect(screen.getByTitle('Export all conversations')).toBeDisabled();
     expect(screen.getByRole('alert')).toHaveTextContent('Unable to export conversations.');
     expect(props.onExportAllConversations).not.toHaveBeenCalled();

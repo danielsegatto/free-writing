@@ -1,8 +1,8 @@
 # Current Implementation
 
-Last updated: 2026-05-28
+Last updated: 2026-05-29
 
-Related docs: [documentation overview](../README.md), [product brief](../product/v1-product-brief.md), [architecture](../architecture/firebase-pwa-architecture.md), [QA checklist](../qa-v1-verification.md).
+Related docs: [documentation overview](../README.md), [design principles](../product/design-principles.md), [product brief](../product/v1-product-brief.md), [architecture](../architecture/firebase-pwa-architecture.md), [QA checklist](../qa-v1-verification.md).
 
 ## Current implementation snapshot
 
@@ -32,6 +32,9 @@ Implemented:
 - Responsive phone/desktop layout.
 - Conversation pane layout is constrained to the viewport; only the message list scrolls, keeping the conversation header, merge toolbar, and composer visible in long conversations. Entering a conversation bottom-aligns the latest visible block, and newly appended visible blocks scroll into the bottom position.
 - Dark visual theme across sign-in, sidebar, conversation pane, composer, message bubbles, modal, and hover states.
+- Header hierarchy now follows the design principles: the conversation header keeps title, view switching on wider screens, information-only mode, and More visible; export and synthesis live in More. The app header keeps Calendar visible and moves export-all and sign-out to More.
+- Composer actions now follow a capture-first hierarchy: phone layouts keep Date, image attach, inline-link insertion, composer More, and Send in one action row while secondary tools move into More; wider layouts keep all composer tools visible with Send remaining the primary action.
+- Saved block actions now keep common actions visible in a compact toolbar while normal list reorder controls and Delete live in block More. Delete is styled as a destructive menu item.
 - PWA manifest and generated service worker.
 - Browser/PWA theme colors are aligned to the dark app shell color.
 - Firestore persistent local cache is enabled for cached data and offline writes.
@@ -78,6 +81,7 @@ Current visual system:
 - The UI uses a dark base (`#101719`) with dark panel surfaces and bright teal action accents.
 - `:root` declares `color-scheme: dark` so native form controls and browser defaults align with the app theme.
 - Shared button styling lives in `src/styles.css`: use `.icon-button` for icon-only controls, including the mobile back button, `.composer-date-button` for the composer's labeled date action, and `.primary-button` or `.new-conversation` for primary text+icon actions. The composer date width is centralized with `--composer-date-button-width` so desktop and mobile sizing stay aligned. These shared styles center direct SVG children and prevent icon sizing/alignment drift when new lucide icons are added.
+- Header overflow styling lives in `src/styles.css` and is rendered by `src/components/HeaderOverflowMenu.tsx`. Prefer this menu for rare header actions instead of adding more peer icon buttons.
 - Keep theme changes coordinated with `index.html` `theme-color` and `vite.config.ts` manifest `theme_color` / `background_color`.
 
 Firebase is configured through a local `.env` file using Vite environment variables:
@@ -130,10 +134,10 @@ src/components/SignInScreen.tsx
   Logged-out Firebase sign-in screen.
 
 src/components/Sidebar.tsx
-  Search, conversation list, create, rename, delete, drag reorder, and navigation UI. Normal conversation rows show title and updated time; search results still show matching message text for context.
+  Search, conversation list, create, rename, delete, drag reorder, and navigation UI. Normal conversation rows show title and updated time; search results still show matching message text for context. The app header keeps Calendar as the visible navigation action and places export-all plus sign-out in a shared header overflow menu.
 
 src/components/ConversationPane.tsx
-  Active conversation view and orchestration for information-only mode display, saved List/Kanban visualization switching, custom Kanban column controls, the currently exposed single-block normal-controls override, selected-message state, copy/download/edit/transfer/reorder/drag-and-drop/merge flows, English conversion hook wiring, index synthesis, insertion marker state, reference picker open mode, bottom-aligned latest-block scrolling on conversation entry/new block append, and inline edit/image-paste state. Backlink grouping is delegated to `src/utils/messageReferences.ts`.
+  Active conversation view and orchestration for information-only mode display, saved List/Kanban visualization switching, custom Kanban column controls, the currently exposed single-block normal-controls override, selected-message state, copy/download/edit/transfer/reorder/drag-and-drop/merge flows, English conversion hook wiring, index synthesis, insertion marker state, reference picker open mode, bottom-aligned latest-block scrolling on conversation entry/new block append, and inline edit/image-paste state. Its header keeps view switching visible on wider screens, keeps information-only mode visible everywhere, and moves export/synthesis plus mobile view switching into the shared header overflow menu. Backlink grouping is delegated to `src/utils/messageReferences.ts`.
 
 src/components/CalendarPane.tsx
   Global dated-block calendar. Owns Today/This week/This month view selection, groups loaded blocks by local date, and opens source messages through the same navigation/highlight path as references.
@@ -148,7 +152,7 @@ src/components/MessageDragPreview.tsx
   Floating dragged-message preview rendering used by message drag reordering.
 
 src/components/MessageBubble.tsx
-  Per-message rendering and local action wiring. Owns message metadata display including scheduled date/time, client-only `Sending...` pending state, clickable copied-origin conversation names, inert image attachment previews, synthesized index rows, copy feedback label, information-only `Show normal controls` / `Return block to view mode` toggles, list reorder buttons and drag handle, Kanban column assignment/move shortcuts, connect/download/transfer/delete/English action buttons, and drag/pointer event binding passed down from `ConversationPane`. Pending blocks hide normal block actions until confirmed. Text rendering, connection cards/backlinks, inline edit form markup, and block tag rendering/editing are delegated to smaller message components.
+  Per-message rendering and local action wiring. Owns message metadata display including scheduled date/time, client-only `Sending...` pending state, clickable copied-origin conversation names, inert image attachment previews, synthesized index rows, copy feedback label, information-only `Show normal controls` / `Return block to view mode` toggles, compact visible block actions, block More actions for normal list reorder/delete, Kanban column assignment/move shortcuts, connect/download/transfer/English action buttons, and drag/pointer event binding passed down from `ConversationPane`. Pending blocks hide normal block actions until confirmed. Text rendering, connection cards/backlinks, inline edit form markup, and block tag rendering/editing are delegated to smaller message components.
 
 src/components/MessageConnections.tsx
   Per-message structured reference and backlink rendering. Owns outbound reference cards, collapsed/expanded backlink rows, reference icons, and navigation target construction for cards while receiving loaded backlink data from `ConversationPane`.
@@ -163,7 +167,7 @@ src/components/MessageTagEditor.tsx
   Per-message tag chip and inline tag editor rendering. Owns tag editor open/draft/highlight/saving/error state, suggestion keyboard handling, add/remove actions, and calls back to `ConversationPane` through `MessageBubble` for persistence. It can receive a compact trailing control, currently used for the Kanban column selector beside the tag chips. Pure tag normalization, dedupe, add/remove, and suggestion filtering stay in `src/utils/tags.ts`.
 
 src/components/MessageComposer.tsx
-  Draft composer rendering, pending reference chips, inline conversation-link typeahead, visible `[[` insert action, labeled `Date` action, scheduled date/time input, image selection/paste previews, and keyboard behavior. Owns the composer form markup, draft textarea, visible send action, a synchronous submit guard for rapid clicks/shortcuts, `[[` suggestion list with click and keyboard completion, date action `aria-expanded` / `aria-controls` wiring, `Ctrl+Enter` / `Cmd+Enter` draft English conversion shortcut passed down from `ConversationPane`, and `Ctrl+Shift+Enter` / `Cmd+Shift+Enter` direct-send shortcut through the same submit path as the Send button.
+  Draft composer rendering, pending reference chips, inline conversation-link typeahead, visible `[[` insert action, labeled `Date` action, scheduled date/time input, image selection/paste previews, and keyboard behavior. Owns the composer form markup, draft textarea, primary and secondary draft action groups, visible send action, a synchronous submit guard for rapid clicks/shortcuts, `[[` suggestion list with click and keyboard completion, date action `aria-expanded` / `aria-controls` wiring, `Ctrl+Enter` / `Cmd+Enter` draft English conversion shortcut passed down from `ConversationPane`, and `Ctrl+Shift+Enter` / `Cmd+Shift+Enter` direct-send shortcut through the same submit path as the Send button.
 
 src/components/EnglishPickerModal.tsx
   English conversion dialog rendering. Receives picker state and callbacks from `useEnglishConversionPicker` through `ConversationPane`, renders saved-message source word selection, loading/error/ready/formatting/saving states, a scrollable English-only segment option list, and saved-message or draft-specific actions. Saved-message selection reuses `useWordRangeSelection` so tap/click toggles and pointer-drag select/unselect work like forwarding and quote selection. The ready state intentionally does not render source-language segment text or a separate assembled preview so large conversions keep the English options readable.

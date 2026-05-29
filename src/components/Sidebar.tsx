@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useRef, type MouseEvent } from 'react';
 import { CalendarDays, Download, Edit3, GripVertical, LogOut, Plus, Search, Tag, Trash2, X } from 'lucide-react';
+import { HeaderOverflowMenu } from './HeaderOverflowMenu';
 import { useListReorderDrag } from '../hooks/useListReorderDrag';
 import { signOutUser } from '../services/auth';
 import type { Conversation, Message } from '../types';
@@ -99,6 +100,19 @@ export function Sidebar({
     ? conversations.find((conversation) => conversation.id === dragPreview.itemId) ?? null
     : null;
   const hasSelectedTags = selectedTags.length > 0;
+  const headerOverflowItems = [
+    {
+      label: 'Export all conversations',
+      icon: <Download size={17} />,
+      disabled: conversations.length === 0 || isExportingAllConversations,
+      onClick: onExportAllConversations
+    },
+    {
+      label: 'Sign out',
+      icon: <LogOut size={17} />,
+      onClick: () => void signOutUser()
+    }
+  ];
 
   useEffect(() => {
     return () => {
@@ -133,7 +147,7 @@ export function Sidebar({
   return (
     <aside className={`sidebar ${activeConversation || isCalendarOpen ? 'has-active' : ''}`}>
       <header className="app-header">
-        <div>
+        <div className="header-title-block">
           <p className="eyebrow">Private notebook</p>
           <h1>Free Writing</h1>
           {(isExportingAllConversations || allConversationsExportError) && (
@@ -150,17 +164,7 @@ export function Sidebar({
           >
             <CalendarDays size={19} />
           </button>
-          <button
-            className="icon-button"
-            title="Export all conversations"
-            disabled={conversations.length === 0 || isExportingAllConversations}
-            onClick={onExportAllConversations}
-          >
-            <Download size={19} />
-          </button>
-          <button className="icon-button" title="Sign out" onClick={() => void signOutUser()}>
-            <LogOut size={19} />
-          </button>
+          <HeaderOverflowMenu items={headerOverflowItems} />
         </div>
       </header>
 
